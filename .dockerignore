@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.env.example
+.git/
+.gitignore
+analizar_inbox.py
+obtener_token.py
+package-lock.json

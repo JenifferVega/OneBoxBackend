@@ -1,0 +1,22 @@
+# ==============================================================================
+# onebox-agent-py/requirements.txt
+# ==============================================================================
+# Dependencias del agente OneBox
+# ==============================================================================
+
+# AWS SDK para Bedrock
+boto3>=1.34.0
+
+# HTTP requests para las APIs de Gmail
+requests>=2.31.0
+
+# Para desarrollo local (FastAPI)
+fastapi>=0.109.0
+uvicorn>=0.27.0
+pydantic>=2.5.0
+
+# Twilio para WhatsApp y SMS
+twilio>=9.0.0
+
+# Opcional: para debugging
+python-dotenv>=1.0.0
