@@ -1,5 +1,6 @@
 
 import os
+import re
 import json
 import uuid
 import requests
@@ -32,6 +33,47 @@ TWILIO_WHATSAPP_NUMBER = os.environ.get("TWILIO_WHATSAPP_NUMBER", "whatsapp:+141
 TWILIO_TEST_MODE = os.environ.get("TWILIO_TEST_MODE", "false").lower() == "true"
 
 notifications_table = dynamodb.Table('onebox-notifications')
+invitations_table = dynamodb.Table('onebox-invitations')
+
+# Validación E.164: + seguido de 8 a 15 dígitos (el primero no es 0).
+E164_REGEX = re.compile(r'^\+[1-9]\d{7,14}$')
+
+
+def _normalize_e164(phone: str) -> Optional[str]:
+    """Normaliza un teléfono a formato E.164. Devuelve None si no es válido.
+    Evita que Twilio falle en silencio por números mal formados."""
+    if not phone:
+        return None
+    p = str(phone).replace('whatsapp:', '').strip()
+    if E164_REGEX.match(p):
+        return p
+    digits = re.sub(r'\D', '', p)
+    if not digits:
+        return None
+    candidate = '+' + digits
+    return candidate if E164_REGEX.match(candidate) else None
+
+
+def _log_notification(now, project_id, project_name, canal, destinatario, mensaje,
+                      sid='', status='unknown', error=''):
+    """Registra CADA intento de envío en onebox-notifications, exitoso o no.
+    status: sent/queued/failed/invalid_phone/twilio_error/not_configured/test_simulated."""
+    try:
+        notifications_table.put_item(Item={
+            'userId': USER_ID,
+            'notificationId': f"{now}#{uuid.uuid4().hex[:8]}",
+            'projectId': project_id,
+            'projectName': project_name,
+            'canal': canal,
+            'destinatario': destinatario,
+            'mensaje': mensaje,
+            'twilioSid': sid,
+            'status': status,
+            'errorMessage': error,
+            'createdAt': now,
+        })
+    except Exception as e:
+        print(f"[Tool] no se pudo registrar notificación: {e}")
 
 
 TOOLS_DESCRIPTION = """
@@ -300,86 +342,79 @@ def listar_proyectos() -> dict:
 
 @register_tool("enviar_notificacion")
 def enviar_notificacion(destinatario: str, mensaje: str, canal: str = "whatsapp", project_id: str = "", project_name: str = "") -> dict:
-    """Envía una notificación por WhatsApp o SMS via Twilio (o simula en modo test)."""
-    try:
-        now = datetime.utcnow().isoformat()
+    """Envía una notificación por WhatsApp o SMS via Twilio (o simula en modo test).
+    Valida el teléfono a E.164 antes de enviar y registra cada intento (éxito o fallo)."""
+    now = datetime.utcnow().isoformat()
 
-        if canal == "whatsapp":
-            from_number = TWILIO_WHATSAPP_NUMBER or "whatsapp:+14155238886"
-            to_number = f"whatsapp:{destinatario}" if not destinatario.startswith("whatsapp:") else destinatario
-        else:
-            from_number = TWILIO_PHONE_NUMBER or "+15005550006"
-            to_number = destinatario
+    # 1) Validar/normalizar el teléfono ANTES de tocar Twilio (evita fallos silenciosos).
+    clean = _normalize_e164(destinatario)
+    if not clean:
+        _log_notification(now, project_id, project_name, canal, destinatario, mensaje,
+                          status='invalid_phone', error=f"Teléfono no E.164: '{destinatario}'")
+        return {"error": f"Teléfono no válido: '{destinatario}' (esperado E.164, ej: +34600123456)",
+                "status": "invalid_phone"}
 
-        print(f"[Tool] enviar_notificacion → {canal} a {to_number} (test_mode={TWILIO_TEST_MODE})")
+    if canal == "whatsapp":
+        from_number = TWILIO_WHATSAPP_NUMBER or "whatsapp:+14155238886"
+        to_number = f"whatsapp:{clean}"
+    else:
+        from_number = TWILIO_PHONE_NUMBER or "+15005550006"
+        to_number = clean
 
-        if TWILIO_TEST_MODE:
-            fake_sid = f"SM_TEST_{uuid.uuid4().hex[:16]}"
-            tw_status = "test_simulated"
-            print(f"[Tool] enviar_notificacion ← SIMULADO (SID: {fake_sid})")
-        else:
-            if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN or "xxx" in TWILIO_ACCOUNT_SID:
-                return {"error": "Twilio no configurado. Añade TWILIO_ACCOUNT_SID y TWILIO_AUTH_TOKEN reales al .env, o usa TWILIO_TEST_MODE=true"}
+    print(f"[Tool] enviar_notificacion → {canal} a {to_number} (test_mode={TWILIO_TEST_MODE})")
 
+    # 2) Enviar (o simular).
+    if TWILIO_TEST_MODE:
+        sid = f"SM_TEST_{uuid.uuid4().hex[:16]}"
+        tw_status = "test_simulated"
+        print(f"[Tool] enviar_notificacion ← SIMULADO (SID: {sid})")
+    else:
+        if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN or "xxx" in TWILIO_ACCOUNT_SID:
+            _log_notification(now, project_id, project_name, canal, clean, mensaje,
+                              status='not_configured', error='Twilio sin credenciales')
+            return {"error": "Twilio no configurado (faltan credenciales).", "status": "not_configured"}
+        try:
             from twilio.rest import Client
             client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-
-            tw_message = client.messages.create(
-                body=mensaje,
-                from_=from_number,
-                to=to_number
-            )
-            fake_sid = tw_message.sid
+            tw_message = client.messages.create(body=mensaje, from_=from_number, to=to_number)
+            sid = tw_message.sid
             tw_status = tw_message.status
-            print(f"[Tool] enviar_notificacion ← OK (SID: {fake_sid})")
+            print(f"[Tool] enviar_notificacion ← OK (SID: {sid}, status: {tw_status})")
+        except Exception as e:
+            # Twilio falló: lo registramos con el error real (antes se tragaba en silencio).
+            _log_notification(now, project_id, project_name, canal, clean, mensaje,
+                              status='twilio_error', error=str(e))
+            return {"error": f"Error de Twilio: {str(e)}", "status": "twilio_error"}
 
-        notification_id = f"{now}#{uuid.uuid4().hex[:8]}"
+    # 3) Registrar el envío (con su status real) y la conversación del proyecto.
+    _log_notification(now, project_id, project_name, canal, clean, mensaje, sid=sid, status=tw_status)
+
+    if project_id:
         try:
-            notifications_table.put_item(Item={
-                'userId': USER_ID,
-                'notificationId': notification_id,
+            conversations_table.put_item(Item={
                 'projectId': project_id,
-                'projectName': project_name,
-                'canal': canal,
-                'destinatario': destinatario,
-                'mensaje': mensaje,
-                'twilioSid': fake_sid,
-                'status': tw_status,
-                'createdAt': now
+                'conversationId': f"twilio#{sid}",
+                'userId': USER_ID,
+                'from': 'OneBox IA',
+                'fromEmail': '',
+                'subject': f'Notificación {canal.upper()} enviada',
+                'body': mensaje,
+                'date': now,
+                'channel': canal,
+                'status': 'sent',
+                'createdAt': now,
             })
         except Exception:
-            pass 
+            pass
 
-        if project_id:
-            conv_id = f"twilio#{fake_sid}"
-            try:
-                conversations_table.put_item(Item={
-                    'projectId': project_id,
-                    'conversationId': conv_id,
-                    'userId': USER_ID,
-                    'from': 'OneBox IA',
-                    'fromEmail': '',
-                    'subject': f'Notificación {canal.upper()} enviada',
-                    'body': mensaje,
-                    'date': now,
-                    'channel': canal,
-                    'status': 'sent',
-                    'createdAt': now
-                })
-            except Exception:
-                pass
-
-        mode_label = "TEST" if TWILIO_TEST_MODE else "REAL"
-        return {
-            "success": True,
-            "sid": fake_sid,
-            "status": tw_status,
-            "canal": canal,
-            "destinatario": destinatario,
-            "mode": mode_label
-        }
-    except Exception as e:
-        return {"error": f"Error enviando {canal}: {str(e)}"}
+    return {
+        "success": True,
+        "sid": sid,
+        "status": tw_status,
+        "canal": canal,
+        "destinatario": clean,
+        "mode": "TEST" if TWILIO_TEST_MODE else "REAL",
+    }
 
 
 @register_tool("listar_notificaciones")

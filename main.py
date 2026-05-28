@@ -73,18 +73,46 @@ if __name__ == "__main__":
     from pydantic import BaseModel
     from typing import List, Optional
     from datetime import datetime, timedelta
+    import uuid
     import uvicorn
     import boto3 as _boto3
     from boto3.dynamodb.conditions import Key, Attr
     from agent.tools import (
         projects_table, conversations_table, tasks_table,
-        insights_table, notifications_table, USER_ID
+        insights_table, notifications_table, invitations_table, USER_ID
     )
+    from agent.llm import call_llm, extract_json_from_response
     dynamodb = _boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
+    def require_uid(uid_value: str) -> str:
+        """Devuelve el userId del request o lanza 401 si falta.
+        NUNCA cae en un USER_ID por defecto: ese fallback filtraba datos de una
+        cuenta real a cualquiera que llamara sin identificarse (fuga entre usuarios)."""
+        if not uid_value:
+            raise HTTPException(status_code=401, detail="x-user-id requerido")
+        return uid_value
+
     def get_user_id(x_user_id: str = Header(default="")) -> str:
-        """Extract user ID from request header, fallback to default."""
-        return x_user_id if x_user_id else USER_ID
+        """Extrae el userId del header x-user-id. Lanza 401 si falta."""
+        return require_uid(x_user_id)
+
+    def scan_all_pages(table, **scan_kwargs):
+        """Realiza un Scan paginado completo en una tabla DynamoDB.
+        Necesario porque scan() devuelve máximo 1 MB de items y aplica el FilterExpression
+        DESPUÉS de leer; sin paginar, items que coinciden con el filtro pueden quedar
+        invisibles si están en páginas posteriores. Devuelve la lista completa de Items."""
+        items = []
+        last_key = None
+        while True:
+            kwargs = dict(scan_kwargs)
+            if last_key:
+                kwargs['ExclusiveStartKey'] = last_key
+            res = table.scan(**kwargs)
+            items.extend(res.get('Items', []))
+            last_key = res.get('LastEvaluatedKey')
+            if not last_key:
+                break
+        return items
 
     app = FastAPI(title="OneBox Agent", version="1.0.0")
 
@@ -111,18 +139,25 @@ if __name__ == "__main__":
         type: str = "Otro"
         participants: Optional[List[dict]] = []
         channels: Optional[List[str]] = ["Gmail"]
+        timing: Optional[str] = ""  # Plazo del proyecto (libre, ej: "8 semanas", "30/06/2026", "Q3 2026")
+        deliveryDate: Optional[str] = ""  # Fecha de entrega ISO (opcional)
 
     class CreateTaskRequest(BaseModel):
         text: str
         assigned_to: str = ""
         status: str = "pending"
         description: str = ""
+        start_date: Optional[str] = None   # YYYY-MM-DD (opcional)
+        due_date: Optional[str] = None     # YYYY-MM-DD (opcional)
 
     class UpdateTaskRequest(BaseModel):
         text: Optional[str] = None
         status: Optional[str] = None
         assigned_to: Optional[str] = None
         description: Optional[str] = None
+        blocked_reason: Optional[str] = None  # Motivo del bloqueo (opcional)
+        start_date: Optional[str] = None      # YYYY-MM-DD
+        due_date: Optional[str] = None        # YYYY-MM-DD
 
     class AssignRequest(BaseModel):
         projectId: str
@@ -170,43 +205,83 @@ if __name__ == "__main__":
     @app.get("/api/projects")
     async def get_projects(user_id: str = Header(alias="x-user-id", default=""), x_user_email: str = Header(default="")):
         """Lista todos los proyectos con datos enriquecidos (task counts, insights, etc.)."""
-        uid = user_id if user_id else USER_ID
+        uid = require_uid(user_id)
         user_email = x_user_email.lower() if x_user_email else ""
         try:
-            proj_result = projects_table.scan(
+            # IMPORTANTE: usamos scan_all_pages para evitar perder items por paginación.
+            # DynamoDB Scan tiene límite de 1MB por página y aplica el filtro DESPUÉS de leer.
+            own_projects = scan_all_pages(
+                projects_table,
                 FilterExpression=Attr('userId').eq(uid)
             )
-            own_projects = proj_result.get('Items', [])
             own_ids = {p['projectId'] for p in own_projects}
 
+            # Proyectos compartidos: solo si el email del usuario aparece EXACTAMENTE
+            # como participante. Quitamos el match por nombre (muy permisivo y peligroso
+            # — podía mostrar proyectos de otros usuarios por coincidencias casuales).
             shared_projects = []
             if user_email:
-                all_proj_result = projects_table.scan()
-                for p in all_proj_result.get('Items', []):
+                all_proj_items = scan_all_pages(projects_table)
+                for p in all_proj_items:
                     if p['projectId'] in own_ids:
-                        continue  
+                        continue
                     participants = p.get('participants', [])
                     for part in participants:
-                        part_email = (part.get('email', '') or '').lower()
-                        part_name = (part.get('nombre', '') or '').lower()
-                        if (part_email and part_email == user_email) or \
-                           (user_email.split('@')[0] in part_name):
-                            p['_shared'] = True  
+                        part_email = (part.get('email', '') or '').strip().lower()
+                        # Solo match por EMAIL EXACTO. Nada más.
+                        if part_email and part_email == user_email:
+                            p['_shared'] = True
                             shared_projects.append(p)
                             break
 
-            projects = own_projects + shared_projects
+            # Proyectos por INVITACIÓN: si el usuario tiene invitaciones pendientes
+            # con su email, las marcamos como aceptadas y añadimos los proyectos.
+            invited_projects = []
+            if user_email:
+                try:
+                    inv_resp = invitations_table.query(
+                        IndexName='email-index',
+                        KeyConditionExpression=Key('email').eq(user_email),
+                    )
+                    inv_now = datetime.utcnow().isoformat()
+                    seen_proj_ids = own_ids | {p['projectId'] for p in shared_projects}
+                    for inv in inv_resp.get('Items', []):
+                        pid = inv.get('projectId')
+                        if not pid or pid in seen_proj_ids:
+                            continue
+                        # Auto-aceptar si está pendiente
+                        if inv.get('status') == 'pending':
+                            try:
+                                invitations_table.update_item(
+                                    Key={'invitationId': inv['invitationId']},
+                                    UpdateExpression="SET #s = :s, acceptedAt = :a, acceptedBy = :b",
+                                    ExpressionAttributeNames={'#s': 'status'},
+                                    ExpressionAttributeValues={':s': 'accepted', ':a': inv_now, ':b': uid},
+                                )
+                            except Exception as e:
+                                print(f"[get_projects] No se pudo auto-aceptar invitación {inv.get('invitationId')}: {e}")
+                        # Cargar el proyecto y añadirlo
+                        proj_item = projects_table.get_item(Key={'projectId': pid}).get('Item')
+                        if proj_item:
+                            proj_item['_invited'] = True
+                            invited_projects.append(proj_item)
+                            seen_proj_ids.add(pid)
+                except Exception as e:
+                    print(f"[get_projects] Error consultando invitaciones: {e}")
 
-            tasks_result = tasks_table.scan(
+            projects = own_projects + shared_projects + invited_projects
+
+            all_tasks = scan_all_pages(
+                tasks_table,
                 FilterExpression=Attr('userId').eq(uid)
             )
-            all_tasks = tasks_result.get('Items', [])
 
-            insights_result = insights_table.scan(
+            all_insights_raw = scan_all_pages(
+                insights_table,
                 FilterExpression=Attr('userId').eq(uid)
             )
             all_insights = sorted(
-                insights_result.get('Items', []),
+                all_insights_raw,
                 key=lambda x: x.get('createdAt', ''),
                 reverse=True
             )
@@ -223,13 +298,40 @@ if __name__ == "__main__":
                 pending = len([t for t in proj_tasks if t.get('status') == 'pending'])
                 blocked = len([t for t in proj_tasks if t.get('status') == 'blocked'])
                 total = len(proj_tasks)
-                progress = round((done / total) * 100) if total > 0 else 0
+
+                # =====================================================
+                # CÁLCULO DE % DE AVANCE CON LÓGICA DE BLOQUEOS CRÍTICOS
+                # =====================================================
+                # Bloqueos críticos que fuerzan progress=0:
+                #   - Sin participantes en el proyecto
+                #   - Más bloqueos que tareas hechas (proyecto atascado)
+                # Si hay bloqueos pero también progreso, el % se penaliza.
+                # Si todo está OK, cálculo normal.
+                participants_list = proj.get('participants', [])
+                no_participants = len(participants_list) == 0
+                project_stuck = blocked > 0 and blocked >= done  # más bloqueos que avance real
+                progress_blocked_reason = ''
+
+                if total == 0:
+                    progress = 0
+                elif no_participants and total > 0:
+                    progress = 0
+                    progress_blocked_reason = 'Sin participantes asignados'
+                elif project_stuck:
+                    # Proyecto atascado: calculamos avance pero lo penalizamos a la mitad
+                    progress = max(0, round((done / total) * 100 * 0.5))
+                    progress_blocked_reason = f'{blocked} tarea(s) bloqueada(s) frenan el avance'
+                else:
+                    progress = round((done / total) * 100)
 
                 proj_insights = [i for i in all_insights if i.get('projectId') == pid]
 
                 overdue = [t for t in proj_tasks
                            if t.get('status') == 'pending' and t.get('dueDate', '') and t.get('dueDate', '') < today]
-                if blocked >= 2 or len(overdue) >= 2:
+                # Lógica SLA mejorada: considerar también la falta de participantes
+                if no_participants and total > 0:
+                    sla = 'sla_vencido'  # Crítico: tareas pero sin equipo
+                elif blocked >= 2 or len(overdue) >= 2:
                     sla = 'sla_vencido'
                 elif blocked > 0 or len(overdue) > 0:
                     sla = 'en_riesgo'
@@ -291,14 +393,18 @@ if __name__ == "__main__":
                 tasks_list = []
                 for t in proj_tasks:
                     assigned = t.get('assignedTo', '') or 'Sin asignar'
-                    status_labels = {
-                        'done': 'Completada', 'pending': 'Pendiente',
-                        'blocked': 'Bloqueada', 'in_progress': 'En curso',
-                    }
-                    tags = [status_labels.get(t.get('status', ''), t.get('status', ''))]
+                    # El ESTADO de la tarea es un campo propio (status), NO un tag.
+                    # No lo metemos en tags para evitar la redundancia "Pendiente: Completada"
+                    # (el frontend ya pinta el estado como badge a partir de status).
+                    # tags solo lleva etiquetas reales: recordatorio, vencida.
+                    is_overdue = bool(
+                        t.get('dueDate', '') and t.get('dueDate', '') < today
+                        and t.get('status') == 'pending'
+                    )
+                    tags = []
                     if t.get('type') == 'reminder':
                         tags.append('Recordatorio')
-                    if t.get('dueDate', '') and t.get('dueDate', '') < today and t.get('status') == 'pending':
+                    if is_overdue:
                         tags.append('Vencida')
 
                     tasks_list.append({
@@ -306,6 +412,10 @@ if __name__ == "__main__":
                         'text': t.get('text', ''),
                         'status': t.get('status', 'pending'),
                         'description': t.get('description', ''),
+                        'overdue': is_overdue,
+                        'blockedReason': t.get('blockedReason', ''),
+                        'startDate': t.get('startDate', ''),
+                        'dueDate': t.get('dueDate', ''),
                         'assignedTo': {
                             'nombre': assigned,
                             'iniciales': iniciales(assigned),
@@ -323,8 +433,10 @@ if __name__ == "__main__":
                     'sla': sla,
                     'type': proj.get('type', 'Otro'),
                     'deliveryDate': proj.get('deliveryDate', ''),
+                    'timing': proj.get('timing', ''),
                     'daysLeft': 0,
                     'progress': progress,
+                    'progressBlockedReason': progress_blocked_reason,
                     'hechas': done,
                     'pendientes': pending,
                     'bloqueadas': blocked,
@@ -345,7 +457,7 @@ if __name__ == "__main__":
                     'notifications': [],
                 })
 
-             Ordenar: activos primero, luego por nombre
+            # Ordenar: activos primero, luego por nombre
             enriched.sort(key=lambda p: (0 if p['status'] == 'active' else 1, p['name']))
             return enriched
 
@@ -358,9 +470,9 @@ if __name__ == "__main__":
     @app.get("/api/projects/{project_id}")
     async def get_project(project_id: str, x_user_id: str = Header(default="")):
         """Obtiene un proyecto específico con todos sus datos."""
-        uid = x_user_id if x_user_id else USER_ID
+        uid = require_uid(x_user_id)
         try:
-             Proyecto
+            # Proyecto
             proj_result = projects_table.get_item(Key={'projectId': project_id})
             if 'Item' not in proj_result:
                 raise HTTPException(status_code=404, detail="Proyecto no encontrado")
@@ -409,27 +521,25 @@ if __name__ == "__main__":
 
     @app.post("/api/projects")
     async def create_project(req: CreateProjectRequest, x_user_id: str = Header(default="")):
-        """Crea un nuevo proyecto."""
-        uid = x_user_id if x_user_id else USER_ID
+        """Crea un nuevo proyecto con análisis IA, notificaciones e insights.
+        Usa la función compartida `create_project_full` (también usada por el flujo de WhatsApp)."""
+        uid = require_uid(x_user_id)
         try:
-            import uuid
-            project_id = "proj-" + uuid.uuid4().hex[:8]
-            now = datetime.utcnow().isoformat()
-            item = {
-                'projectId': project_id,
-                'userId': uid,
-                'name': req.name,
-                'description': req.description,
-                'type': req.type,
-                'status': 'active',
-                'participants': req.participants or [],
-                'channels': req.channels or ['Gmail'],
-                'createdAt': now,
-                'lastActivity': now,
-            }
-            projects_table.put_item(Item=item)
-            return {"success": True, "projectId": project_id, "name": req.name}
+            from agent.project_helpers import create_project_full
+            result = create_project_full(
+                user_id=uid,
+                name=req.name,
+                description=req.description,
+                project_type=req.type,
+                channels=req.channels,
+                participants=req.participants,
+                timing=req.timing or '',
+                delivery_date=req.deliveryDate or ''
+            )
+            return result
         except Exception as e:
+            print(f"[create_project] Error: {e}")
+            import traceback; traceback.print_exc()
             raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -439,7 +549,7 @@ if __name__ == "__main__":
     @app.put("/api/projects/{project_id}/participants")
     async def update_participants(project_id: str, req: UpdateParticipantsRequest, x_user_id: str = Header(default="")):
         """Actualiza los participantes de un proyecto (incluye teléfonos)."""
-        uid = x_user_id if x_user_id else USER_ID
+        uid = require_uid(x_user_id)
         try:
             projects_table.update_item(
                 Key={'projectId': project_id},
@@ -452,11 +562,891 @@ if __name__ == "__main__":
             raise HTTPException(status_code=500, detail=str(e))
 
 
+    class InviteRequest(BaseModel):
+        email: str
+
+    @app.post("/api/projects/{project_id}/invite")
+    async def invite_user_to_project(project_id: str, req: InviteRequest, x_user_id: str = Header(default="")):
+        """Invita a un usuario al proyecto: crea usuario en Cognito (le manda email
+        con contraseña temporal) y guarda la invitación. Al primer login del invitado,
+        el sistema le añade el proyecto automáticamente."""
+        uid = require_uid(x_user_id)
+        email = (req.email or '').strip().lower()
+        if not email or '@' not in email:
+            raise HTTPException(status_code=400, detail="Email inválido")
+
+        # Verificar que el proyecto pertenece al usuario
+        proj = projects_table.get_item(Key={'projectId': project_id}).get('Item')
+        if not proj:
+            raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        if proj.get('userId') != uid:
+            raise HTTPException(status_code=403, detail="No tienes permiso sobre este proyecto")
+
+        # Crear usuario en Cognito (si no existe). Cognito enviará el email automáticamente.
+        cognito_client = _boto3.client('cognito-idp', region_name='us-east-1')
+        pool_id = os.environ.get('COGNITO_USER_POOL_ID', 'us-east-1_b76prubhx')
+        cognito_user_existed = False
+        email_resent = False
+        user_status = None
+        try:
+            cognito_client.admin_create_user(
+                UserPoolId=pool_id,
+                Username=email,
+                UserAttributes=[
+                    {'Name': 'email', 'Value': email},
+                    {'Name': 'email_verified', 'Value': 'true'},
+                ],
+                DesiredDeliveryMediums=['EMAIL'],
+            )
+        except cognito_client.exceptions.UsernameExistsException:
+            cognito_user_existed = True
+            # El usuario ya existe. Si todavía no activó la cuenta
+            # (FORCE_CHANGE_PASSWORD), re-enviamos el email de invitación con
+            # MessageAction=RESEND para recordarle que tiene proyectos esperando.
+            try:
+                u = cognito_client.admin_get_user(UserPoolId=pool_id, Username=email)
+                user_status = u.get('UserStatus')
+                if user_status == 'FORCE_CHANGE_PASSWORD':
+                    cognito_client.admin_create_user(
+                        UserPoolId=pool_id,
+                        Username=email,
+                        MessageAction='RESEND',
+                        DesiredDeliveryMediums=['EMAIL'],
+                    )
+                    email_resent = True
+                    print(f"[invite] Email reenviado a {email} (estaba en FORCE_CHANGE_PASSWORD)")
+            except Exception as inner:
+                # No bloqueamos el flujo si el resend falla; la invitación queda guardada.
+                print(f"[invite] No se pudo reenviar el email: {inner}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Cognito error: {str(e)}")
+
+        # Guardar invitación (pendiente). Si ya estaba aceptada, no duplicamos.
+        now = datetime.utcnow().isoformat()
+        invitation_id = str(uuid.uuid4())
+        try:
+            invitations_table.put_item(Item={
+                'invitationId': invitation_id,
+                'email': email,
+                'projectId': project_id,
+                'projectName': proj.get('name', ''),
+                'invitedBy': uid,
+                'status': 'pending',
+                'createdAt': now,
+            })
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"DynamoDB error: {str(e)}")
+
+        # Mensaje contextual según el caso
+        if not cognito_user_existed:
+            msg = "Invitación enviada. El usuario recibirá un correo con su contraseña temporal."
+        elif email_resent:
+            msg = "El usuario ya tenía cuenta pendiente de activar. Le reenviamos el correo de invitación."
+        elif user_status == 'CONFIRMED':
+            msg = "El usuario ya tiene cuenta activa. El proyecto le aparecerá la próxima vez que inicie sesión."
+        else:
+            msg = "Invitación registrada. El proyecto le aparecerá al iniciar sesión."
+
+        return {
+            "success": True,
+            "invitationId": invitation_id,
+            "email": email,
+            "cognitoUserExisted": cognito_user_existed,
+            "emailResent": email_resent,
+            "userStatus": user_status,
+            "message": msg,
+        }
+
+
+    @app.delete("/api/projects/{project_id}")
+    async def delete_project(project_id: str, x_user_id: str = Header(default="")):
+        """Elimina un proyecto y sus datos relacionados (insights, notificaciones, tareas)."""
+        uid = require_uid(x_user_id)
+        try:
+            # Verificar que el proyecto pertenece al usuario
+            existing = projects_table.get_item(Key={'projectId': project_id}).get('Item')
+            if not existing:
+                raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+            if existing.get('userId') != uid:
+                raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este proyecto")
+
+            project_name = existing.get('name', 'Proyecto')
+
+            # Eliminar el proyecto
+            projects_table.delete_item(Key={'projectId': project_id})
+            print(f"[delete_project] Proyecto {project_id} eliminado")
+
+            # Eliminar insights asociados
+            try:
+                insights_to_delete = insights_table.scan(
+                    FilterExpression=Attr('userId').eq(uid) & Attr('projectId').eq(project_id),
+                    ProjectionExpression='userId,insightId'
+                ).get('Items', [])
+                for ins in insights_to_delete:
+                    insights_table.delete_item(Key={'userId': ins['userId'], 'insightId': ins['insightId']})
+                print(f"[delete_project] {len(insights_to_delete)} insights eliminados")
+            except Exception as e:
+                print(f"[delete_project] Error borrando insights: {e}")
+
+            # Eliminar notificaciones asociadas
+            try:
+                notifs_to_delete = notifications_table.query(
+                    KeyConditionExpression=Key('userId').eq(uid),
+                    FilterExpression=Attr('projectId').eq(project_id),
+                    ProjectionExpression='userId,notificationId'
+                ).get('Items', [])
+                for n in notifs_to_delete:
+                    notifications_table.delete_item(Key={'userId': n['userId'], 'notificationId': n['notificationId']})
+                print(f"[delete_project] {len(notifs_to_delete)} notificaciones eliminadas")
+            except Exception as e:
+                print(f"[delete_project] Error borrando notificaciones: {e}")
+
+            # Eliminar tareas asociadas
+            try:
+                tasks_to_delete = tasks_table.query(
+                    KeyConditionExpression=Key('projectId').eq(project_id),
+                    ProjectionExpression='projectId,taskId'
+                ).get('Items', [])
+                for t in tasks_to_delete:
+                    tasks_table.delete_item(Key={'projectId': t['projectId'], 'taskId': t['taskId']})
+                print(f"[delete_project] {len(tasks_to_delete)} tareas eliminadas")
+            except Exception as e:
+                print(f"[delete_project] Error borrando tareas: {e}")
+
+            return {"success": True, "projectId": project_id, "name": project_name}
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[delete_project] Error: {e}")
+            import traceback; traceback.print_exc()
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+    # ========================================================================
+    # ATTACHMENTS / DOCUMENTOS
+    # ========================================================================
+    from fastapi import UploadFile, File, Form
+
+    attachments_table = dynamodb.Table('onebox-attachments')
+
+    def _save_attachment_record(project_id: str, user_id: str, file_name: str,
+                                 file_size: int, content_type: str, ext: str,
+                                 s3_key: str, extracted_text: str = "",
+                                 source: str = "web") -> dict:
+        """Guarda metadata del adjunto en DynamoDB."""
+        now = datetime.utcnow().isoformat()
+        attachment_id = f"{now}#{uuid.uuid4().hex[:8]}"
+        item = {
+            'projectId': project_id,
+            'attachmentId': attachment_id,
+            'userId': user_id,
+            'fileName': file_name,
+            'fileSize': file_size,
+            'contentType': content_type,
+            'extension': ext,
+            's3Key': s3_key,
+            'extractedTextPreview': (extracted_text or '')[:500],
+            'extractedTextLength': len(extracted_text or ''),
+            'source': source,
+            'createdAt': now,
+        }
+        attachments_table.put_item(Item=item)
+        return item
+
+    class AnalyzeTextPreviewRequest(BaseModel):
+        text: str
+        source: Optional[str] = "paste"
+
+    @app.post("/api/text/analyze")
+    async def analyze_text_preview(req: AnalyzeTextPreviewRequest, x_user_id: str = Header(default="")):
+        """Analiza un texto pegado SIN crear proyecto. Devuelve draftId + sugerencia.
+        Equivalente a /api/documents/analyze pero para texto. Reusa /api/projects/from-document-draft
+        para confirmar."""
+        from agent.document_parser import analyze_document_for_project, upload_to_s3
+
+        uid = require_uid(x_user_id)
+        try:
+            text = (req.text or '').strip()
+            if len(text) < 30:
+                raise HTTPException(status_code=400, detail="El texto es muy corto. Pega al menos una conversación o un párrafo.")
+
+            # Sugerir metadata con IA
+            analysis = analyze_document_for_project(text)
+
+            # Guardar como draft .txt en S3 + DynamoDB (igual que un documento)
+            draft_id = uuid.uuid4().hex
+            source = req.source or 'paste'
+            now = datetime.utcnow().isoformat()
+            file_name = f"texto-pegado-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
+            text_bytes = text.encode('utf-8')
+            s3_key = upload_to_s3(text_bytes, f"_drafts/{uid}", file_name, 'text/plain')
+
+            attachments_table.put_item(Item={
+                'projectId': f'_draft#{uid}',
+                'attachmentId': draft_id,
+                'userId': uid,
+                'fileName': file_name,
+                'fileSize': len(text_bytes),
+                'contentType': 'text/plain',
+                'extension': 'txt',
+                's3Key': s3_key,
+                'extractedTextPreview': text[:5000],
+                'extractedTextLength': len(text),
+                'source': f'web_draft_{source}',
+                'createdAt': now,
+            })
+
+            return {
+                "draftId": draft_id,
+                "fileName": file_name,
+                "fileSize": len(text_bytes),
+                "extractedTextLength": len(text),
+                "suggestion": {
+                    "name": analysis['name'],
+                    "type": analysis['type'],
+                    "description": analysis['description'],
+                    "extractedNotes": analysis.get('extractedNotes', ''),
+                    "detected_participants": analysis.get('detected_participants', []),
+                }
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[analyze_text_preview] Error: {e}")
+            import traceback; traceback.print_exc()
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+    @app.post("/api/documents/analyze")
+    async def analyze_document_preview(
+        file: UploadFile = File(...),
+        x_user_id: str = Header(default="")
+    ):
+        """Analiza un documento (extrae texto + sugiere metadata) SIN crear el proyecto.
+        El frontend muestra el preview, el usuario revisa/edita y luego confirma.
+        Devuelve un draft_id que se usará después en /api/projects/from-document-draft."""
+        from agent.document_parser import (
+            validate_file, extract_text, analyze_document_for_project, upload_to_s3
+        )
+
+        uid = require_uid(x_user_id)
+        try:
+            file_bytes = await file.read()
+            valid, ext, error = validate_file(file_bytes, file.filename or '', file.content_type or '')
+            if not valid:
+                raise HTTPException(status_code=400, detail=error)
+
+            text = extract_text(file_bytes, ext)
+            if not text or len(text.strip()) < 20:
+                raise HTTPException(status_code=400, detail="No se pudo extraer texto del documento o es muy breve.")
+
+            # Sugerir metadata con IA
+            analysis = analyze_document_for_project(text)
+
+            # Subir el archivo a un "draft" en S3 para confirmación posterior
+            draft_id = uuid.uuid4().hex
+            s3_key = upload_to_s3(file_bytes, f"_drafts/{uid}", file.filename or f'doc.{ext}', file.content_type or '')
+
+            # Guardar el draft en DynamoDB attachments con projectId especial "_draft"
+            attachments_table.put_item(Item={
+                'projectId': f'_draft#{uid}',
+                'attachmentId': draft_id,
+                'userId': uid,
+                'fileName': file.filename or f'doc.{ext}',
+                'fileSize': len(file_bytes),
+                'contentType': file.content_type or '',
+                'extension': ext,
+                's3Key': s3_key,
+                'extractedTextPreview': text[:5000],
+                'extractedTextLength': len(text),
+                'source': 'web_draft',
+                'createdAt': datetime.utcnow().isoformat(),
+            })
+
+            return {
+                "draftId": draft_id,
+                "fileName": file.filename or f'doc.{ext}',
+                "fileSize": len(file_bytes),
+                "extractedTextLength": len(text),
+                "suggestion": {
+                    "name": analysis['name'],
+                    "type": analysis['type'],
+                    "description": analysis['description'],
+                    "extractedNotes": analysis.get('extractedNotes', ''),
+                    "detected_participants": analysis.get('detected_participants', []),
+                }
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[analyze_document] Error: {e}")
+            import traceback; traceback.print_exc()
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+    class CreateProjectFromDraftRequest(BaseModel):
+        draftId: str
+        name: str
+        type: Optional[str] = "Otro"
+        description: str
+        channels: List[str] = []
+        emails: Optional[List[str]] = []
+        phones: Optional[List[str]] = []
+        timing: Optional[str] = ""
+        deliveryDate: Optional[str] = ""
+        # Participantes detectados por IA: cada uno con {name, email, phone, role}
+        # Permite preservar el nombre real (Kevin/Mateo) en lugar de usar el email como nombre.
+        detectedParticipants: Optional[List[dict]] = []
+
+    @app.post("/api/projects/from-document-draft")
+    async def create_project_from_draft(req: CreateProjectFromDraftRequest, x_user_id: str = Header(default="")):
+        """Crea el proyecto definitivo a partir de un draft analizado previamente.
+        Mueve el archivo del draft a la carpeta del proyecto y registra el adjunto."""
+        from agent.document_parser import S3_ATTACHMENTS_BUCKET, get_s3_client
+        from agent.project_helpers import create_project_full
+
+        uid = require_uid(x_user_id)
+        try:
+            # Recuperar el draft
+            draft = attachments_table.get_item(
+                Key={'projectId': f'_draft#{uid}', 'attachmentId': req.draftId}
+            ).get('Item')
+            if not draft:
+                raise HTTPException(status_code=404, detail="Borrador no encontrado o expirado")
+
+            # Validaciones mínimas
+            name = (req.name or '').strip()
+            if not name:
+                raise HTTPException(status_code=400, detail="El nombre del proyecto es requerido")
+            if not req.channels or len(req.channels) == 0:
+                raise HTTPException(status_code=400, detail="Selecciona al menos un canal")
+
+            # Construir participantes
+            participants = []
+            seen_emails = set()
+            seen_phones = set()
+
+            # 1. Participantes detectados por IA (preservan el nombre original: Kevin, Mateo...)
+            for p in (req.detectedParticipants or []):
+                if not isinstance(p, dict):
+                    continue
+                pname = (p.get('name') or '').strip()[:80]
+                pemail = (p.get('email') or '').strip().lower()
+                pphone_raw = (p.get('phone') or '').strip()
+                prole = (p.get('role') or 'Participante').strip()[:80]
+                pphone = ''
+                if pphone_raw:
+                    pphone = pphone_raw if pphone_raw.startswith('+') else '+' + pphone_raw.replace(' ', '').replace('-', '')
+                # Solo agregar si tiene nombre y al menos un canal de contacto (o solo nombre como referencia)
+                if pname or pemail or pphone:
+                    participants.append({
+                        'nombre': pname or (pemail.split('@')[0] if pemail else pphone),
+                        'email': pemail if '@' in pemail else '',
+                        'telefono': pphone,
+                        'rol': prole or 'Participante'
+                    })
+                    if pemail and '@' in pemail:
+                        seen_emails.add(pemail)
+                    if pphone:
+                        seen_phones.add(pphone)
+
+            # 2. Emails sueltos agregados manualmente (que NO vengan de detectados)
+            for email in (req.emails or []):
+                e = (email or '').strip().lower()
+                if e and '@' in e and e not in seen_emails:
+                    participants.append({
+                        'nombre': e.split('@')[0],
+                        'email': e,
+                        'telefono': '',
+                        'rol': 'Contacto Email'
+                    })
+                    seen_emails.add(e)
+
+            # 3. Teléfonos sueltos agregados manualmente
+            for phone in (req.phones or []):
+                pclean = (phone or '').strip()
+                if pclean:
+                    formatted = pclean if pclean.startswith('+') else '+' + pclean
+                    if formatted not in seen_phones:
+                        participants.append({
+                            'nombre': formatted,
+                            'email': '',
+                            'telefono': formatted,
+                            'rol': 'Contacto WhatsApp'
+                        })
+                        seen_phones.add(formatted)
+
+            # Crear el proyecto con la info revisada por el usuario
+            result = create_project_full(
+                user_id=uid,
+                name=name,
+                description=req.description or '',
+                project_type=req.type or 'Otro',
+                channels=req.channels,
+                participants=participants,
+                timing=req.timing or '',
+                delivery_date=req.deliveryDate or ''
+            )
+            project_id = result['projectId']
+
+            # Mover el archivo del draft a la carpeta del proyecto definitivo
+            try:
+                s3 = get_s3_client()
+                old_key = draft['s3Key']
+                # Nuevo key con la estructura normal de proyecto
+                new_key = old_key.replace(f'projects/_drafts/{uid}', f'projects/{project_id}/{datetime.utcnow().strftime("%Y%m%d")}')
+                s3.copy_object(
+                    Bucket=S3_ATTACHMENTS_BUCKET,
+                    CopySource={'Bucket': S3_ATTACHMENTS_BUCKET, 'Key': old_key},
+                    Key=new_key,
+                    ServerSideEncryption='AES256'
+                )
+                s3.delete_object(Bucket=S3_ATTACHMENTS_BUCKET, Key=old_key)
+
+                # Registrar el adjunto definitivo
+                _save_attachment_record(
+                    project_id=project_id,
+                    user_id=uid,
+                    file_name=draft.get('fileName', 'documento'),
+                    file_size=int(draft.get('fileSize', 0)),
+                    content_type=draft.get('contentType', ''),
+                    ext=draft.get('extension', ''),
+                    s3_key=new_key,
+                    extracted_text=draft.get('extractedTextPreview', ''),
+                    source='web'
+                )
+
+                # Borrar el registro del draft
+                attachments_table.delete_item(
+                    Key={'projectId': f'_draft#{uid}', 'attachmentId': req.draftId}
+                )
+            except Exception as e:
+                print(f"[from_draft] Error moviendo draft: {e}")
+                import traceback; traceback.print_exc()
+                # No fallar la creación si el move falla
+
+            return result
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[from_draft] Error: {e}")
+            import traceback; traceback.print_exc()
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+    @app.post("/api/projects/from-document")
+    async def create_project_from_document(
+        file: UploadFile = File(...),
+        name: Optional[str] = Form(None),
+        channels: Optional[str] = Form(None),  # CSV: "Gmail,WhatsApp"
+        x_user_id: str = Header(default="")
+    ):
+        """Crea un proyecto a partir de un documento. La IA infiere nombre, tipo
+        y descripción si no se proveen. El documento queda anexado al proyecto."""
+        from agent.document_parser import (
+            validate_file, extract_text, analyze_document_for_project, upload_to_s3
+        )
+        from agent.project_helpers import create_project_full
+
+        uid = require_uid(x_user_id)
+        try:
+            file_bytes = await file.read()
+            valid, ext, error = validate_file(file_bytes, file.filename or '', file.content_type or '')
+            if not valid:
+                raise HTTPException(status_code=400, detail=error)
+
+            # Extraer texto
+            print(f"[from_document] Extrayendo texto de {file.filename} ({len(file_bytes)} bytes, ext={ext})")
+            text = extract_text(file_bytes, ext)
+            if not text or len(text.strip()) < 20:
+                raise HTTPException(status_code=400, detail="No se pudo extraer texto del documento o es demasiado breve.")
+            print(f"[from_document] Texto extraído: {len(text)} caracteres")
+
+            # Analizar con IA si no se dio nombre/tipo
+            analysis = analyze_document_for_project(text, fallback_name=name or '')
+            project_name = (name or analysis['name']).strip()[:80]
+            project_type = analysis['type']
+            description = analysis['description']
+            if analysis.get('extractedNotes'):
+                description += "\n\nNotas: " + analysis['extractedNotes']
+
+            # Parsear canales
+            channel_list = []
+            if channels:
+                channel_list = [c.strip() for c in channels.split(',') if c.strip()]
+            if not channel_list:
+                channel_list = ['Gmail']
+
+            # Crear proyecto + insights
+            result = create_project_full(
+                user_id=uid,
+                name=project_name,
+                description=description,
+                project_type=project_type,
+                channels=channel_list,
+                participants=[]
+            )
+            project_id = result['projectId']
+
+            # Subir archivo a S3
+            s3_key = upload_to_s3(file_bytes, project_id, file.filename or f'doc.{ext}', file.content_type or '')
+
+            # Registrar adjunto en DynamoDB
+            att = _save_attachment_record(
+                project_id=project_id,
+                user_id=uid,
+                file_name=file.filename or f'doc.{ext}',
+                file_size=len(file_bytes),
+                content_type=file.content_type or '',
+                ext=ext,
+                s3_key=s3_key,
+                extracted_text=text,
+                source='web'
+            )
+
+            result['attachment'] = {
+                'attachmentId': att['attachmentId'],
+                'fileName': att['fileName'],
+                'fileSize': att['fileSize'],
+            }
+            result['analysis'] = analysis
+            return result
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[from_document] Error: {e}")
+            import traceback; traceback.print_exc()
+            raise HTTPException(status_code=500, detail=str(e))
+
+    class AnalyzeTextRequest(BaseModel):
+        text: str
+        source: Optional[str] = "paste"  # "paste", "whatsapp", "gmail", "manual"
+
+    class CreateProjectFromTextRequest(BaseModel):
+        text: str
+        name: Optional[str] = None
+        channels: Optional[List[str]] = None
+        source: Optional[str] = "paste"
+
+    @app.post("/api/projects/from-text")
+    async def create_project_from_text(req: CreateProjectFromTextRequest, x_user_id: str = Header(default="")):
+        """Crea un proyecto desde un texto pegado (conversación WhatsApp, correo, notas).
+        La IA infiere nombre, tipo, descripción y genera insights automáticamente."""
+        from agent.document_parser import analyze_document_for_project
+        from agent.project_helpers import create_project_full
+
+        uid = require_uid(x_user_id)
+        try:
+            text = (req.text or '').strip()
+            if len(text) < 30:
+                raise HTTPException(status_code=400, detail="El texto es muy corto. Pega al menos una conversación completa o un párrafo descriptivo.")
+
+            # IA infiere metadata
+            analysis = analyze_document_for_project(text, fallback_name=req.name or '')
+            project_name = (req.name or analysis['name']).strip()[:80]
+            project_type = analysis['type']
+            description = analysis['description']
+            if analysis.get('extractedNotes'):
+                description += "\n\nNotas: " + analysis['extractedNotes']
+
+            channel_list = req.channels or ['Gmail']
+
+            # Crear proyecto + insights
+            result = create_project_full(
+                user_id=uid,
+                name=project_name,
+                description=description,
+                project_type=project_type,
+                channels=channel_list,
+                participants=[]
+            )
+            project_id = result['projectId']
+
+            # Guardar el texto pegado como "adjunto" tipo .txt en el proyecto
+            try:
+                from agent.document_parser import upload_to_s3
+                fname = f"texto-pegado-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
+                s3_key = upload_to_s3(text.encode('utf-8'), project_id, fname, 'text/plain')
+                _save_attachment_record(
+                    project_id=project_id,
+                    user_id=uid,
+                    file_name=fname,
+                    file_size=len(text.encode('utf-8')),
+                    content_type='text/plain',
+                    ext='txt',
+                    s3_key=s3_key,
+                    extracted_text=text,
+                    source=req.source or 'paste'
+                )
+            except Exception as e:
+                print(f"[from_text] Error guardando texto: {e}")
+
+            result['analysis'] = analysis
+            return result
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[from_text] Error: {e}")
+            import traceback; traceback.print_exc()
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/api/projects/{project_id}/analyze-text")
+    async def analyze_text_for_project(project_id: str, req: AnalyzeTextRequest, x_user_id: str = Header(default="")):
+        """Analiza un texto pegado dentro de un proyecto existente.
+        Genera nuevos insights (tareas, riesgos, decisiones) sin crear un proyecto nuevo."""
+        from agent.document_parser import upload_to_s3
+        from agent.project_helpers import generate_insights_for_project
+
+        uid = require_uid(x_user_id)
+        try:
+            existing = projects_table.get_item(Key={'projectId': project_id}).get('Item')
+            if not existing:
+                raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+            if existing.get('userId') != uid:
+                raise HTTPException(status_code=403, detail="No tienes permiso")
+
+            text = (req.text or '').strip()
+            if len(text) < 30:
+                raise HTTPException(status_code=400, detail="El texto es muy corto.")
+
+            # Guardar el texto como "adjunto" tipo .txt
+            fname = f"texto-pegado-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
+            try:
+                s3_key = upload_to_s3(text.encode('utf-8'), project_id, fname, 'text/plain')
+                _save_attachment_record(
+                    project_id=project_id,
+                    user_id=uid,
+                    file_name=fname,
+                    file_size=len(text.encode('utf-8')),
+                    content_type='text/plain',
+                    ext='txt',
+                    s3_key=s3_key,
+                    extracted_text=text,
+                    source=req.source or 'paste'
+                )
+            except Exception as e:
+                print(f"[analyze_text] Error guardando texto: {e}")
+
+            # Generar insights con la IA
+            insights_result = generate_insights_for_project(
+                user_id=uid,
+                project_id=project_id,
+                project_name=existing.get('name', 'Proyecto'),
+                project_type=existing.get('type', 'Otro'),
+                description=text[:5000],
+                participants_count=len(existing.get('participants', []))
+            )
+
+            # Notificación in-app
+            if insights_result.get('generated') and insights_result.get('count', 0) > 0:
+                try:
+                    notifications_table.put_item(Item={
+                        'userId': uid,
+                        'notificationId': f"{datetime.utcnow().isoformat()}#{uuid.uuid4().hex[:8]}",
+                        'projectId': project_id,
+                        'projectName': existing.get('name', 'Proyecto'),
+                        'type': 'text_analyzed',
+                        'title': f'Texto analizado: {insights_result["count"]} insights',
+                        'mensaje': f'La IA analizó el texto pegado y generó {insights_result["count"]} insights nuevos.',
+                        'canal': 'system',
+                        'status': 'unread',
+                        'createdAt': datetime.utcnow().isoformat(),
+                    })
+                except Exception as e:
+                    print(f"[analyze_text] notif error: {e}")
+
+            return {
+                "success": True,
+                "insightsGenerated": insights_result,
+                "savedAs": fname
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[analyze_text] Error: {e}")
+            import traceback; traceback.print_exc()
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+    @app.post("/api/projects/{project_id}/attachments")
+    async def upload_attachment(
+        project_id: str,
+        file: UploadFile = File(...),
+        x_user_id: str = Header(default="")
+    ):
+        """Adjunta un documento a un proyecto existente. La IA genera insights
+        adicionales con el contenido del documento."""
+        from agent.document_parser import validate_file, extract_text, upload_to_s3
+        from agent.project_helpers import generate_insights_for_project
+
+        uid = require_uid(x_user_id)
+        try:
+            # Verificar que el proyecto pertenece al usuario
+            existing = projects_table.get_item(Key={'projectId': project_id}).get('Item')
+            if not existing:
+                raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+            if existing.get('userId') != uid:
+                raise HTTPException(status_code=403, detail="No tienes permiso para este proyecto")
+
+            file_bytes = await file.read()
+            valid, ext, error = validate_file(file_bytes, file.filename or '', file.content_type or '')
+            if not valid:
+                raise HTTPException(status_code=400, detail=error)
+
+            text = extract_text(file_bytes, ext)
+            print(f"[attachment] {file.filename}: {len(text)} caracteres extraídos")
+
+            # Subir a S3
+            s3_key = upload_to_s3(file_bytes, project_id, file.filename or f'doc.{ext}', file.content_type or '')
+
+            # Registrar adjunto
+            att = _save_attachment_record(
+                project_id=project_id,
+                user_id=uid,
+                file_name=file.filename or f'doc.{ext}',
+                file_size=len(file_bytes),
+                content_type=file.content_type or '',
+                ext=ext,
+                s3_key=s3_key,
+                extracted_text=text,
+                source='web'
+            )
+
+            # Si hay texto suficiente, generar insights adicionales
+            insights_result = {"generated": False, "reason": "no_text"}
+            if text and len(text.strip()) >= 100:
+                insights_result = generate_insights_for_project(
+                    user_id=uid,
+                    project_id=project_id,
+                    project_name=existing.get('name', 'Proyecto'),
+                    project_type=existing.get('type', 'Otro'),
+                    description=text[:5000],
+                    participants_count=len(existing.get('participants', []))
+                )
+
+                # Notificación in-app
+                if insights_result.get('generated') and insights_result.get('count', 0) > 0:
+                    try:
+                        notifications_table.put_item(Item={
+                            'userId': uid,
+                            'notificationId': f"{datetime.utcnow().isoformat()}#{uuid.uuid4().hex[:8]}",
+                            'projectId': project_id,
+                            'projectName': existing.get('name', 'Proyecto'),
+                            'type': 'document_analyzed',
+                            'title': f'Documento analizado: {file.filename}',
+                            'mensaje': f'La IA generó {insights_result["count"]} nuevos insights desde "{file.filename}"',
+                            'canal': 'system',
+                            'status': 'unread',
+                            'createdAt': datetime.utcnow().isoformat(),
+                        })
+                    except Exception as e:
+                        print(f"[attachment] notif error: {e}")
+
+            return {
+                "success": True,
+                "attachment": {
+                    'attachmentId': att['attachmentId'],
+                    'fileName': att['fileName'],
+                    'fileSize': att['fileSize'],
+                    'extractedTextLength': att['extractedTextLength'],
+                },
+                "insightsGenerated": insights_result
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[attachment] Error: {e}")
+            import traceback; traceback.print_exc()
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/api/projects/{project_id}/attachments")
+    async def list_attachments(project_id: str, x_user_id: str = Header(default="")):
+        """Lista los adjuntos de un proyecto."""
+        uid = require_uid(x_user_id)
+        try:
+            existing = projects_table.get_item(Key={'projectId': project_id}).get('Item')
+            if not existing:
+                raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+            if existing.get('userId') != uid:
+                raise HTTPException(status_code=403, detail="No tienes permiso")
+
+            result = attachments_table.query(
+                KeyConditionExpression=Key('projectId').eq(project_id),
+                ScanIndexForward=False
+            )
+            items = result.get('Items', [])
+            return [{
+                'attachmentId': i.get('attachmentId'),
+                'fileName': i.get('fileName'),
+                'fileSize': int(i.get('fileSize', 0)),
+                'contentType': i.get('contentType', ''),
+                'extension': i.get('extension', ''),
+                'extractedTextPreview': i.get('extractedTextPreview', ''),
+                'extractedTextLength': int(i.get('extractedTextLength', 0)),
+                'source': i.get('source', 'web'),
+                'createdAt': i.get('createdAt', ''),
+            } for i in items]
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/api/attachments/{project_id}/{attachment_id}/download")
+    async def download_attachment(project_id: str, attachment_id: str, x_user_id: str = Header(default="")):
+        """Genera URL presignada de S3 para descargar el adjunto."""
+        from agent.document_parser import generate_download_url
+        uid = require_uid(x_user_id)
+        try:
+            item = attachments_table.get_item(
+                Key={'projectId': project_id, 'attachmentId': attachment_id}
+            ).get('Item')
+            if not item:
+                raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+            if item.get('userId') != uid:
+                raise HTTPException(status_code=403, detail="No tienes permiso")
+
+            url = generate_download_url(item['s3Key'], item.get('fileName', 'documento'))
+            return {"url": url, "fileName": item.get('fileName'), "expiresIn": 600}
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.delete("/api/attachments/{project_id}/{attachment_id}")
+    async def delete_attachment(project_id: str, attachment_id: str, x_user_id: str = Header(default="")):
+        """Elimina un adjunto (S3 + registro DynamoDB)."""
+        from agent.document_parser import delete_from_s3
+        uid = require_uid(x_user_id)
+        try:
+            item = attachments_table.get_item(
+                Key={'projectId': project_id, 'attachmentId': attachment_id}
+            ).get('Item')
+            if not item:
+                raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+            if item.get('userId') != uid:
+                raise HTTPException(status_code=403, detail="No tienes permiso")
+
+            delete_from_s3(item.get('s3Key', ''))
+            attachments_table.delete_item(Key={'projectId': project_id, 'attachmentId': attachment_id})
+            return {"success": True}
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
 
     @app.get("/api/projects/{project_id}/tasks")
     async def get_tasks(project_id: str, x_user_id: str = Header(default="")):
         """Lista tareas de un proyecto."""
-        uid = x_user_id if x_user_id else USER_ID
+        uid = require_uid(x_user_id)
         try:
             result = tasks_table.scan(
                 FilterExpression=Attr('projectId').eq(project_id) & Attr('userId').eq(uid)
@@ -474,7 +1464,7 @@ if __name__ == "__main__":
     @app.post("/api/projects/{project_id}/tasks")
     async def create_task(project_id: str, req: CreateTaskRequest, x_user_id: str = Header(default="")):
         """Crea una tarea en un proyecto."""
-        uid = x_user_id if x_user_id else USER_ID
+        uid = require_uid(x_user_id)
         try:
             import uuid
             task_id = str(uuid.uuid4())
@@ -488,6 +1478,8 @@ if __name__ == "__main__":
                 'status': req.status,
                 'createdBy': 'usuario',
                 'assignedTo': req.assigned_to,
+                'startDate': req.start_date or '',
+                'dueDate': req.due_date or '',
                 'createdAt': now,
             }
             tasks_table.put_item(Item=item)
@@ -499,7 +1491,7 @@ if __name__ == "__main__":
     @app.put("/api/tasks/{task_id}")
     async def update_task(task_id: str, req: UpdateTaskRequest, x_user_id: str = Header(default="")):
         """Actualiza una tarea."""
-        uid = x_user_id if x_user_id else USER_ID
+        uid = require_uid(x_user_id)
         try:
             result = tasks_table.scan(
                 FilterExpression=Attr('taskId').eq(task_id) & Attr('userId').eq(uid)
@@ -513,11 +1505,19 @@ if __name__ == "__main__":
             if req.text is not None:
                 updates['text'] = req.text
             if req.status is not None:
-                updates['status'] = req.status
+                # Normalizar 'completed' (legacy) → 'done' para mantener consistencia
+                normalized_status = 'done' if req.status == 'completed' else req.status
+                updates['status'] = normalized_status
             if req.assigned_to is not None:
                 updates['assignedTo'] = req.assigned_to
             if req.description is not None:
                 updates['description'] = req.description
+            if req.blocked_reason is not None:
+                updates['blockedReason'] = req.blocked_reason
+            if req.start_date is not None:
+                updates['startDate'] = req.start_date
+            if req.due_date is not None:
+                updates['dueDate'] = req.due_date
 
             if updates:
                 expr_parts = []
@@ -535,6 +1535,40 @@ if __name__ == "__main__":
                     ExpressionAttributeNames=expr_names,
                 )
 
+            # Si la tarea ACABA de pasar a 'blocked', avisar por WhatsApp a los
+            # participantes con teléfono (en un hilo, para no bloquear la respuesta).
+            old_status = task.get('status', '')
+            new_status = updates.get('status')
+            if new_status == 'blocked' and old_status != 'blocked':
+                import threading
+                proj_id = task['projectId']
+                task_text = updates.get('text', task.get('text', ''))
+                reason = (updates.get('blockedReason') or task.get('blockedReason') or '').strip()
+                def _notify_blocked():
+                    try:
+                        from agent.tools import enviar_notificacion
+                        proj = projects_table.get_item(Key={'projectId': proj_id}).get('Item') or {}
+                        if proj.get('userId') != uid:
+                            return  # seguridad: solo el dueño del proyecto
+                        proj_name = proj.get('name', '')
+                        msg = (f"🔴 OneBox: la tarea \"{task_text}\" del proyecto "
+                               f"\"{proj_name}\" está BLOQUEADA y requiere atención.")
+                        if reason:
+                            msg += f"\nMotivo: {reason}"
+                        sent = 0
+                        for part in proj.get('participants', []):
+                            tel = (part.get('telefono') or part.get('phone') or '').strip()
+                            if not tel:
+                                continue
+                            res = enviar_notificacion(tel, msg, canal='whatsapp',
+                                                      project_id=proj_id, project_name=proj_name)
+                            if res.get('success'):
+                                sent += 1
+                        print(f"[update_task] Tarea bloqueada → {sent} notificación(es) enviada(s)")
+                    except Exception as e:
+                        print(f"[update_task] Error notificando bloqueo: {e}")
+                threading.Thread(target=_notify_blocked, daemon=True).start()
+
             return {"success": True, "taskId": task_id}
         except HTTPException:
             raise
@@ -542,7 +1576,26 @@ if __name__ == "__main__":
             raise HTTPException(status_code=500, detail=str(e))
 
 
-    
+    @app.delete("/api/tasks/{task_id}")
+    async def delete_task(task_id: str, x_user_id: str = Header(default="")):
+        """Elimina una tarea (solo si pertenece al usuario)."""
+        uid = require_uid(x_user_id)
+        try:
+            # Localizar la tarea por scan (no tenemos GSI por taskId)
+            result = tasks_table.scan(
+                FilterExpression=Attr('taskId').eq(task_id) & Attr('userId').eq(uid)
+            )
+            items = result.get('Items', [])
+            if not items:
+                raise HTTPException(status_code=404, detail="Tarea no encontrada")
+            task = items[0]
+            tasks_table.delete_item(Key={'projectId': task['projectId'], 'taskId': task_id})
+            return {"success": True, "taskId": task_id}
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
 
     @app.get("/api/projects/{project_id}/conversations")
     async def get_conversations(project_id: str):
@@ -569,15 +1622,14 @@ if __name__ == "__main__":
     @app.get("/api/insights")
     async def get_insights(type: Optional[str] = Query(None), x_user_id: str = Header(default="")):
         """Lista insights/acciones de la IA, opcionalmente filtradas por tipo."""
-        uid = x_user_id if x_user_id else USER_ID
+        uid = require_uid(x_user_id)
         try:
             filter_expr = Attr('userId').eq(uid)
             if type:
                 filter_expr = filter_expr & Attr('type').eq(type)
 
-            result = insights_table.scan(FilterExpression=filter_expr)
             insights = sorted(
-                result.get('Items', []),
+                scan_all_pages(insights_table, FilterExpression=filter_expr),
                 key=lambda x: x.get('createdAt', ''),
                 reverse=True
             )
@@ -591,15 +1643,21 @@ if __name__ == "__main__":
                 time_str = created[11:16] if len(created) > 16 else created[:10]
 
                 type_map = {
-                    'decision':     {'badge': 'Decisión',         'badgeColor': 'bg-blue-500/20 text-blue-400 border-blue-500/30',    'icon': '✓', 'iconColor': 'bg-emerald-500/20 text-emerald-400'},
-                    'blocker':      {'badge': 'Bloqueador',       'badgeColor': 'bg-red-500/20 text-red-400 border-red-500/30',       'icon': '●', 'iconColor': 'bg-red-500/20 text-red-400'},
-                    'task_created': {'badge': 'Tarea Creada',     'badgeColor': 'bg-violet-500/20 text-violet-400 border-violet-500/30','icon': '📋','iconColor': 'bg-violet-500/20 text-violet-400'},
-                    'followup':     {'badge': 'Follow-up',        'badgeColor': 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30','icon': '📧','iconColor': 'bg-indigo-500/20 text-indigo-400'},
-                    'risk':         {'badge': 'Riesgo',           'badgeColor': 'bg-orange-500/20 text-orange-400 border-orange-500/30','icon': '⚠','iconColor': 'bg-amber-500/20 text-amber-400'},
-                    'sla':          {'badge': 'SLA',              'badgeColor': 'bg-red-500/20 text-red-400 border-red-500/30',       'icon': '🚨','iconColor': 'bg-red-500/20 text-red-400'},
-                    'notification': {'badge': 'Notificación',     'badgeColor': 'bg-sky-500/20 text-sky-400 border-sky-500/30',       'icon': '📱','iconColor': 'bg-sky-500/20 text-sky-400'},
-                    'classification':{'badge': 'Clasificación',   'badgeColor': 'bg-teal-500/20 text-teal-400 border-teal-500/30',    'icon': '🧠','iconColor': 'bg-teal-500/20 text-teal-400'},
-                    'summary':      {'badge': 'Resumen',          'badgeColor': 'bg-purple-500/20 text-purple-400 border-purple-500/30','icon': '📊','iconColor': 'bg-purple-500/20 text-purple-400'},
+                    'decision':                {'badge': 'Decisión',          'badgeColor': 'bg-blue-500/20 text-blue-400 border-blue-500/30',        'icon': '✓',  'iconColor': 'bg-emerald-500/20 text-emerald-400'},
+                    'blocker':                 {'badge': 'Bloqueo cliente',   'badgeColor': 'bg-red-500/20 text-red-400 border-red-500/30',           'icon': '🚧', 'iconColor': 'bg-red-500/20 text-red-400'},
+                    'task_created':            {'badge': 'Tarea',             'badgeColor': 'bg-violet-500/20 text-violet-400 border-violet-500/30',  'icon': '📋', 'iconColor': 'bg-violet-500/20 text-violet-400'},
+                    'work_done':               {'badge': 'Trabajo realizado', 'badgeColor': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30','icon': '✅', 'iconColor': 'bg-emerald-500/20 text-emerald-400'},
+                    'followup':                {'badge': 'Follow-up',         'badgeColor': 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',  'icon': '📧', 'iconColor': 'bg-indigo-500/20 text-indigo-400'},
+                    'risk':                    {'badge': 'Riesgo',            'badgeColor': 'bg-orange-500/20 text-orange-400 border-orange-500/30',  'icon': '⚠',  'iconColor': 'bg-amber-500/20 text-amber-400'},
+                    'sla':                     {'badge': 'SLA',               'badgeColor': 'bg-red-500/20 text-red-400 border-red-500/30',           'icon': '🚨', 'iconColor': 'bg-red-500/20 text-red-400'},
+                    'notification':            {'badge': 'Notificación',      'badgeColor': 'bg-sky-500/20 text-sky-400 border-sky-500/30',           'icon': '📱', 'iconColor': 'bg-sky-500/20 text-sky-400'},
+                    'classification':          {'badge': 'Clasificación',     'badgeColor': 'bg-teal-500/20 text-teal-400 border-teal-500/30',        'icon': '🧠', 'iconColor': 'bg-teal-500/20 text-teal-400'},
+                    'summary':                 {'badge': 'Resumen',           'badgeColor': 'bg-purple-500/20 text-purple-400 border-purple-500/30',  'icon': '📊', 'iconColor': 'bg-purple-500/20 text-purple-400'},
+                    'project_characterization':{'badge': 'Tipo real',         'badgeColor': 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30','icon': '🎯', 'iconColor': 'bg-fuchsia-500/20 text-fuchsia-300'},
+                    'client_profile':          {'badge': 'Perfil cliente',    'badgeColor': 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',        'icon': '👤', 'iconColor': 'bg-cyan-500/20 text-cyan-300'},
+                    'key_insight':             {'badge': 'Insight clave',     'badgeColor': 'bg-amber-500/20 text-amber-300 border-amber-500/30',     'icon': '💡', 'iconColor': 'bg-amber-500/20 text-amber-300'},
+                    'metric':                  {'badge': 'Métrica',           'badgeColor': 'bg-lime-500/20 text-lime-300 border-lime-500/30',        'icon': '📈', 'iconColor': 'bg-lime-500/20 text-lime-300'},
+                    'tech_issue':              {'badge': 'Problema técnico',  'badgeColor': 'bg-rose-500/20 text-rose-300 border-rose-500/30',        'icon': '🔧', 'iconColor': 'bg-rose-500/20 text-rose-300'},
                 }
                 ui = type_map.get(ins_type, type_map['task_created'])
 
@@ -624,6 +1682,8 @@ if __name__ == "__main__":
 
                 enriched.append({
                     'id': ins.get('insightId', ''),
+                    'insightId': ins.get('insightId', ''),
+                    'projectId': ins.get('projectId', ''),
                     'projectName': ins.get('projectName', 'Sistema'),
                     'type': ins_type,
                     'badge': ui['badge'],
@@ -631,12 +1691,15 @@ if __name__ == "__main__":
                     'icon': ui['icon'],
                     'iconColor': ui['iconColor'],
                     'detected': ins.get('title', ''),
+                    'title': ins.get('title', ''),
+                    'description': ins.get('description', '') or ', '.join(actions_taken),
                     'action': ins.get('description', '') or ', '.join(actions_taken),
                     'actionType': action_type,
                     'actionColor': action_color,
                     'tags': tags,
                     'time': time_str,
                     'status': fe_status,
+                    'createdAt': created,
                     'requiresReview': status == 'review',
                 })
 
@@ -651,12 +1714,12 @@ if __name__ == "__main__":
     @app.get("/api/inbox")
     async def get_inbox(x_user_id: str = Header(default="")):
         """Lista conversaciones sin asignar del inbox."""
-        uid = x_user_id if x_user_id else USER_ID
+        uid = require_uid(x_user_id)
         try:
-            result = conversations_table.scan(
+            items = scan_all_pages(
+                conversations_table,
                 FilterExpression=Attr('projectId').eq('unassigned') & Attr('userId').eq(uid)
             )
-            items = result.get('Items', [])
             for item in items:
                 if item.get('body'):
                     item['body'] = item['body'][:500]
@@ -695,15 +1758,14 @@ if __name__ == "__main__":
     @app.get("/api/notifications")
     async def get_notifications(projectId: Optional[str] = Query(None), x_user_id: str = Header(default="")):
         """Lista notificaciones enviadas."""
-        uid = x_user_id if x_user_id else USER_ID
+        uid = require_uid(x_user_id)
         try:
             filter_expr = Attr('userId').eq(uid)
             if projectId:
                 filter_expr = filter_expr & Attr('projectId').eq(projectId)
 
-            result = notifications_table.scan(FilterExpression=filter_expr)
             items = sorted(
-                result.get('Items', []),
+                scan_all_pages(notifications_table, FilterExpression=filter_expr),
                 key=lambda x: x.get('createdAt', ''),
                 reverse=True
             )
@@ -805,9 +1867,8 @@ if __name__ == "__main__":
             asignar_correo_a_proyecto, crear_insight, crear_tarea,
             listar_proyectos
         )
-        from agent.llm import call_llm, extract_json_from_response
 
-        uid = x_user_id if x_user_id else USER_ID
+        uid = require_uid(x_user_id)
 
         try:
             print(f"[Gmail Sync] Fetching emails for user {uid}...")
@@ -1261,7 +2322,7 @@ RESPONDE SOLO JSON:
         import urllib.request as _req
         import requests
 
-        uid = x_user_id if x_user_id else USER_ID
+        uid = require_uid(x_user_id)
 
         try:
             token_item = _user_tokens_table.get_item(Key={'userId': uid}).get('Item', {})
@@ -1310,7 +2371,7 @@ RESPONDE SOLO JSON:
     @app.post("/api/user/phone")
     async def link_phone(req: LinkPhoneRequest, x_user_id: str = Header(default=""), x_user_email: str = Header(default=""), x_user_name: str = Header(default="")):
         """Vincula un número de WhatsApp con el usuario autenticado."""
-        uid = x_user_id if x_user_id else USER_ID
+        uid = require_uid(x_user_id)
         try:
             phone = req.phoneNumber.strip()
             if not phone.startswith('+'):
@@ -1330,7 +2391,7 @@ RESPONDE SOLO JSON:
     @app.get("/api/user/phone")
     async def get_user_phone(x_user_id: str = Header(default="")):
         """Obtiene el teléfono vinculado del usuario."""
-        uid = x_user_id if x_user_id else USER_ID
+        uid = require_uid(x_user_id)
         try:
             result = _user_phones_table.scan(
                 FilterExpression=Attr('userId').eq(uid)
@@ -1342,10 +2403,32 @@ RESPONDE SOLO JSON:
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
+    @app.get("/api/user/phones")
+    async def get_user_phones(x_user_id: str = Header(default="")):
+        """Obtiene todos los teléfonos de WhatsApp vinculados del usuario."""
+        uid = require_uid(x_user_id)
+        try:
+            result = _user_phones_table.scan(
+                FilterExpression=Attr('userId').eq(uid)
+            )
+            items = result.get('Items', [])
+            phones = [
+                {
+                    'phoneNumber': item['phoneNumber'],
+                    'name': item.get('name', ''),
+                    'email': item.get('email', ''),
+                    'linkedAt': item.get('linkedAt', '')
+                }
+                for item in items
+            ]
+            return {"success": True, "phones": phones}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
     @app.delete("/api/user/phone")
     async def unlink_phone(x_user_id: str = Header(default="")):
         """Desvincula el teléfono del usuario."""
-        uid = x_user_id if x_user_id else USER_ID
+        uid = require_uid(x_user_id)
         try:
             result = _user_phones_table.scan(
                 FilterExpression=Attr('userId').eq(uid)
@@ -1379,11 +2462,13 @@ RESPONDE SOLO JSON:
 
     _user_tokens_table = dynamodb.Table('onebox-user-tokens')
 
-   
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+    
     @app.get("/api/gmail/auth")
     async def gmail_auth(x_user_id: str = Header(default="")):
         """Genera URL de autorización de Google OAuth para conectar Gmail."""
-        uid = x_user_id if x_user_id else USER_ID
+        uid = require_uid(x_user_id)
         from urllib.parse import urlencode as _urlencode
 
         params = {
@@ -1403,7 +2488,7 @@ RESPONDE SOLO JSON:
         """Callback de Google OAuth. Intercambia code por tokens y guarda."""
         import requests as _requests
 
-        uid = state if state else USER_ID
+        uid = require_uid(state)
 
         try:
             print(f"[Gmail OAuth] Exchanging code for user {uid}")
@@ -1459,7 +2544,7 @@ RESPONDE SOLO JSON:
     @app.get("/api/gmail/status")
     async def gmail_status(x_user_id: str = Header(default="")):
         """Verifica si el usuario tiene Gmail conectado."""
-        uid = x_user_id if x_user_id else USER_ID
+        uid = require_uid(x_user_id)
         try:
             result = _user_tokens_table.get_item(Key={'userId': uid})
             item = result.get('Item')
@@ -1476,7 +2561,7 @@ RESPONDE SOLO JSON:
     @app.delete("/api/gmail/disconnect")
     async def gmail_disconnect(x_user_id: str = Header(default="")):
         """Desconecta Gmail del usuario."""
-        uid = x_user_id if x_user_id else USER_ID
+        uid = require_uid(x_user_id)
         try:
             _user_tokens_table.delete_item(Key={'userId': uid})
             return {"success": True}
@@ -1575,10 +2660,32 @@ RESPONDE SOLO JSON:
             return (id_match.group(0) if id_match else '', name_match.group(1) if name_match else '')
         return ('', '')
 
+    def _auto_link_phone(phone: str, user_id: str, email: str, name: str) -> bool:
+        """Vincula un número de WhatsApp a un usuario Cognito (si no estaba vinculado)."""
+        try:
+            phone_clean = phone if phone.startswith('+') else '+' + phone
+            existing = _user_phones_table.get_item(Key={'phoneNumber': phone_clean}).get('Item')
+            if existing:
+                return False  # Ya estaba vinculado
+            _user_phones_table.put_item(Item={
+                'phoneNumber': phone_clean,
+                'userId': user_id,
+                'email': email,
+                'name': name,
+                'linkedAt': datetime.utcnow().isoformat(),
+                'linkedVia': 'whatsapp_wizard'
+            })
+            print(f"[auto_link_phone] {phone_clean} → {user_id}")
+            return True
+        except Exception as e:
+            print(f"[auto_link_phone] Error: {e}")
+            return False
+
     @app.post("/api/twilio/webhook")
     async def twilio_webhook(request: Request):
-        """Webhook de Twilio para WhatsApp/SMS entrantes. Procesa con el agente y responde."""
+        """Webhook de Twilio para WhatsApp/SMS entrantes. Procesa con wizard o agente IA."""
         import threading
+        from agent.whatsapp_wizard import handle_wizard, get_flow_state, STEP_IDLE
 
         try:
             body_raw = (await request.body()).decode('utf-8')
@@ -1596,18 +2703,168 @@ RESPONDE SOLO JSON:
                 print(f"[Webhook] Mensaje de join sandbox de {clean_number}, ignorando")
                 return {"status": "ok", "action": "join_ignored"}
 
+            # Buscar si el número ya está vinculado a un usuario
             user_info = _lookup_user_by_phone(clean_number)
 
+            # =================================================================
+            # ¿Hay un archivo adjunto? Procesar directamente
+            # =================================================================
+            if num_media > 0:
+                media_url = params.get('MediaUrl0', [''])[0]
+                media_ct = params.get('MediaContentType0', [''])[0]
+                if not user_info:
+                    _send_whatsapp_reply(
+                        from_number,
+                        "📎 Recibí tu archivo, pero tu número no está vinculado a una cuenta de OneBox.\n\n"
+                        "Para crear proyectos desde documentos, primero vincula tu número:\n"
+                        "1️⃣ Inicia sesión en oneboxmanager.com\n"
+                        "2️⃣ Ve a tu perfil → vincula tu número\n\n"
+                        "O escribe *crear proyecto* para validarte por correo y crear uno desde cero."
+                    )
+                    return {"status": "ok", "action": "media_no_account"}
+
+                # Procesar el archivo en background para no bloquear el webhook
+                def _process_media():
+                    try:
+                        from agent.document_parser import (
+                            download_from_twilio, validate_file, extract_text,
+                            analyze_document_for_project, upload_to_s3
+                        )
+                        from agent.project_helpers import create_project_full
+
+                        sid = os.environ.get('TWILIO_ACCOUNT_SID', '')
+                        tok = os.environ.get('TWILIO_AUTH_TOKEN', '')
+                        file_bytes, ct, fname = download_from_twilio(media_url, sid, tok)
+                        if not file_bytes:
+                            _send_whatsapp_reply(from_number, "⚠️ No pude descargar el archivo. Intenta de nuevo o súbelo desde la web.")
+                            return
+
+                        valid, ext, error = validate_file(file_bytes, fname, ct or media_ct)
+                        if not valid:
+                            _send_whatsapp_reply(from_number, f"⚠️ {error}")
+                            return
+
+                        text = extract_text(file_bytes, ext)
+                        if not text or len(text.strip()) < 30:
+                            _send_whatsapp_reply(from_number, "⚠️ No pude extraer suficiente texto del archivo. Asegúrate de que no esté escaneado o protegido.")
+                            return
+
+                        _send_whatsapp_reply(from_number, f"📄 Documento recibido ({len(file_bytes)//1024} KB).\n🤖 Analizando con IA...")
+
+                        analysis = analyze_document_for_project(text)
+                        description = analysis['description']
+                        if analysis.get('extractedNotes'):
+                            description += "\n\nNotas: " + analysis['extractedNotes']
+
+                        result = create_project_full(
+                            user_id=user_info['userId'],
+                            name=analysis['name'],
+                            description=description,
+                            project_type=analysis['type'],
+                            channels=['Gmail', 'WhatsApp'],
+                            participants=[{
+                                'nombre': user_info.get('name', ''),
+                                'email': user_info.get('email', ''),
+                                'telefono': clean_number,
+                                'rol': 'Creador'
+                            }]
+                        )
+                        project_id = result['projectId']
+
+                        s3_key = upload_to_s3(file_bytes, project_id, fname or f'doc.{ext}', ct or media_ct)
+                        _save_attachment_record(
+                            project_id=project_id,
+                            user_id=user_info['userId'],
+                            file_name=fname or f'doc.{ext}',
+                            file_size=len(file_bytes),
+                            content_type=ct or media_ct,
+                            ext=ext,
+                            s3_key=s3_key,
+                            extracted_text=text,
+                            source='whatsapp'
+                        )
+
+                        ig = result.get('insightsGenerated', {})
+                        count = ig.get('count', 0) if ig.get('generated') else 0
+                        msg = (
+                            f"✅ *Proyecto creado: {analysis['name']}*\n"
+                            f"📁 Tipo: {analysis['type']}\n\n"
+                        )
+                        if count > 0:
+                            an = ig.get('analysis', {}) or {}
+                            msg += (
+                                f"🤖 La IA generó {count} insights:\n"
+                                f"  • {len(an.get('tasks') or [])} tareas\n"
+                                f"  • {len(an.get('risks') or [])} riesgos\n"
+                                f"  • {len(an.get('decisions') or [])} decisiones\n\n"
+                            )
+                        msg += f"📎 Documento adjuntado al proyecto.\n📊 Revisa todo en https://www.oneboxmanager.com"
+                        _send_whatsapp_reply(from_number, msg)
+                    except Exception as e:
+                        print(f"[Webhook media] Error: {e}")
+                        import traceback; traceback.print_exc()
+                        _send_whatsapp_reply(from_number, f"⚠️ Error procesando el documento: {str(e)[:80]}")
+
+                threading.Thread(target=_process_media).start()
+                return {"status": "ok", "action": "media_processing"}
+
+            # Cargar sesión del wizard (siempre, esté vinculado o no)
+            session = _get_session(clean_number)
+            flow = get_flow_state(session)
+            in_wizard = flow.get('step', STEP_IDLE) != STEP_IDLE
+
+            # Si NO hay número vinculado Y NO está en wizard activo: invitar a wizard o registrarse
+            if not user_info and not in_wizard:
+                print(f"[Webhook] Número {clean_number} no vinculado, ofreciendo wizard")
+                msg_lower = message_body.strip().lower()
+                # Si el usuario quiere crear un proyecto, lanzamos el wizard (validará el email)
+                from agent.whatsapp_wizard import detect_intent
+                intent = detect_intent(message_body)
+
+                if intent in ('create_project', 'greeting', 'help'):
+                    # Permitir entrar al wizard incluso sin vinculación previa
+                    pass
+                else:
+                    _send_whatsapp_reply(
+                        from_number,
+                        "👋 ¡Hola! Soy *OneBox*.\n\n"
+                        "Tu número aún no está vinculado a una cuenta. Pero puedo ayudarte a crear tu primer proyecto si tienes una cuenta de OneBox con tu correo.\n\n"
+                        "Escribe *crear proyecto* para empezar, o *ayuda* para más opciones.\n\n"
+                        "Si aún no tienes cuenta, regístrate primero en *oneboxmanager.com*."
+                    )
+                    return {"status": "ok", "action": "no_account_prompt"}
+
+            # Procesar el wizard si aplica (o pasar al agente si retorna None)
+            wizard_response, new_flow = handle_wizard(
+                session=session,
+                phone_number=clean_number,
+                message=message_body,
+                auto_link_phone_func=_auto_link_phone
+            )
+
+            if wizard_response is not None:
+                # El wizard manejó el mensaje
+                if new_flow is not None:
+                    try:
+                        _sessions_table.update_item(
+                            Key={'phoneNumber': clean_number},
+                            UpdateExpression="SET creationFlow = :f, lastActivity = :now",
+                            ExpressionAttributeValues={
+                                ':f': new_flow,
+                                ':now': datetime.utcnow().isoformat()
+                            }
+                        )
+                    except Exception as e:
+                        print(f"[Webhook] Error actualizando flow: {e}")
+                _send_whatsapp_reply(from_number, wizard_response)
+                return {"status": "ok", "action": "wizard_handled"}
+
+            # Si el wizard no manejó el mensaje y no hay usuario vinculado, no podemos continuar
             if not user_info:
-                print(f"[Webhook] Número {clean_number} no vinculado, rechazando")
                 _send_whatsapp_reply(
                     from_number,
-                    "👋 ¡Hola! Tu número no está vinculado a una cuenta de OneBox.\n\n"
-                    "Para usar OneBox por WhatsApp:\n"
-                    "1️⃣ Regístrate en *oneboxmanager.com*\n"
-                    "2️⃣ Inicia sesión\n"
-                    "3️⃣ Ve a tu perfil y vincula tu número de WhatsApp\n\n"
-                    "Después de eso podrás gestionar tus proyectos desde aquí. 🚀"
+                    "👋 Para usar el agente IA necesitas vincular tu número.\n\n"
+                    "Escribe *crear proyecto* para crear uno con tu correo, o vincula tu número en *oneboxmanager.com*."
                 )
                 return {"status": "ok", "action": "unregistered_user"}
 
