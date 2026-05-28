@@ -114,6 +114,79 @@ if __name__ == "__main__":
                 break
         return items
 
+    def _accessible_project_ids(uid: str, user_email: str) -> set:
+        """Devuelve el set de projectIds a los que el usuario tiene acceso
+        (own + shared por email + invited accepted). Usado por endpoints que
+        listan items multi-proyecto (insights, notifications, etc.)."""
+        from agent.tools import invitations_table
+        accessible = set()
+        # Propios
+        own = scan_all_pages(projects_table, FilterExpression=Attr('userId').eq(uid))
+        for p in own:
+            accessible.add(p['projectId'])
+        em = (user_email or '').strip().lower()
+        if not em:
+            return accessible
+        # Por email exacto en participants
+        for p in scan_all_pages(projects_table):
+            if p['projectId'] in accessible:
+                continue
+            for part in (p.get('participants') or []):
+                if (part.get('email', '') or '').strip().lower() == em:
+                    accessible.add(p['projectId'])
+                    break
+        # Invitaciones aceptadas
+        try:
+            inv_resp = invitations_table.query(
+                IndexName='email-index',
+                KeyConditionExpression=Key('email').eq(em),
+            )
+            for inv in inv_resp.get('Items', []):
+                if inv.get('status') == 'accepted' and inv.get('projectId'):
+                    accessible.add(inv['projectId'])
+        except Exception as e:
+            print(f"[_accessible_project_ids] Error invitaciones: {e}")
+        return accessible
+
+    def _has_project_access(uid: str, user_email: str, project_id: str):
+        """Devuelve (has_access, is_owner, project_dict).
+
+        Un usuario tiene acceso a un proyecto si:
+          1) Es el owner (proj.userId == uid), o
+          2) Su email aparece como participante del proyecto, o
+          3) Tiene una invitación accepted para ese proyecto.
+
+        is_owner: True solo cuando el usuario es el dueño original. Los
+        endpoints administrativos (delete proyecto, invitar, modificar
+        participantes, borrar adjunto) deben requerir is_owner=True.
+        """
+        from agent.tools import invitations_table  # importado arriba
+        proj = projects_table.get_item(Key={'projectId': project_id}).get('Item')
+        if not proj:
+            return False, False, None
+        # 1) Owner
+        if proj.get('userId') == uid:
+            return True, True, proj
+        # 2) Participante por email exacto
+        em = (user_email or '').strip().lower()
+        if em:
+            for part in (proj.get('participants') or []):
+                part_email = (part.get('email', '') or '').strip().lower()
+                if part_email and part_email == em:
+                    return True, False, proj
+            # 3) Invitación accepted
+            try:
+                inv_resp = invitations_table.query(
+                    IndexName='email-index',
+                    KeyConditionExpression=Key('email').eq(em),
+                )
+                for inv in inv_resp.get('Items', []):
+                    if inv.get('projectId') == project_id and inv.get('status') == 'accepted':
+                        return True, False, proj
+            except Exception as e:
+                print(f"[_has_project_access] Error consultando invitaciones: {e}")
+        return False, False, proj
+
     app = FastAPI(title="OneBox Agent", version="1.0.0")
 
     app.add_middleware(
@@ -733,8 +806,14 @@ if __name__ == "__main__":
     def _save_attachment_record(project_id: str, user_id: str, file_name: str,
                                  file_size: int, content_type: str, ext: str,
                                  s3_key: str, extracted_text: str = "",
-                                 source: str = "web") -> dict:
-        """Guarda metadata del adjunto en DynamoDB."""
+                                 source: str = "web",
+                                 uploaded_by: str = "",
+                                 uploaded_by_email: str = "") -> dict:
+        """Guarda metadata del adjunto en DynamoDB.
+        user_id: SIEMPRE el sub del owner del proyecto (para consistencia con
+                 el resto de items asociados al proyecto).
+        uploaded_by / uploaded_by_email: quién subió el archivo (puede ser
+                 owner o invitado). Para trazabilidad."""
         now = datetime.utcnow().isoformat()
         attachment_id = f"{now}#{uuid.uuid4().hex[:8]}"
         item = {
@@ -751,6 +830,10 @@ if __name__ == "__main__":
             'source': source,
             'createdAt': now,
         }
+        if uploaded_by:
+            item['uploadedBy'] = uploaded_by
+        if uploaded_by_email:
+            item['uploadedByEmail'] = uploaded_by_email
         attachments_table.put_item(Item=item)
         return item
 
@@ -1279,21 +1362,23 @@ if __name__ == "__main__":
     async def upload_attachment(
         project_id: str,
         file: UploadFile = File(...),
-        x_user_id: str = Header(default="")
+        x_user_id: str = Header(default=""),
+        x_user_email: str = Header(default=""),
     ):
-        """Adjunta un documento a un proyecto existente. La IA genera insights
-        adicionales con el contenido del documento."""
+        """Adjunta un documento a un proyecto. Owner Y invitados con acceso pueden subir.
+        Se guarda uploadedBy (sub + email) para trazabilidad. El adjunto queda
+        asociado al userId del owner del proyecto."""
         from agent.document_parser import validate_file, extract_text, upload_to_s3
         from agent.project_helpers import generate_insights_for_project
 
         uid = require_uid(x_user_id)
         try:
-            # Verificar que el proyecto pertenece al usuario
-            existing = projects_table.get_item(Key={'projectId': project_id}).get('Item')
+            has, _is_owner, existing = _has_project_access(uid, x_user_email, project_id)
             if not existing:
                 raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-            if existing.get('userId') != uid:
-                raise HTTPException(status_code=403, detail="No tienes permiso para este proyecto")
+            if not has:
+                raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
+            owner_uid = existing.get('userId', uid)
 
             file_bytes = await file.read()
             valid, ext, error = validate_file(file_bytes, file.filename or '', file.content_type or '')
@@ -1306,24 +1391,26 @@ if __name__ == "__main__":
             # Subir a S3
             s3_key = upload_to_s3(file_bytes, project_id, file.filename or f'doc.{ext}', file.content_type or '')
 
-            # Registrar adjunto
+            # Registrar adjunto (asociado al owner, con uploadedBy del que subió)
             att = _save_attachment_record(
                 project_id=project_id,
-                user_id=uid,
+                user_id=owner_uid,
                 file_name=file.filename or f'doc.{ext}',
                 file_size=len(file_bytes),
                 content_type=file.content_type or '',
                 ext=ext,
                 s3_key=s3_key,
                 extracted_text=text,
-                source='web'
+                source='web',
+                uploaded_by=uid,
+                uploaded_by_email=(x_user_email or '').strip().lower(),
             )
 
-            # Si hay texto suficiente, generar insights adicionales
+            # Si hay texto suficiente, generar insights adicionales (siempre en nombre del owner)
             insights_result = {"generated": False, "reason": "no_text"}
             if text and len(text.strip()) >= 100:
                 insights_result = generate_insights_for_project(
-                    user_id=uid,
+                    user_id=owner_uid,
                     project_id=project_id,
                     project_name=existing.get('name', 'Proyecto'),
                     project_type=existing.get('type', 'Otro'),
@@ -1331,11 +1418,11 @@ if __name__ == "__main__":
                     participants_count=len(existing.get('participants', []))
                 )
 
-                # Notificación in-app
+                # Notificación in-app (queda en el feed del owner)
                 if insights_result.get('generated') and insights_result.get('count', 0) > 0:
                     try:
                         notifications_table.put_item(Item={
-                            'userId': uid,
+                            'userId': owner_uid,
                             'notificationId': f"{datetime.utcnow().isoformat()}#{uuid.uuid4().hex[:8]}",
                             'projectId': project_id,
                             'projectName': existing.get('name', 'Proyecto'),
@@ -1368,15 +1455,15 @@ if __name__ == "__main__":
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.get("/api/projects/{project_id}/attachments")
-    async def list_attachments(project_id: str, x_user_id: str = Header(default="")):
-        """Lista los adjuntos de un proyecto."""
+    async def list_attachments(project_id: str, x_user_id: str = Header(default=""), x_user_email: str = Header(default="")):
+        """Lista los adjuntos de un proyecto. Owner Y invitados con acceso."""
         uid = require_uid(x_user_id)
         try:
-            existing = projects_table.get_item(Key={'projectId': project_id}).get('Item')
+            has, _is_owner, existing = _has_project_access(uid, x_user_email, project_id)
             if not existing:
                 raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-            if existing.get('userId') != uid:
-                raise HTTPException(status_code=403, detail="No tienes permiso")
+            if not has:
+                raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
 
             result = attachments_table.query(
                 KeyConditionExpression=Key('projectId').eq(project_id),
@@ -1400,8 +1487,9 @@ if __name__ == "__main__":
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.get("/api/attachments/{project_id}/{attachment_id}/download")
-    async def download_attachment(project_id: str, attachment_id: str, x_user_id: str = Header(default="")):
-        """Genera URL presignada de S3 para descargar el adjunto."""
+    async def download_attachment(project_id: str, attachment_id: str, x_user_id: str = Header(default=""), x_user_email: str = Header(default="")):
+        """Genera URL presignada de S3 para descargar el adjunto.
+        Owner Y invitados con acceso al proyecto pueden descargar."""
         from agent.document_parser import generate_download_url
         uid = require_uid(x_user_id)
         try:
@@ -1410,8 +1498,9 @@ if __name__ == "__main__":
             ).get('Item')
             if not item:
                 raise HTTPException(status_code=404, detail="Adjunto no encontrado")
-            if item.get('userId') != uid:
-                raise HTTPException(status_code=403, detail="No tienes permiso")
+            has, _is_owner, _proj = _has_project_access(uid, x_user_email, project_id)
+            if not has:
+                raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
 
             url = generate_download_url(item['s3Key'], item.get('fileName', 'documento'))
             return {"url": url, "fileName": item.get('fileName'), "expiresIn": 600}
@@ -1421,8 +1510,8 @@ if __name__ == "__main__":
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.delete("/api/attachments/{project_id}/{attachment_id}")
-    async def delete_attachment(project_id: str, attachment_id: str, x_user_id: str = Header(default="")):
-        """Elimina un adjunto (S3 + registro DynamoDB)."""
+    async def delete_attachment(project_id: str, attachment_id: str, x_user_id: str = Header(default=""), x_user_email: str = Header(default="")):
+        """Elimina un adjunto (S3 + registro DynamoDB). SOLO el owner del proyecto puede borrar."""
         from agent.document_parser import delete_from_s3
         uid = require_uid(x_user_id)
         try:
@@ -1431,8 +1520,9 @@ if __name__ == "__main__":
             ).get('Item')
             if not item:
                 raise HTTPException(status_code=404, detail="Adjunto no encontrado")
-            if item.get('userId') != uid:
-                raise HTTPException(status_code=403, detail="No tienes permiso")
+            _has, is_owner, _proj = _has_project_access(uid, x_user_email, project_id)
+            if not is_owner:
+                raise HTTPException(status_code=403, detail="Solo el dueño del proyecto puede borrar adjuntos")
 
             delete_from_s3(item.get('s3Key', ''))
             attachments_table.delete_item(Key={'projectId': project_id, 'attachmentId': attachment_id})
@@ -1444,12 +1534,16 @@ if __name__ == "__main__":
 
 
     @app.get("/api/projects/{project_id}/tasks")
-    async def get_tasks(project_id: str, x_user_id: str = Header(default="")):
-        """Lista tareas de un proyecto."""
+    async def get_tasks(project_id: str, x_user_id: str = Header(default=""), x_user_email: str = Header(default="")):
+        """Lista tareas de un proyecto. Accesible para owner Y invitados."""
         uid = require_uid(x_user_id)
+        has, _is_owner, _proj = _has_project_access(uid, x_user_email, project_id)
+        if not has:
+            raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
         try:
+            # Tareas del proyecto (todas, sin filtrar por userId — pertenecen al proyecto)
             result = tasks_table.scan(
-                FilterExpression=Attr('projectId').eq(project_id) & Attr('userId').eq(uid)
+                FilterExpression=Attr('projectId').eq(project_id)
             )
             tasks = sorted(
                 result.get('Items', []),
@@ -1462,21 +1556,28 @@ if __name__ == "__main__":
 
 
     @app.post("/api/projects/{project_id}/tasks")
-    async def create_task(project_id: str, req: CreateTaskRequest, x_user_id: str = Header(default="")):
-        """Crea una tarea en un proyecto."""
+    async def create_task(project_id: str, req: CreateTaskRequest, x_user_id: str = Header(default=""), x_user_email: str = Header(default="")):
+        """Crea una tarea en un proyecto. Accesible para owner Y invitados.
+        La tarea queda con userId = owner del proyecto (no del creador), para que
+        TODOS los con acceso al proyecto puedan editarla. Se guarda createdBy."""
         uid = require_uid(x_user_id)
+        has, _is_owner, proj = _has_project_access(uid, x_user_email, project_id)
+        if not has:
+            raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
         try:
             import uuid
             task_id = str(uuid.uuid4())
             now = datetime.utcnow().isoformat()
+            owner_uid = proj.get('userId', uid)
             item = {
                 'projectId': project_id,
                 'taskId': task_id,
-                'userId': uid,
+                'userId': owner_uid,           # tarea pertenece al proyecto, no al creador
+                'createdBy': uid,              # quién la creó (owner o invitado)
+                'createdByEmail': (x_user_email or '').strip().lower(),
                 'text': req.text,
                 'description': req.description,
                 'status': req.status,
-                'createdBy': 'usuario',
                 'assignedTo': req.assigned_to,
                 'startDate': req.start_date or '',
                 'dueDate': req.due_date or '',
@@ -1489,18 +1590,22 @@ if __name__ == "__main__":
 
 
     @app.put("/api/tasks/{task_id}")
-    async def update_task(task_id: str, req: UpdateTaskRequest, x_user_id: str = Header(default="")):
-        """Actualiza una tarea."""
+    async def update_task(task_id: str, req: UpdateTaskRequest, x_user_id: str = Header(default=""), x_user_email: str = Header(default="")):
+        """Actualiza una tarea. Accesible para owner Y invitados con acceso al proyecto."""
         uid = require_uid(x_user_id)
         try:
+            # Buscamos la tarea por taskId solamente; luego verificamos acceso al proyecto.
             result = tasks_table.scan(
-                FilterExpression=Attr('taskId').eq(task_id) & Attr('userId').eq(uid)
+                FilterExpression=Attr('taskId').eq(task_id)
             )
             items = result.get('Items', [])
             if not items:
                 raise HTTPException(status_code=404, detail="Tarea no encontrada")
 
             task = items[0]
+            has, _is_owner, _proj = _has_project_access(uid, x_user_email, task['projectId'])
+            if not has:
+                raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
             updates = {}
             if req.text is not None:
                 updates['text'] = req.text
@@ -1548,8 +1653,11 @@ if __name__ == "__main__":
                     try:
                         from agent.tools import enviar_notificacion
                         proj = projects_table.get_item(Key={'projectId': proj_id}).get('Item') or {}
-                        if proj.get('userId') != uid:
-                            return  # seguridad: solo el dueño del proyecto
+                        if not proj:
+                            return
+                        # El acceso ya se validó antes de llegar aquí; el invitado
+                        # también puede disparar notificación al bloquear (todos los
+                        # participantes con teléfono reciben WhatsApp).
                         proj_name = proj.get('name', '')
                         msg = (f"🔴 OneBox: la tarea \"{task_text}\" del proyecto "
                                f"\"{proj_name}\" está BLOQUEADA y requiere atención.")
@@ -1577,18 +1685,23 @@ if __name__ == "__main__":
 
 
     @app.delete("/api/tasks/{task_id}")
-    async def delete_task(task_id: str, x_user_id: str = Header(default="")):
-        """Elimina una tarea (solo si pertenece al usuario)."""
+    async def delete_task(task_id: str, x_user_id: str = Header(default=""), x_user_email: str = Header(default="")):
+        """Elimina una tarea. Owner Y invitados con acceso al proyecto pueden borrar.
+        (Si quieres restringir a "solo el que la creó" en el futuro, basta con
+        comparar uid == task.createdBy aquí.)"""
         uid = require_uid(x_user_id)
         try:
-            # Localizar la tarea por scan (no tenemos GSI por taskId)
+            # Localizar la tarea por taskId (sin filtrar por userId)
             result = tasks_table.scan(
-                FilterExpression=Attr('taskId').eq(task_id) & Attr('userId').eq(uid)
+                FilterExpression=Attr('taskId').eq(task_id)
             )
             items = result.get('Items', [])
             if not items:
                 raise HTTPException(status_code=404, detail="Tarea no encontrada")
             task = items[0]
+            has, _is_owner, _proj = _has_project_access(uid, x_user_email, task['projectId'])
+            if not has:
+                raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
             tasks_table.delete_item(Key={'projectId': task['projectId'], 'taskId': task_id})
             return {"success": True, "taskId": task_id}
         except HTTPException:
@@ -1598,8 +1711,12 @@ if __name__ == "__main__":
 
 
     @app.get("/api/projects/{project_id}/conversations")
-    async def get_conversations(project_id: str):
-        """Lista conversaciones de un proyecto."""
+    async def get_conversations(project_id: str, x_user_id: str = Header(default=""), x_user_email: str = Header(default="")):
+        """Lista conversaciones de un proyecto. Owner Y invitados con acceso."""
+        uid = require_uid(x_user_id)
+        has, _is_owner, _proj = _has_project_access(uid, x_user_email, project_id)
+        if not has:
+            raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
         try:
             result = conversations_table.query(
                 KeyConditionExpression=Key('projectId').eq(project_id)
@@ -1620,16 +1737,26 @@ if __name__ == "__main__":
   
 
     @app.get("/api/insights")
-    async def get_insights(type: Optional[str] = Query(None), x_user_id: str = Header(default="")):
-        """Lista insights/acciones de la IA, opcionalmente filtradas por tipo."""
+    async def get_insights(type: Optional[str] = Query(None), x_user_id: str = Header(default=""), x_user_email: str = Header(default="")):
+        """Lista insights/acciones de la IA de TODOS los proyectos a los que el
+        usuario tiene acceso (own + invitados aceptados). Opcionalmente filtra por tipo."""
         uid = require_uid(x_user_id)
         try:
-            filter_expr = Attr('userId').eq(uid)
-            if type:
-                filter_expr = filter_expr & Attr('type').eq(type)
+            # Obtener los proyectos a los que el usuario tiene acceso
+            accessible_pids = _accessible_project_ids(uid, x_user_email)
 
+            # Si no tiene acceso a ninguno, devolver lista vacía (no escanear todo)
+            if not accessible_pids:
+                return []
+
+            all_insights = scan_all_pages(insights_table)
+            insights_filtered = [
+                i for i in all_insights
+                if i.get('projectId') in accessible_pids
+                and (not type or i.get('type') == type)
+            ]
             insights = sorted(
-                scan_all_pages(insights_table, FilterExpression=filter_expr),
+                insights_filtered,
                 key=lambda x: x.get('createdAt', ''),
                 reverse=True
             )
