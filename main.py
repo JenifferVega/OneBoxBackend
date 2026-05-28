@@ -497,6 +497,13 @@ if __name__ == "__main__":
                         'tags': tags,
                     })
 
+                # ¿El usuario logueado es el dueño de este proyecto?
+                # Sirve para que el frontend oculte acciones owner-only
+                # (eliminar, invitar, añadir/quitar participantes) a invitados.
+                is_owner = proj.get('userId') == uid
+                # Si NO es owner, ¿cómo entró? (sharedByEmail o invited)
+                role = 'owner' if is_owner else ('invitedByEmail' if proj.get('_shared') else ('invitedByLink' if proj.get('_invited') else 'collaborator'))
+
                 enriched.append({
                     'projectId': pid,
                     'name': proj.get('name', ''),
@@ -528,6 +535,9 @@ if __name__ == "__main__":
                     'tasks': tasks_list,
                     'aiActions': ai_actions,
                     'notifications': [],
+                    # === Permisos para el frontend ===
+                    'isOwner': is_owner,
+                    'role': role,
                 })
 
             # Ordenar: activos primero, luego por nombre
