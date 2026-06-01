@@ -24,7 +24,128 @@ conversations_table = dynamodb.Table('onebox-conversations')
 tasks_table = dynamodb.Table('onebox-tasks')
 insights_table = dynamodb.Table('onebox-insights')
 
-USER_ID = "7458a478-e071-70ff-d1af-8d513f275621"
+# ============================================================================
+# CONTEXTO DE USUARIO POR REQUEST (CRÍTICO PARA AISLAMIENTO MULTI-TENANT)
+# ----------------------------------------------------------------------------
+# El agente NO debe tener un USER_ID global. Antes había una constante hardcoded
+# que provocaba que CUALQUIER persona que chatease viera siempre los datos del
+# mismo usuario (cross-tenant data leak grave).
+#
+# Ahora el endpoint /chat valida la auth y setea estos contextvars por request,
+# y todas las tools leen _current_uid() / _current_email() en su lugar.
+#
+# Si una tool corre sin contexto seteado, _current_uid() lanza RuntimeError
+# para FALLAR RUIDOSAMENTE y no leakear datos por accidente.
+# ============================================================================
+import contextvars
+
+_CURRENT_UID: contextvars.ContextVar = contextvars.ContextVar('onebox_uid', default=None)
+_CURRENT_EMAIL: contextvars.ContextVar = contextvars.ContextVar('onebox_email', default=None)
+
+
+def set_current_user(uid: str, email: str = "") -> None:
+    """Setea el contexto de usuario para esta request. Llamado por /chat."""
+    _CURRENT_UID.set(uid)
+    _CURRENT_EMAIL.set((email or "").lower())
+
+
+def clear_current_user() -> None:
+    """Limpia el contexto. Se llama en finally del endpoint."""
+    _CURRENT_UID.set(None)
+    _CURRENT_EMAIL.set(None)
+
+
+def _current_uid() -> str:
+    """Devuelve el uid del usuario que pregunta. Falla si no hay contexto."""
+    uid = _CURRENT_UID.get()
+    if not uid:
+        raise RuntimeError(
+            "Tool del agente invocada sin contexto de usuario. "
+            "Esto es un bug de seguridad: el endpoint debe llamar set_current_user() antes."
+        )
+    return uid
+
+
+def _current_email() -> str:
+    return _CURRENT_EMAIL.get() or ""
+
+
+# ============================================================================
+# ACCESO A PROYECTOS — MISMA LÓGICA QUE EL ENDPOINT /api/projects
+# ----------------------------------------------------------------------------
+# El agente debe respetar exactamente los mismos permisos que la UI:
+#   - own:     proyectos que el usuario creó (userId == uid)
+#   - shared:  proyectos donde su email aparece en participants[]
+#   - invited: proyectos con invitación aceptada para su email
+#
+# Sin esta lógica, las tools del agente o (a) ocultan proyectos legítimos
+# (chat dice "tienes 2" cuando la UI muestra 3), o (b) leakean proyectos
+# ajenos si solo filtran por participants sin checar uid.
+# ============================================================================
+
+def _accessible_project_ids(uid: str = "", email: str = "") -> set:
+    """Devuelve el set de projectIds que el usuario puede ver.
+    Si no se pasan uid/email, usa el contexto actual."""
+    from boto3.dynamodb.conditions import Key, Attr
+    uid = uid or _current_uid()
+    email = (email or _current_email() or "").strip().lower()
+
+    accessible = set()
+
+    # 1) Own
+    try:
+        own = projects_table.query(
+            IndexName='userId-index',
+            KeyConditionExpression=Key('userId').eq(uid),
+            ProjectionExpression='projectId',
+        )
+        accessible.update(p['projectId'] for p in own.get('Items', []))
+    except Exception as e:
+        print(f"[_accessible_project_ids] own query error: {e}")
+
+    if not email:
+        return accessible
+
+    # 2) Shared por email (scan + filtro client-side porque participants es lista anidada)
+    try:
+        scan = projects_table.scan(
+            ProjectionExpression='projectId, participants',
+        )
+        for p in scan.get('Items', []):
+            pid = p.get('projectId')
+            if not pid or pid in accessible:
+                continue
+            for part in (p.get('participants') or []):
+                if not isinstance(part, dict):
+                    continue
+                if (part.get('email', '') or '').strip().lower() == email:
+                    accessible.add(pid)
+                    break
+    except Exception as e:
+        print(f"[_accessible_project_ids] shared scan error: {e}")
+
+    # 3) Invited (invitaciones aceptadas para este email)
+    try:
+        inv = invitations_table.query(
+            IndexName='email-index',
+            KeyConditionExpression=Key('email').eq(email),
+        )
+        for i in inv.get('Items', []):
+            if i.get('status') == 'accepted' and i.get('projectId'):
+                accessible.add(i['projectId'])
+    except Exception as e:
+        print(f"[_accessible_project_ids] invitations query error: {e}")
+
+    return accessible
+
+
+def _has_project_access(project_id: str) -> bool:
+    """Defensa en último kilómetro: ¿el usuario del contexto puede tocar este projectId?
+    Cualquier tool que escriba (crear_tarea, crear_insight, etc.) debe llamarlo
+    antes de tocar DynamoDB para que el LLM no pueda inyectar projectIds ajenos."""
+    if not project_id:
+        return False
+    return project_id in _accessible_project_ids()
 
 TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
@@ -60,7 +181,7 @@ def _log_notification(now, project_id, project_name, canal, destinatario, mensaj
     status: sent/queued/failed/invalid_phone/twilio_error/not_configured/test_simulated."""
     try:
         notifications_table.put_item(Item={
-            'userId': USER_ID,
+            'userId': _current_uid(),
             'notificationId': f"{now}#{uuid.uuid4().hex[:8]}",
             'projectId': project_id,
             'projectName': project_name,
@@ -217,7 +338,7 @@ def analizar_inbox() -> dict:
     try:
         from boto3.dynamodb.conditions import Key, Attr
         result = conversations_table.scan(
-            FilterExpression=Attr('projectId').eq('unassigned') & Attr('userId').eq(USER_ID)
+            FilterExpression=Attr('projectId').eq('unassigned') & Attr('userId').eq(_current_uid())
         )
         emails = result.get('Items', [])
         for email in emails:
@@ -236,7 +357,7 @@ def crear_proyecto(name: str, description: str = "", type: str = "Otro", partici
         now = datetime.utcnow().isoformat()
         item = {
             'projectId': project_id,
-            'userId': USER_ID,
+            'userId': _current_uid(),
             'name': name,
             'description': description,
             'type': type,
@@ -255,15 +376,19 @@ def crear_proyecto(name: str, description: str = "", type: str = "Otro", partici
 @register_tool("asignar_correo_a_proyecto")
 def asignar_correo_a_proyecto(conversation_id: str, project_id: str, project_name: str = "") -> dict:
     """Mueve un correo de 'unassigned' a un proyecto."""
+    # SEGURIDAD: bloquear si el LLM intenta asignar a un proyecto que el
+    # usuario no puede ver (no es owner, ni shared, ni invited).
+    if not _has_project_access(project_id):
+        return {"error": "Sin acceso a ese proyecto"}
     try:
         result = conversations_table.get_item(
             Key={'projectId': 'unassigned', 'conversationId': conversation_id}
         )
         if 'Item' not in result:
             return {"error": "Correo no encontrado"}
-        
+
         item = result['Item']
-        
+
         item['projectId'] = project_id
         item['status'] = 'assigned'
         conversations_table.put_item(Item=item)
@@ -280,11 +405,13 @@ def asignar_correo_a_proyecto(conversation_id: str, project_id: str, project_nam
 @register_tool("crear_insight")
 def crear_insight(project_id: str, project_name: str, type: str, title: str, description: str = "", related_person: str = "", actions: list = None) -> dict:
     """Crea un insight en la tabla de inteligencia."""
+    if not _has_project_access(project_id):
+        return {"error": "Sin acceso a ese proyecto"}
     try:
         now = datetime.utcnow().isoformat()
         insight_id = f"{now}#{uuid.uuid4().hex[:8]}"
         item = {
-            'userId': USER_ID,
+            'userId': _current_uid(),
             'insightId': insight_id,
             'projectId': project_id,
             'projectName': project_name,
@@ -306,13 +433,15 @@ def crear_insight(project_id: str, project_name: str, type: str, title: str, des
 @register_tool("crear_tarea")
 def crear_tarea(project_id: str, text: str, assigned_to: str = "", status: str = "pending") -> dict:
     """Crea una tarea asociada a un proyecto."""
+    if not _has_project_access(project_id):
+        return {"error": "Sin acceso a ese proyecto"}
     try:
         task_id = str(uuid.uuid4())
         now = datetime.utcnow().isoformat()
         item = {
             'projectId': project_id,
             'taskId': task_id,
-            'userId': USER_ID,
+            'userId': _current_uid(),
             'text': text,
             'status': status,
             'createdBy': 'OneBox IA',
@@ -327,14 +456,26 @@ def crear_tarea(project_id: str, text: str, assigned_to: str = "", status: str =
 
 @register_tool("listar_proyectos")
 def listar_proyectos() -> dict:
-    """Lista todos los proyectos del usuario."""
+    """Lista TODOS los proyectos accesibles para el usuario actual: own + shared + invited.
+
+    IMPORTANTE: usa la misma definición de acceso que el endpoint /api/projects
+    para que el chat sea consistente con el dashboard. NO leakea proyectos
+    ajenos: solo devuelve aquellos donde el uid es owner, o el email aparece
+    en participants, o existe invitación aceptada.
+    """
     try:
-        from boto3.dynamodb.conditions import Key
-        result = projects_table.query(
-            IndexName='userId-index',
-            KeyConditionExpression=Key('userId').eq(USER_ID)
-        )
-        return {"count": len(result['Items']), "projects": result['Items']}
+        accessible_ids = _accessible_project_ids()
+        if not accessible_ids:
+            return {"count": 0, "projects": []}
+        # Hidratar cada projectId con el item completo. Hacemos get_item uno
+        # a uno (no hay batch_get cómodo aquí) — son pocos por usuario en la
+        # práctica y queremos el dato fresco.
+        items = []
+        for pid in accessible_ids:
+            r = projects_table.get_item(Key={'projectId': pid}).get('Item')
+            if r:
+                items.append(r)
+        return {"count": len(items), "projects": items}
     except Exception as e:
         return {"error": str(e)}
 
@@ -344,6 +485,10 @@ def listar_proyectos() -> dict:
 def enviar_notificacion(destinatario: str, mensaje: str, canal: str = "whatsapp", project_id: str = "", project_name: str = "") -> dict:
     """Envía una notificación por WhatsApp o SMS via Twilio (o simula en modo test).
     Valida el teléfono a E.164 antes de enviar y registra cada intento (éxito o fallo)."""
+    # SEGURIDAD: si viene un project_id, debe ser accesible para el usuario.
+    # Si no viene (canal libre del agente), permitir.
+    if project_id and not _has_project_access(project_id):
+        return {"error": "Sin acceso a ese proyecto"}
     now = datetime.utcnow().isoformat()
 
     # 1) Validar/normalizar el teléfono ANTES de tocar Twilio (evita fallos silenciosos).
@@ -394,7 +539,7 @@ def enviar_notificacion(destinatario: str, mensaje: str, canal: str = "whatsapp"
             conversations_table.put_item(Item={
                 'projectId': project_id,
                 'conversationId': f"twilio#{sid}",
-                'userId': USER_ID,
+                'userId': _current_uid(),
                 'from': 'OneBox IA',
                 'fromEmail': '',
                 'subject': f'Notificación {canal.upper()} enviada',
@@ -419,16 +564,24 @@ def enviar_notificacion(destinatario: str, mensaje: str, canal: str = "whatsapp"
 
 @register_tool("listar_notificaciones")
 def listar_notificaciones(project_id: str = "") -> dict:
-    """Lista notificaciones enviadas, opcionalmente filtradas por proyecto."""
+    """Lista notificaciones enviadas, opcionalmente filtradas por proyecto.
+
+    - Sin project_id: solo notificaciones donde el uid es dueño (las propias).
+    - Con project_id: requiere que el usuario tenga acceso al proyecto. Si
+      tiene acceso, devuelve TODAS las del proyecto (no solo las suyas) —
+      así los invitados también ven las notificaciones del proyecto.
+    """
     try:
         from boto3.dynamodb.conditions import Key, Attr
         if project_id:
+            if not _has_project_access(project_id):
+                return {"error": "Sin acceso a ese proyecto"}
             result = notifications_table.scan(
-                FilterExpression=Attr('projectId').eq(project_id) & Attr('userId').eq(USER_ID)
+                FilterExpression=Attr('projectId').eq(project_id)
             )
         else:
             result = notifications_table.scan(
-                FilterExpression=Attr('userId').eq(USER_ID)
+                FilterExpression=Attr('userId').eq(_current_uid())
             )
         items = sorted(result.get('Items', []), key=lambda x: x.get('createdAt', ''), reverse=True)
         return {"count": len(items), "notifications": items[:50]}
@@ -439,6 +592,8 @@ def listar_notificaciones(project_id: str = "") -> dict:
 @register_tool("obtener_contactos_proyecto")
 def obtener_contactos_proyecto(project_id: str) -> dict:
     """Obtiene los participantes de un proyecto con sus teléfonos y tareas pendientes."""
+    if not _has_project_access(project_id):
+        return {"error": "Sin acceso a ese proyecto"}
     try:
         from boto3.dynamodb.conditions import Key, Attr
 
@@ -447,8 +602,12 @@ def obtener_contactos_proyecto(project_id: str) -> dict:
         if not project:
             return {"error": f"Proyecto {project_id} no encontrado"}
 
+        # Las tareas se filtran SOLO por projectId. Antes filtrábamos también
+        # por userId del usuario logueado — pero las tareas tienen userId=owner
+        # del proyecto, por lo que invitados no veían las tareas de proyectos
+        # compartidos. Ya validamos acceso al proyecto arriba, así que es seguro.
         tasks_result = tasks_table.scan(
-            FilterExpression=Attr('projectId').eq(project_id) & Attr('userId').eq(USER_ID)
+            FilterExpression=Attr('projectId').eq(project_id)
         )
         all_tasks = tasks_result.get('Items', [])
 
@@ -499,7 +658,7 @@ def enviar_correo(destinatario_email: str, asunto: str, cuerpo: str, project_id:
             conversations_table.put_item(Item={
                 'projectId': project_id or 'unassigned',
                 'conversationId': conv_id,
-                'userId': USER_ID,
+                'userId': _current_uid(),
                 'from': 'OneBox IA',
                 'fromEmail': 'onebox-ia@onebox.app',
                 'to': destinatario_email,
@@ -517,7 +676,7 @@ def enviar_correo(destinatario_email: str, asunto: str, cuerpo: str, project_id:
         try:
             insight_id = f"{now}#{uuid.uuid4().hex[:8]}"
             insights_table.put_item(Item={
-                'userId': USER_ID,
+                'userId': _current_uid(),
                 'insightId': insight_id,
                 'projectId': project_id,
                 'projectName': project_name,
@@ -558,7 +717,7 @@ def crear_recordatorio(titulo: str, descripcion: str = "", fecha_vencimiento: st
         item = {
             'projectId': project_id or 'general',
             'taskId': reminder_id,
-            'userId': USER_ID,
+            'userId': _current_uid(),
             'text': titulo,
             'description': descripcion,
             'status': 'pending',
@@ -573,7 +732,7 @@ def crear_recordatorio(titulo: str, descripcion: str = "", fecha_vencimiento: st
         try:
             insight_id = f"{now}#{uuid.uuid4().hex[:8]}"
             insights_table.put_item(Item={
-                'userId': USER_ID,
+                'userId': _current_uid(),
                 'insightId': insight_id,
                 'projectId': project_id,
                 'projectName': project_name,
@@ -612,12 +771,12 @@ def verificar_sla() -> dict:
         print(f"[Tool] verificar_sla → Escaneando tareas y proyectos...")
 
         blocked_result = tasks_table.scan(
-            FilterExpression=Attr('userId').eq(USER_ID) & Attr('status').eq('blocked')
+            FilterExpression=Attr('userId').eq(_current_uid()) & Attr('status').eq('blocked')
         )
         blocked_tasks = blocked_result.get('Items', [])
 
         all_tasks_result = tasks_table.scan(
-            FilterExpression=Attr('userId').eq(USER_ID) & Attr('status').eq('pending')
+            FilterExpression=Attr('userId').eq(_current_uid()) & Attr('status').eq('pending')
         )
         overdue_tasks = []
         for task in all_tasks_result.get('Items', []):
@@ -626,7 +785,7 @@ def verificar_sla() -> dict:
                 overdue_tasks.append(task)
 
         unassigned_result = conversations_table.scan(
-            FilterExpression=Attr('projectId').eq('unassigned') & Attr('userId').eq(USER_ID)
+            FilterExpression=Attr('projectId').eq('unassigned') & Attr('userId').eq(_current_uid())
         )
         unassigned_count = len(unassigned_result.get('Items', []))
 
@@ -682,7 +841,7 @@ def clasificar_mensajes_automatico() -> dict:
         print(f"[Tool] clasificar_mensajes_automatico → Analizando inbox...")
 
         unassigned_result = conversations_table.scan(
-            FilterExpression=Attr('projectId').eq('unassigned') & Attr('userId').eq(USER_ID)
+            FilterExpression=Attr('projectId').eq('unassigned') & Attr('userId').eq(_current_uid())
         )
         unassigned = unassigned_result.get('Items', [])
 
@@ -690,7 +849,7 @@ def clasificar_mensajes_automatico() -> dict:
             return {"success": True, "message": "No hay mensajes sin asignar", "suggestions": []}
 
         projects_result = projects_table.scan(
-            FilterExpression=Attr('userId').eq(USER_ID)
+            FilterExpression=Attr('userId').eq(_current_uid())
         )
         projects = projects_result.get('Items', [])
 
@@ -758,22 +917,22 @@ def resumen_proactivo() -> dict:
         print(f"[Tool] resumen_proactivo → Generando resumen...")
 
         proj_result = projects_table.scan(
-            FilterExpression=Attr('userId').eq(USER_ID)
+            FilterExpression=Attr('userId').eq(_current_uid())
         )
         projects = proj_result.get('Items', [])
 
         tasks_result = tasks_table.scan(
-            FilterExpression=Attr('userId').eq(USER_ID)
+            FilterExpression=Attr('userId').eq(_current_uid())
         )
         all_tasks = tasks_result.get('Items', [])
 
         inbox_result = conversations_table.scan(
-            FilterExpression=Attr('projectId').eq('unassigned') & Attr('userId').eq(USER_ID)
+            FilterExpression=Attr('projectId').eq('unassigned') & Attr('userId').eq(_current_uid())
         )
         unassigned = inbox_result.get('Items', [])
 
         insights_result = insights_table.scan(
-            FilterExpression=Attr('userId').eq(USER_ID)
+            FilterExpression=Attr('userId').eq(_current_uid())
         )
         insights = sorted(insights_result.get('Items', []), key=lambda x: x.get('createdAt', ''), reverse=True)[:5]
 

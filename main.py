@@ -79,7 +79,8 @@ if __name__ == "__main__":
     from boto3.dynamodb.conditions import Key, Attr
     from agent.tools import (
         projects_table, conversations_table, tasks_table,
-        insights_table, notifications_table, invitations_table, USER_ID
+        insights_table, notifications_table, invitations_table,
+        set_current_user, clear_current_user,
     )
     from agent.llm import call_llm, extract_json_from_response
     dynamodb = _boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -222,6 +223,7 @@ if __name__ == "__main__":
         description: str = ""
         start_date: Optional[str] = None   # YYYY-MM-DD (opcional)
         due_date: Optional[str] = None     # YYYY-MM-DD (opcional)
+        parent_task_id: Optional[str] = None  # taskId del padre (subtarea) o None
 
     class UpdateTaskRequest(BaseModel):
         text: Optional[str] = None
@@ -231,6 +233,7 @@ if __name__ == "__main__":
         blocked_reason: Optional[str] = None  # Motivo del bloqueo (opcional)
         start_date: Optional[str] = None      # YYYY-MM-DD
         due_date: Optional[str] = None        # YYYY-MM-DD
+        parent_task_id: Optional[str] = None  # mover tarea a/desde subtarea (string vacío = raíz)
 
     class AssignRequest(BaseModel):
         projectId: str
@@ -258,16 +261,34 @@ if __name__ == "__main__":
 
    
     @app.post("/chat", response_model=ChatResponse)
-    async def chat(request: ChatRequest):
-        """Endpoint principal del agente."""
+    async def chat(
+        request: ChatRequest,
+        x_user_id: str = Header(default=""),
+        x_user_email: str = Header(default=""),
+    ):
+        """Endpoint principal del agente.
+
+        SEGURIDAD: exige x-user-id (validado por require_uid → 401 si falta).
+        Setea el contexto de usuario para que las tools filtren por el uid
+        del que pregunta — NO por un USER_ID global hardcoded (cross-tenant leak).
+        """
+        uid = require_uid(x_user_id)
+        user_email = x_user_email.lower() if x_user_email else ""
+        set_current_user(uid, user_email)
         try:
             result = run_agent(request.message, request.history)
             return ChatResponse(
                 response=result["response"],
                 toolsUsed=result.get("tools_used", [])
             )
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            # Limpiar contexto para no dejar el uid pegado entre requests
+            # (defensa en profundidad — contextvars ya aísla por task, pero igual).
+            clear_current_user()
 
     @app.get("/health")
     async def health():
@@ -337,6 +358,34 @@ if __name__ == "__main__":
                         proj_item = projects_table.get_item(Key={'projectId': pid}).get('Item')
                         if proj_item:
                             proj_item['_invited'] = True
+                            # Auto-añadir al participants[] del proyecto si todavía no figura
+                            # (idempotente: si ya está por email, no duplicamos)
+                            try:
+                                current_parts = proj_item.get('participants', []) or []
+                                inv_email_norm = (inv.get('email', '') or '').strip().lower()
+                                already_in = any(
+                                    (p.get('email', '') or '').strip().lower() == inv_email_norm
+                                    for p in current_parts if isinstance(p, dict)
+                                )
+                                if inv_email_norm and not already_in:
+                                    # Nombre = parte local del email (kotomivega@gmail.com → kotomivega)
+                                    derived_name = inv_email_norm.split('@')[0] or inv_email_norm
+                                    new_part = {
+                                        'nombre': derived_name,
+                                        'email': inv_email_norm,
+                                        'telefono': '',
+                                        'rol': 'Invitado',
+                                    }
+                                    updated_parts = current_parts + [new_part]
+                                    projects_table.update_item(
+                                        Key={'projectId': pid},
+                                        UpdateExpression="SET participants = :p",
+                                        ExpressionAttributeValues={':p': updated_parts},
+                                    )
+                                    proj_item['participants'] = updated_parts
+                                    print(f"[get_projects] Invitado {inv_email_norm} añadido a participants de {pid}")
+                            except Exception as e:
+                                print(f"[get_projects] No se pudo añadir invitado a participants de {pid}: {e}")
                             invited_projects.append(proj_item)
                             seen_proj_ids.add(pid)
                 except Exception as e:
@@ -480,6 +529,9 @@ if __name__ == "__main__":
                     if is_overdue:
                         tags.append('Vencida')
 
+                    # Contar subtareas hijas de esta task (si las tiene)
+                    children = [c for c in proj_tasks if c.get('parentTaskId', '') == t.get('taskId', '')]
+                    children_done = len([c for c in children if c.get('status') == 'done'])
                     tasks_list.append({
                         'id': t.get('taskId', ''),
                         'text': t.get('text', ''),
@@ -489,6 +541,9 @@ if __name__ == "__main__":
                         'blockedReason': t.get('blockedReason', ''),
                         'startDate': t.get('startDate', ''),
                         'dueDate': t.get('dueDate', ''),
+                        'parentTaskId': t.get('parentTaskId', ''),
+                        'subtasksCount': len(children),
+                        'subtasksDone': children_done,
                         'assignedTo': {
                             'nombre': assigned,
                             'iniciales': iniciales(assigned),
@@ -1591,6 +1646,7 @@ if __name__ == "__main__":
                 'assignedTo': req.assigned_to,
                 'startDate': req.start_date or '',
                 'dueDate': req.due_date or '',
+                'parentTaskId': (req.parent_task_id or '').strip(),  # '' si es tarea raíz
                 'createdAt': now,
             }
             tasks_table.put_item(Item=item)
@@ -1633,6 +1689,12 @@ if __name__ == "__main__":
                 updates['startDate'] = req.start_date
             if req.due_date is not None:
                 updates['dueDate'] = req.due_date
+            if req.parent_task_id is not None:
+                # '' = mover a raíz; valor = convertir en subtarea de esa task.
+                # No permitimos que una tarea sea subtarea de sí misma.
+                if req.parent_task_id and req.parent_task_id == task_id:
+                    raise HTTPException(status_code=400, detail="Una tarea no puede ser subtarea de sí misma")
+                updates['parentTaskId'] = req.parent_task_id.strip()
 
             if updates:
                 expr_parts = []
@@ -1695,25 +1757,48 @@ if __name__ == "__main__":
 
 
     @app.delete("/api/tasks/{task_id}")
-    async def delete_task(task_id: str, x_user_id: str = Header(default=""), x_user_email: str = Header(default="")):
+    async def delete_task(task_id: str, cascade: bool = Query(False), x_user_id: str = Header(default=""), x_user_email: str = Header(default="")):
         """Elimina una tarea. Owner Y invitados con acceso al proyecto pueden borrar.
-        (Si quieres restringir a "solo el que la creó" en el futuro, basta con
-        comparar uid == task.createdBy aquí.)"""
+
+        Si la tarea tiene subtareas:
+          - cascade=true  → borra también todos los hijos.
+          - cascade=false → los hijos quedan como tareas raíz (parentTaskId = '').
+        """
         uid = require_uid(x_user_id)
         try:
-            # Localizar la tarea por taskId (sin filtrar por userId)
-            result = tasks_table.scan(
-                FilterExpression=Attr('taskId').eq(task_id)
-            )
+            # Localizar la tarea por taskId
+            result = tasks_table.scan(FilterExpression=Attr('taskId').eq(task_id))
             items = result.get('Items', [])
             if not items:
                 raise HTTPException(status_code=404, detail="Tarea no encontrada")
             task = items[0]
-            has, _is_owner, _proj = _has_project_access(uid, x_user_email, task['projectId'])
+            project_id = task['projectId']
+            has, _is_owner, _proj = _has_project_access(uid, x_user_email, project_id)
             if not has:
                 raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
-            tasks_table.delete_item(Key={'projectId': task['projectId'], 'taskId': task_id})
-            return {"success": True, "taskId": task_id}
+
+            # Buscar subtareas
+            children_resp = tasks_table.scan(
+                FilterExpression=Attr('projectId').eq(project_id) & Attr('parentTaskId').eq(task_id)
+            )
+            children = children_resp.get('Items', [])
+
+            if children:
+                if cascade:
+                    # Borrar todos los hijos también.
+                    for child in children:
+                        tasks_table.delete_item(Key={'projectId': project_id, 'taskId': child['taskId']})
+                else:
+                    # Promover hijos a tareas raíz.
+                    for child in children:
+                        tasks_table.update_item(
+                            Key={'projectId': project_id, 'taskId': child['taskId']},
+                            UpdateExpression="SET parentTaskId = :p",
+                            ExpressionAttributeValues={':p': ''},
+                        )
+
+            tasks_table.delete_item(Key={'projectId': project_id, 'taskId': task_id})
+            return {"success": True, "taskId": task_id, "childrenAffected": len(children), "cascade": cascade}
         except HTTPException:
             raise
         except Exception as e:
@@ -2417,15 +2502,23 @@ RESPONDE SOLO JSON:
                 print("[Gmail Push] Notificación sin data")
 
             
-            uid = USER_ID 
+            # Buscar el uid del usuario al que pertenece este email de Gmail.
+            # Si no se encuentra, NO procesamos: usar un USER_ID hardcoded como
+            # fallback estaba causando que las notificaciones de un usuario
+            # quedaran asociadas a otro (data leak cross-tenant).
+            uid = None
             try:
                 result = _user_tokens_table.scan()
                 for item in result.get('Items', []):
                     if item.get('gmailEmail', '').lower() == (email_address or '').lower():
-                        uid = item.get('userId', USER_ID)
+                        uid = item.get('userId')
                         break
             except Exception:
                 pass
+
+            if not uid:
+                print(f"[Gmail Push] No hay usuario vinculado a {email_address}, ignorando notificación.")
+                return {"ok": True, "skipped": True, "reason": "no_user_linked"}
 
             def _sync():
                 try:
@@ -2647,17 +2740,40 @@ RESPONDE SOLO JSON:
             refresh_token = tokens.get('refresh_token', '')
             access_token = tokens.get('access_token', '')
 
+            if not access_token:
+                raise Exception("Token exchange devolvió sin access_token")
+
+            # Si Google no manda refresh_token (típico cuando ya autorizaste antes),
+            # reusamos el existente. Pero si tampoco lo tenemos guardado, falla:
+            # sin refresh_token el cron no podrá sincronizar.
             if not refresh_token:
                 existing = _user_tokens_table.get_item(Key={'userId': uid}).get('Item', {})
                 refresh_token = existing.get('gmailRefreshToken', '')
+                if not refresh_token:
+                    raise Exception(
+                        "Google no devolvió refresh_token y no había uno previo. "
+                        "Revoca el acceso en https://myaccount.google.com/permissions y reintenta."
+                    )
 
+            # Pedir info del usuario (email). SIN email no podemos guardar:
+            # el cron necesita saber qué cuenta sincronizar. Antes guardábamos
+            # gmailEmail='' y el resultado era "conectado pero invisible".
             user_info_resp = _requests.get(
                 'https://www.googleapis.com/oauth2/v2/userinfo',
                 headers={'Authorization': f'Bearer {access_token}'},
                 timeout=15
             )
+            print(f"[Gmail OAuth] userinfo status: {user_info_resp.status_code}")
+            if user_info_resp.status_code != 200:
+                raise Exception(
+                    f"Userinfo falló: {user_info_resp.status_code} {user_info_resp.text[:200]}"
+                )
             user_info = user_info_resp.json()
-            gmail_email = user_info.get('email', '')
+            gmail_email = (user_info.get('email') or '').strip().lower()
+            if not gmail_email:
+                raise Exception(
+                    f"Userinfo no devolvió email. Respuesta: {json.dumps(user_info)[:200]}"
+                )
 
             _user_tokens_table.put_item(Item={
                 'userId': uid,
@@ -2667,7 +2783,7 @@ RESPONDE SOLO JSON:
                 'connectedAt': datetime.utcnow().isoformat()
             })
 
-            print(f"[Gmail OAuth] Usuario {uid} conectó Gmail: {gmail_email}")
+            print(f"[Gmail OAuth] OK uid={uid} email={gmail_email}")
 
             from fastapi.responses import RedirectResponse
             return RedirectResponse(url="https://www.oneboxmanager.com/?gmail=connected")
@@ -3038,8 +3154,11 @@ RESPONDE SOLO JSON:
 
             def _process():
                 try:
-                    import agent.tools as _tools
-                    _tools.USER_ID = _resolved_uid
+                    # Inyectar contexto de usuario al agente (multi-tenant seguro).
+                    # Antes hacíamos `_tools.USER_ID = _resolved_uid` (mutar global)
+                    # — race-condition: dos webhooks concurrentes se pisaban.
+                    # set_current_user usa contextvars, aislado por task asyncio.
+                    set_current_user(_resolved_uid, "")
 
                     session = _get_session(clean_number)
                     history = session.get('history', [])
