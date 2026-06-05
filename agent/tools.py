@@ -233,12 +233,15 @@ TOOLS_DESCRIPTION = """
     - related_person: Persona involucrada
     - actions: Lista de acciones tomadas
 
-- crear_tarea(project_id, text, assigned_to, status): Crea una tarea en un proyecto.
+- crear_tarea(project_id, text, assigned_to, status, start_date, due_date): Crea una tarea en un proyecto.
   Parámetros:
     - project_id: ID del proyecto
     - text: Descripción de la tarea
     - assigned_to: Responsable (opcional)
     - status: pending | done | blocked
+    - start_date: (opcional) Fecha de inicio en formato YYYY-MM-DD. SIEMPRE intenta proponer una fecha realista.
+    - due_date: (opcional) Fecha límite en formato YYYY-MM-DD. SIEMPRE intenta proponer una fecha realista
+      según la complejidad: tareas pequeñas 2-3 días, medianas 5-7 días, grandes 10-15 días.
 
 - enviar_notificacion(destinatario, mensaje, canal, project_id, project_name): Envía una notificación por WhatsApp o SMS.
   Parámetros:
@@ -431,8 +434,21 @@ def crear_insight(project_id: str, project_name: str, type: str, title: str, des
 
 
 @register_tool("crear_tarea")
-def crear_tarea(project_id: str, text: str, assigned_to: str = "", status: str = "pending") -> dict:
-    """Crea una tarea asociada a un proyecto."""
+def crear_tarea(
+    project_id: str,
+    text: str,
+    assigned_to: str = "",
+    status: str = "pending",
+    start_date: str = "",
+    due_date: str = "",
+) -> dict:
+    """Crea una tarea asociada a un proyecto.
+
+    start_date / due_date son OPCIONALES en formato YYYY-MM-DD. La IA debería
+    siempre intentar proponerlas mirando el deliveryDate/timing del proyecto
+    para que el Gantt funcione desde el día 1. Si no las pasa, la tarea
+    queda sin fechas y no aparece en la línea de tiempo (sigue válida).
+    """
     if not _has_project_access(project_id):
         return {"error": "Sin acceso a ese proyecto"}
     try:
@@ -446,6 +462,8 @@ def crear_tarea(project_id: str, text: str, assigned_to: str = "", status: str =
             'status': status,
             'createdBy': 'OneBox IA',
             'assignedTo': assigned_to,
+            'startDate': (start_date or '').strip(),
+            'dueDate': (due_date or '').strip(),
             'createdAt': now
         }
         tasks_table.put_item(Item=item)
