@@ -25,3 +25,12 @@ python-dotenv>=1.0.0
 pypdf>=4.0.0
 python-docx>=1.1.0
 python-multipart>=0.0.9
+
+# Grafo del agente (LangGraph + providers LangChain)
+langgraph>=1.0,<2
+langchain-core>=1.4,<2
+langchain-aws>=1.5,<2         # ChatBedrockConverse (provider por defecto en prod)
+langchain-anthropic>=1.4,<2   # API directa de Anthropic (fallback)
+# langchain-google-genai NO se incluye: su última versión exige langchain-core<1.0
+# (incompatible con langgraph 1.x). El provider 'gemini' del llm_factory hace
+# lazy-import y da error claro si se selecciona sin instalar el paquete.

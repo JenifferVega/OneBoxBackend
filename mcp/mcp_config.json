@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "onebox-chat": {
+      "command": "python",
+      "args": [
+        "C:/Users/user/Desktop/AppDev/undertakes/oneboxproject/OneBoxBackend/mcp/server.py"
+      ],
+      "env": {
+        "ONEBOX_BASE_URL": "http://localhost:8000",
+        "ONEBOX_USER_ID": "debug-user-001",
+        "ONEBOX_USER_EMAIL": "debug@onebox.com",
+        "ONEBOX_REPORTS_DIR": "C:/Users/user/Desktop/AppDev/undertakes/oneboxproject/OneBoxBackend/mcp/reports"
+      }
+    }
+  }
+}

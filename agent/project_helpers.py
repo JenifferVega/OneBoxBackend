@@ -62,50 +62,6 @@ def lookup_user_by_email(email: str) -> Optional[dict]:
         return None
 
 
-def create_cognito_user(email: str, name: str = "") -> Optional[dict]:
-    """
-    Crea un usuario en Cognito con email como username.
-    Cognito enviará un correo de invitación con contraseña temporal.
-    Retorna {userId, email, name} si exitoso, None si falla.
-    """
-    if not email or '@' not in email:
-        return None
-    try:
-        client = get_cognito_client()
-        email_clean = email.strip().lower()
-        attributes = [
-            {'Name': 'email', 'Value': email_clean},
-            {'Name': 'email_verified', 'Value': 'true'}
-        ]
-        if name:
-            attributes.append({'Name': 'name', 'Value': name})
-
-        try:
-            response = client.admin_create_user(
-                UserPoolId=COGNITO_USER_POOL_ID,
-                Username=email_clean,
-                UserAttributes=attributes,
-                DesiredDeliveryMediums=['EMAIL']
-                # Cognito enviará el email de invitación con la contraseña temporal
-            )
-        except client.exceptions.UsernameExistsException:
-            # Si ya existe, lo buscamos en lugar de crearlo
-            return lookup_user_by_email(email)
-
-        user = response.get('User', {})
-        attrs = {a['Name']: a['Value'] for a in user.get('Attributes', [])}
-        print(f"[Cognito] Usuario creado: {email_clean} (sub={attrs.get('sub')})")
-        return {
-            'userId': attrs.get('sub', email_clean),
-            'email': email_clean,
-            'name': name or email_clean.split('@')[0],
-            'status': 'FORCE_CHANGE_PASSWORD'
-        }
-    except Exception as e:
-        print(f"[Cognito] Error creando usuario {email}: {e}")
-        return None
-
-
 def evaluate_description(name: str, description: str) -> dict:
     """
     Usa la IA para evaluar si la descripción del proyecto es suficiente

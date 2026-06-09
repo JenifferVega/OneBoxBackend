@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pipx run *)",
+      "Bash(python3 -m vulture)",
+      "Read(//tmp/**)",
+      "Bash(python3 -m venv vulture-env)",
+      "Bash(/tmp/vulture-env/bin/pip install *)",
+      "Bash(/tmp/vulture-env/bin/vulture --min-confidence 60 /mnt/c/Users/user/Desktop/AppDev/undertakes/oneboxproject/OneBoxBackend/main.py /mnt/c/Users/user/Desktop/AppDev/undertakes/oneboxproject/OneBoxBackend/lambda_twilio_webhook.py /mnt/c/Users/user/Desktop/AppDev/undertakes/oneboxproject/OneBoxBackend/agent /mnt/c/Users/user/Desktop/AppDev/undertakes/oneboxproject/OneBoxBackend/lambdas)",
+      "Bash(/tmp/vulture-env/bin/vulture *)",
+      "Bash(/tmp/vulture-env/bin/pyflakes main.py lambda_twilio_webhook.py agent/*.py lambdas/*.py)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(sed -n '87,91p;338,342p;573,577p;596,600p;765,772p;837,841p;913,917p' agent/tools.py)",
+      "Bash(python3 -m py_compile main.py lambda_twilio_webhook.py agent/*.py lambdas/*.py api/*.py api/endpoints/*.py api/services/*.py)",
+      "Bash(python3 -c \"import fastapi\")",
+      "Bash(pip list *)",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -c \"import sys; print\\(sys.prefix\\)\")",
+      "Bash(pip install *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(python3 tests/test_agent_graph.py)",
+      "Bash(timeout 30 python3 main.py)",
+      "Bash(curl -s -m 5 http://localhost:8000/health)",
+      "Bash(curl -s -m 10 -X POST http://localhost:8000/chat -H \"Content-Type: application/json\" -H \"x-user-id: test-user-123\" -d '{\"message\": \"Hola\", \"history\": []}')",
+      "Bash(curl -s -m 5 -o /dev/null -w \"POST /chat sin uid -> %{http_code}\\\\n\" -X POST http://localhost:8000/chat -H \"Content-Type: application/json\" -d '{\"message\": \"Hola\"}')",
+      "Bash(wait)",
+      "Bash(timeout 90 python3 -c ' *)"
+    ]
+  }
+}
