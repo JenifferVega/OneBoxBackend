@@ -71,4 +71,5 @@ def run_agent(user_message: str, history: List[dict] = None, debug_mode: bool = 
         "response": final.get("response") or "Lo siento, no pude procesar tu solicitud.",
         "tools_used": final.get("tools_used", []),
         "debug_info": final.get("debug_info"),
+        "results": final.get("results", {}),  # resultados crudos de cada paso (para callers internos)
     }

@@ -120,6 +120,44 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
       },
     },
+    {
+      name: "onebox_from_text_preview",
+      description:
+        "Llama a POST /api/text/analyze con un texto pegado (conversación WhatsApp, correo, notas). " +
+        "Devuelve el preview del agente en modo debug: participantes detectados, tareas con assigned_to " +
+        "y fechas, sin crear nada en la base de datos. Útil para verificar la calidad del análisis.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texto o conversación a analizar" },
+          source: {
+            type: "string",
+            description: "Origen del texto: 'whatsapp', 'email', 'notes', etc.",
+            default: "whatsapp",
+          },
+        },
+        required: ["text"],
+      },
+    },
+    {
+      name: "onebox_from_text_create",
+      description:
+        "Llama a POST /api/projects/from-text con un texto pegado. " +
+        "Crea el proyecto REAL en la base de datos usando el agente completo: " +
+        "detecta participantes, crea tareas con assigned_to y fechas. " +
+        "Retorna el projectId creado y la respuesta del agente.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texto o conversación desde la que crear el proyecto" },
+          name: {
+            type: "string",
+            description: "Nombre del proyecto (opcional, el agente lo infiere si no se da)",
+          },
+        },
+        required: ["text"],
+      },
+    },
   ],
 }));
 
@@ -131,11 +169,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args = {} } = request.params;
 
   switch (name) {
-    case "onebox_chat":    return handleChat(args);
-    case "onebox_reset":   return handleReset(args);
-    case "onebox_history": return handleHistory(args);
-    case "onebox_report":  return handleReport(args);
-    case "onebox_export":  return handleExport(args);
+    case "onebox_chat":              return handleChat(args);
+    case "onebox_reset":             return handleReset(args);
+    case "onebox_history":           return handleHistory(args);
+    case "onebox_report":            return handleReport(args);
+    case "onebox_export":            return handleExport(args);
+    case "onebox_from_text_preview": return handleFromTextPreview(args);
+    case "onebox_from_text_create":  return handleFromTextCreate(args);
     default:
       return text(`Herramienta desconocida: ${name}`);
   }
@@ -434,6 +474,124 @@ function generateCatalogSuggestions(issues, turnsMeta) {
   }
 
   return suggestions;
+}
+
+async function handleFromTextPreview(args) {
+  const textInput = (args.text || "").trim();
+  const source    = args.source || "whatsapp";
+
+  if (!textInput) return text("⚠️ El texto no puede estar vacío.");
+
+  const headers = {
+    "x-user-id":    USER_ID,
+    "x-user-email": USER_EMAIL,
+    "Content-Type": "application/json",
+  };
+
+  let data;
+  try {
+    const res = await fetch(`${BASE_URL}/api/text/analyze`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ text: textInput, source }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      return text(`❌ Error HTTP ${res.status}: ${body.slice(0, 400)}`);
+    }
+    data = await res.json();
+  } catch (err) {
+    if (err.code === "ECONNREFUSED") {
+      return text(`❌ No se pudo conectar a ${BASE_URL}. ¿Está corriendo el servidor?`);
+    }
+    return text(`❌ Error: ${err.message}`);
+  }
+
+  const suggestion   = data.suggestion ?? {};
+  const participants = suggestion.detected_participants ?? [];
+  const tasks        = suggestion.tasks ?? [];
+
+  const lines = [
+    `## 📋 Preview del proyecto (sin guardar)`,
+    `**Nombre:** ${suggestion.name || "—"}`,
+    `**Tipo:** ${suggestion.type || "—"}`,
+    `**Descripción:** ${(suggestion.description || "—").slice(0, 300)}`,
+    `**Draft ID:** \`${data.draftId || "—"}\``,
+    "",
+  ];
+
+  if (participants.length) {
+    lines.push(`### 👥 Participantes detectados (${participants.length}):`);
+    for (const p of participants) {
+      const email = p.email ? ` 📧 ${p.email}` : "";
+      lines.push(`  • **${p.name || "?"}** — ${p.role || ""}${email}`);
+    }
+  } else {
+    lines.push("👥 No se detectaron participantes.");
+  }
+
+  lines.push("");
+
+  if (tasks.length) {
+    lines.push(`### ✅ Tareas detectadas (${tasks.length}):`);
+    for (const t of tasks) {
+      const assigned = t.assigned_to ? ` → **${t.assigned_to}**` : "";
+      const due      = t.due_date    ? ` (hasta ${t.due_date})`   : "";
+      lines.push(`  • ${t.text || "?"}${assigned}${due}`);
+    }
+  } else {
+    lines.push("✅ No se detectaron tareas.");
+  }
+
+  if (data.agentResponse) {
+    lines.push("", `🤖 **Respuesta del agente:** ${data.agentResponse.slice(0, 400)}`);
+  }
+
+  return text(lines.join("\n"));
+}
+
+async function handleFromTextCreate(args) {
+  const textInput = (args.text || "").trim();
+  const name      = (args.name || "").trim();
+
+  if (!textInput) return text("⚠️ El texto no puede estar vacío.");
+
+  const headers = {
+    "x-user-id":    USER_ID,
+    "x-user-email": USER_EMAIL,
+    "Content-Type": "application/json",
+  };
+
+  let data;
+  try {
+    const res = await fetch(`${BASE_URL}/api/projects/from-text`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ text: textInput, name: name || null, channels: ["WhatsApp"], source: "whatsapp" }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      return text(`❌ Error HTTP ${res.status}: ${body.slice(0, 400)}`);
+    }
+    data = await res.json();
+  } catch (err) {
+    if (err.code === "ECONNREFUSED") {
+      return text(`❌ No se pudo conectar a ${BASE_URL}. ¿Está corriendo el servidor?`);
+    }
+    return text(`❌ Error: ${err.message}`);
+  }
+
+  const lines = [
+    `## ✅ Proyecto creado`,
+    `**Nombre:** ${data.name || "—"}`,
+    `**Project ID:** \`${data.projectId || "—"}\``,
+    `**Herramientas usadas:** ${(data.tools_used || []).join(", ") || "—"}`,
+    "",
+    `🤖 **Respuesta del agente:**`,
+    data.response || "—",
+  ];
+
+  return text(lines.join("\n"));
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

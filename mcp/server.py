@@ -143,6 +143,52 @@ async def list_tools() -> list[types.Tool]:
                 },
             },
         ),
+        types.Tool(
+            name="onebox_from_text_preview",
+            description=(
+                "Llama a POST /api/text/analyze con un texto pegado (conversación WhatsApp, correo, notas). "
+                "Devuelve el preview del agente en modo debug: participantes detectados, tareas con assigned_to "
+                "y fechas, sin crear nada en la base de datos. Útil para verificar la calidad del análisis."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "text": {
+                        "type": "string",
+                        "description": "Texto o conversación a analizar",
+                    },
+                    "source": {
+                        "type": "string",
+                        "description": "Origen del texto: 'whatsapp', 'email', 'notes', etc.",
+                        "default": "whatsapp",
+                    },
+                },
+                "required": ["text"],
+            },
+        ),
+        types.Tool(
+            name="onebox_from_text_create",
+            description=(
+                "Llama a POST /api/projects/from-text con un texto pegado. "
+                "Crea el proyecto REAL en la base de datos usando el agente completo: "
+                "detecta participantes, crea tareas con assigned_to y fechas. "
+                "Retorna el projectId creado y la respuesta del agente."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "text": {
+                        "type": "string",
+                        "description": "Texto o conversación desde la que crear el proyecto",
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Nombre del proyecto (opcional, el agente lo infiere si no se da)",
+                    },
+                },
+                "required": ["text"],
+            },
+        ),
     ]
 
 
@@ -153,11 +199,13 @@ async def list_tools() -> list[types.Tool]:
 @server.call_tool()
 async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
     handlers = {
-        "onebox_chat":    _handle_chat,
-        "onebox_reset":   _handle_reset,
-        "onebox_history": _handle_history,
-        "onebox_report":  _handle_report,
-        "onebox_export":  _handle_export,
+        "onebox_chat":             _handle_chat,
+        "onebox_reset":            _handle_reset,
+        "onebox_history":          _handle_history,
+        "onebox_report":           _handle_report,
+        "onebox_export":           _handle_export,
+        "onebox_from_text_preview": _handle_from_text_preview,
+        "onebox_from_text_create":  _handle_from_text_create,
     }
     handler = handlers.get(name)
     if not handler:
@@ -462,6 +510,100 @@ def _generate_catalog_suggestions(issues: list[dict], turns_meta: list[dict]) ->
             })
 
     return suggestions
+
+
+async def _handle_from_text_preview(args: dict) -> list[types.TextContent]:
+    text   = (args.get("text") or "").strip()
+    source = args.get("source") or "whatsapp"
+
+    if not text:
+        return [types.TextContent(type="text", text="⚠️ El texto no puede estar vacío.")]
+
+    payload = {"text": text, "source": source}
+    headers = {"x-user-id": USER_ID, "x-user-email": USER_EMAIL, "Content-Type": "application/json"}
+
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(f"{BASE_URL}/api/text/analyze", json=payload, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+    except httpx.ConnectError:
+        return [types.TextContent(type="text", text=f"❌ No se pudo conectar a {BASE_URL}. ¿Está corriendo el servidor?")]
+    except httpx.HTTPStatusError as e:
+        return [types.TextContent(type="text", text=f"❌ Error HTTP {e.response.status_code}: {e.response.text[:400]}")]
+    except Exception as e:
+        return [types.TextContent(type="text", text=f"❌ Error: {e}")]
+
+    suggestion   = data.get("suggestion", {})
+    participants = suggestion.get("detected_participants", [])
+    tasks        = suggestion.get("tasks", [])
+
+    lines = [
+        f"## 📋 Preview del proyecto (sin guardar)",
+        f"**Nombre:** {suggestion.get('name', '—')}",
+        f"**Tipo:** {suggestion.get('type', '—')}",
+        f"**Descripción:** {suggestion.get('description', '—')[:300]}",
+        f"**Draft ID:** `{data.get('draftId', '—')}`",
+        "",
+    ]
+
+    if participants:
+        lines.append(f"### 👥 Participantes detectados ({len(participants)}):")
+        for p in participants:
+            lines.append(f"  • **{p.get('name', '?')}** — {p.get('role', '')} {('📧 ' + p.get('email','')) if p.get('email') else ''}")
+    else:
+        lines.append("👥 No se detectaron participantes.")
+
+    lines.append("")
+
+    if tasks:
+        lines.append(f"### ✅ Tareas detectadas ({len(tasks)}):")
+        for t in tasks:
+            assigned = f" → **{t['assigned_to']}**" if t.get('assigned_to') else ""
+            due      = f" (hasta {t['due_date']})" if t.get('due_date') else ""
+            lines.append(f"  • {t.get('text', '?')}{assigned}{due}")
+    else:
+        lines.append("✅ No se detectaron tareas.")
+
+    if data.get("agentResponse"):
+        lines += ["", f"🤖 **Respuesta del agente:** {data['agentResponse'][:400]}"]
+
+    return [types.TextContent(type="text", text="\n".join(lines))]
+
+
+async def _handle_from_text_create(args: dict) -> list[types.TextContent]:
+    text = (args.get("text") or "").strip()
+    name = (args.get("name") or "").strip()
+
+    if not text:
+        return [types.TextContent(type="text", text="⚠️ El texto no puede estar vacío.")]
+
+    payload = {"text": text, "name": name or None, "channels": ["WhatsApp"], "source": "whatsapp"}
+    headers = {"x-user-id": USER_ID, "x-user-email": USER_EMAIL, "Content-Type": "application/json"}
+
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(f"{BASE_URL}/api/projects/from-text", json=payload, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+    except httpx.ConnectError:
+        return [types.TextContent(type="text", text=f"❌ No se pudo conectar a {BASE_URL}. ¿Está corriendo el servidor?")]
+    except httpx.HTTPStatusError as e:
+        return [types.TextContent(type="text", text=f"❌ Error HTTP {e.response.status_code}: {e.response.text[:400]}")]
+    except Exception as e:
+        return [types.TextContent(type="text", text=f"❌ Error: {e}")]
+
+    lines = [
+        f"## ✅ Proyecto creado",
+        f"**Nombre:** {data.get('name', '—')}",
+        f"**Project ID:** `{data.get('projectId', '—')}`",
+        f"**Herramientas usadas:** {', '.join(data.get('tools_used', []))}",
+        "",
+        f"🤖 **Respuesta del agente:**",
+        data.get("response", "—"),
+    ]
+
+    return [types.TextContent(type="text", text="\n".join(lines))]
 
 
 # ══════════════════════════════════════════════════════════════════════════════

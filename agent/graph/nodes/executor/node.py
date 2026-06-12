@@ -17,6 +17,8 @@ from agent.tools import execute_tool
 # Keyed por session_id. Persiste mientras el servidor esté corriendo.
 # Se limpia con clear_dry_run_cache(session_id) cuando se hace onebox_reset.
 _DRY_RUN_PROJECT_CACHE: dict[str, list] = {}
+# Keyed por session_id → {projectId: [participants]}
+_DRY_RUN_PARTICIPANTS_CACHE: dict[str, dict] = {}
 
 
 def get_dry_run_projects(session_id: str) -> list:
@@ -29,8 +31,19 @@ def add_dry_run_project(session_id: str, project: dict) -> None:
     _DRY_RUN_PROJECT_CACHE[session_id].append(project)
 
 
+def add_dry_run_participants(session_id: str, project_id: str, participants: list) -> None:
+    if session_id not in _DRY_RUN_PARTICIPANTS_CACHE:
+        _DRY_RUN_PARTICIPANTS_CACHE[session_id] = {}
+    _DRY_RUN_PARTICIPANTS_CACHE[session_id][project_id] = participants
+
+
+def get_dry_run_participants(session_id: str, project_id: str) -> list:
+    return _DRY_RUN_PARTICIPANTS_CACHE.get(session_id, {}).get(project_id, [])
+
+
 def clear_dry_run_cache(session_id: str) -> None:
     _DRY_RUN_PROJECT_CACHE.pop(session_id, None)
+    _DRY_RUN_PARTICIPANTS_CACHE.pop(session_id, None)
 
 
 # Resultados simulados realistas por herramienta (dry-run)
@@ -77,6 +90,17 @@ def _simulate_tool(tool_name: str, params: dict, session_id: str = "") -> dict:
         extra = get_dry_run_projects(session_id) if session_id else []
         all_projects = base + extra
         return {"count": len(all_projects), "projects": all_projects, "_dry_run": True}
+
+    if tool_name == "obtener_contactos_proyecto":
+        project_id = params.get("project_id", "")
+        # Intenta por project_id exacto, luego por fallback "latest" de la sesión
+        cached = get_dry_run_participants(session_id, project_id) if session_id else []
+        if not cached and session_id:
+            cached = get_dry_run_participants(session_id, "_latest")
+        if cached:
+            return {"total_contactos": len(cached), "contactos": cached, "_dry_run": True}
+        return {"total_contactos": 0, "contactos": [], "_dry_run": True,
+                "_note": "No hay participantes registrados para este proyecto en dry-run"}
 
     sim = _DRY_RUN_RESULTS.get(tool_name)
     if sim:
@@ -212,12 +236,29 @@ def executor_node(state: AgentState) -> dict:
                     print(f"   [DRY RUN] Resultado simulado: {json.dumps(result, default=str)[:200]}")
                     # Guardar en cache in-memory para que listar_proyectos lo vea en turnos posteriores
                     if tool_name == "crear_proyecto" and result.get("success") and session_id:
+                        project_id = result.get("projectId", f"proj-DRYRUN-{uuid.uuid4().hex[:8]}")
                         add_dry_run_project(session_id, {
-                            "projectId": result.get("projectId", f"proj-DRYRUN-{uuid.uuid4().hex[:8]}"),
+                            "projectId": project_id,
                             "name":      resolved_params.get("name", "?"),
                             "type":      resolved_params.get("type", "Otro"),
                             "status":    "active",
                         })
+                        # Guardar participants para que obtener_contactos_proyecto los devuelva
+                        raw_participants = resolved_params.get("participants", [])
+                        if raw_participants:
+                            contactos = [
+                                {
+                                    "nombre":           p.get("nombre", "?"),
+                                    "rol":              p.get("rol", ""),
+                                    "telefono":         p.get("telefono", ""),
+                                    "email":            p.get("email", ""),
+                                    "tareas_pendientes": 0,
+                                }
+                                for p in raw_participants if isinstance(p, dict)
+                            ]
+                            add_dry_run_participants(session_id, project_id, contactos)
+                            # Fallback "_latest" para recuperar aunque haya mismatch de project_id
+                            add_dry_run_participants(session_id, "_latest", contactos)
                         print(f"   [DRY RUN] Proyecto guardado en cache: {resolved_params.get('name')}")
                 else:
                     result = execute_tool(tool_name, resolved_params)

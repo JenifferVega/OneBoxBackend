@@ -40,6 +40,7 @@ USAGE_TABLE = """## CUÁNDO USAR HERRAMIENTAS:
 | "muéstrame mis proyectos" | listar_proyectos |
 | "crea un proyecto de Marketing" | crear_proyecto |
 | "crea una tarea: revisar diseño" | crear_tarea |
+| "quiénes son los participantes?" / "a quién están asignadas las tareas?" | listar_proyectos → obtener_contactos_proyecto |
 | "manda los pendientes por WhatsApp" | obtener_contactos_proyecto → enviar_notificacion |
 | "manda un WhatsApp a +1..." | enviar_notificacion |
 | "crea un recordatorio para..." | crear_recordatorio |

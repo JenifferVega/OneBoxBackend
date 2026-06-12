@@ -45,53 +45,98 @@ def save_attachment_record(project_id: str, user_id: str, file_name: str,
 
 
 def analyze_text_preview(uid: str, text: str, source: str) -> dict:
-    """Analiza un texto pegado SIN crear proyecto. Devuelve draftId + sugerencia.
-    Equivalente al análisis de documento pero para texto. Reusa el flujo
-    from-document-draft para confirmar."""
-    from agent.document_parser import analyze_document_for_project, upload_to_s3
+    """Analiza un texto pegado SIN crear proyecto. Delega al agente en modo debug
+    (dry-run) para obtener la misma profundidad que el chat: participantes reales,
+    tareas con assigned_to y fechas. Devuelve draftId + sugerencia del agente."""
+    from agent.document_parser import upload_to_s3
+    from agent.graph import run_agent
+    from agent.tools import clear_current_user, set_current_user
 
     text = (text or '').strip()
     if len(text) < 30:
         raise HTTPException(status_code=400, detail="El texto es muy corto. Pega al menos una conversación o un párrafo.")
 
-    # Sugerir metadata con IA
-    analysis = analyze_document_for_project(text)
+    # Correr el agente en modo debug (sin escribir en DynamoDB)
+    set_current_user(uid)
+    try:
+        message = f"Crea un proyecto a partir de esta conversación o texto:\n\n{text}"
+        agent_result = run_agent(message, history=[], debug_mode=True, session_id=f"preview-{uid}")
+    finally:
+        clear_current_user()
 
-    # Guardar como draft .txt en S3 + DynamoDB (igual que un documento)
+    # Extraer datos del plan generado por el agente
+    debug_info = agent_result.get("debug_info") or {}
+    plan = debug_info.get("plan") or []
+
+    project_name, project_type, description = "", "Otro", ""
+    detected_participants, tasks = [], []
+
+    for step in plan:
+        tool = step.get("tool", "")
+        params = step.get("params", {})
+        if tool == "crear_proyecto":
+            project_name = params.get("name", "")
+            project_type = params.get("type", "Otro")
+            description = params.get("description", "")
+            for p in (params.get("participants") or []):
+                if isinstance(p, dict):
+                    detected_participants.append({
+                        "name":  p.get("nombre", ""),
+                        "role":  p.get("rol", ""),
+                        "email": p.get("email", ""),
+                        "phone": p.get("telefono", ""),
+                    })
+        elif tool == "crear_tarea":
+            task_text = params.get("text", "")
+            # Ignorar refs dinámicas (from_step)
+            if task_text and isinstance(task_text, str):
+                tasks.append({
+                    "text":        task_text,
+                    "assigned_to": params.get("assigned_to", ""),
+                    "start_date":  params.get("start_date", ""),
+                    "due_date":    params.get("due_date", ""),
+                    "status":      params.get("status", "pending"),
+                })
+
+    # Guardar el texto como draft .txt en S3 + DynamoDB para el paso de confirmación
     draft_id = uuid.uuid4().hex
     source = source or 'paste'
     now = datetime.utcnow().isoformat()
     file_name = f"texto-pegado-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
     text_bytes = text.encode('utf-8')
-    s3_key = upload_to_s3(text_bytes, f"_drafts/{uid}", file_name, 'text/plain')
-
-    attachments_table.put_item(Item={
-        'projectId': f'_draft#{uid}',
-        'attachmentId': draft_id,
-        'userId': uid,
-        'fileName': file_name,
-        'fileSize': len(text_bytes),
-        'contentType': 'text/plain',
-        'extension': 'txt',
-        's3Key': s3_key,
-        'extractedTextPreview': text[:5000],
-        'extractedTextLength': len(text),
-        'source': f'web_draft_{source}',
-        'createdAt': now,
-    })
+    try:
+        s3_key = upload_to_s3(text_bytes, f"_drafts/{uid}", file_name, 'text/plain')
+        attachments_table.put_item(Item={
+            'projectId': f'_draft#{uid}',
+            'attachmentId': draft_id,
+            'userId': uid,
+            'fileName': file_name,
+            'fileSize': len(text_bytes),
+            'contentType': 'text/plain',
+            'extension': 'txt',
+            's3Key': s3_key,
+            'extractedTextPreview': text[:5000],
+            'extractedTextLength': len(text),
+            'source': f'web_draft_{source}',
+            'createdAt': now,
+        })
+    except Exception as e:
+        print(f"[analyze_text_preview] Error guardando draft: {e}")
 
     return {
         "draftId": draft_id,
         "fileName": file_name,
         "fileSize": len(text_bytes),
         "extractedTextLength": len(text),
+        "agentResponse": agent_result.get("response", ""),
         "suggestion": {
-            "name": analysis['name'],
-            "type": analysis['type'],
-            "description": analysis['description'],
-            "extractedNotes": analysis.get('extractedNotes', ''),
-            "detected_participants": analysis.get('detected_participants', []),
-        }
+            "name":                  project_name,
+            "type":                  project_type,
+            "description":           description,
+            "extractedNotes":        "",
+            "detected_participants": detected_participants,
+            "tasks":                 tasks,
+        },
     }
 
 
@@ -348,57 +393,61 @@ def create_project_from_document(uid: str, file_bytes: bytes, file_name: str,
 
 
 def create_project_from_text(uid: str, text: str, name: str, channels, source: str) -> dict:
-    """Crea un proyecto desde un texto pegado (conversación WhatsApp, correo, notas).
-    La IA infiere nombre, tipo, descripción y genera insights automáticamente."""
-    from agent.document_parser import analyze_document_for_project
-    from agent.project_helpers import create_project_full
+    """Crea un proyecto desde un texto pegado delegando al agente completo.
+    Misma profundidad que el chat: participantes reales, tareas con assigned_to y fechas."""
+    from agent.graph import run_agent
+    from agent.tools import clear_current_user, set_current_user
 
     text = (text or '').strip()
     if len(text) < 30:
         raise HTTPException(status_code=400, detail="El texto es muy corto. Pega al menos una conversación completa o un párrafo descriptivo.")
 
-    # IA infiere metadata
-    analysis = analyze_document_for_project(text, fallback_name=name or '')
-    project_name = (name or analysis['name']).strip()[:80]
-    project_type = analysis['type']
-    description = analysis['description']
-    if analysis.get('extractedNotes'):
-        description += "\n\nNotas: " + analysis['extractedNotes']
+    message = f"Crea un proyecto a partir de esta conversación o texto:\n\n{text}"
+    if name:
+        message = f"Crea un proyecto llamado '{name}' a partir de esta conversación o texto:\n\n{text}"
 
-    channel_list = channels or ['Gmail']
-
-    # Crear proyecto + insights
-    result = create_project_full(
-        user_id=uid,
-        name=project_name,
-        description=description,
-        project_type=project_type,
-        channels=channel_list,
-        participants=[]
-    )
-    project_id = result['projectId']
-
-    # Guardar el texto pegado como "adjunto" tipo .txt en el proyecto
+    set_current_user(uid)
     try:
-        from agent.document_parser import upload_to_s3
-        fname = f"texto-pegado-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
-        s3_key = upload_to_s3(text.encode('utf-8'), project_id, fname, 'text/plain')
-        save_attachment_record(
-            project_id=project_id,
-            user_id=uid,
-            file_name=fname,
-            file_size=len(text.encode('utf-8')),
-            content_type='text/plain',
-            ext='txt',
-            s3_key=s3_key,
-            extracted_text=text,
-            source=source or 'paste'
-        )
-    except Exception as e:
-        print(f"[from_text] Error guardando texto: {e}")
+        agent_result = run_agent(message, history=[], debug_mode=False, session_id=f"fromtext-{uid}")
+    finally:
+        clear_current_user()
 
-    result['analysis'] = analysis
-    return result
+    # Extraer projectId real de los resultados del agente
+    project_id = None
+    project_name = name or ""
+    for step_result in (agent_result.get("results") or {}).values():
+        if isinstance(step_result, dict) and step_result.get("projectId"):
+            project_id = step_result["projectId"]
+            project_name = step_result.get("name", project_name)
+            break
+
+    # Guardar el texto como adjunto .txt en el proyecto creado
+    if project_id:
+        try:
+            from agent.document_parser import upload_to_s3
+            fname = f"texto-pegado-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
+            s3_key = upload_to_s3(text.encode('utf-8'), project_id, fname, 'text/plain')
+            save_attachment_record(
+                project_id=project_id,
+                user_id=uid,
+                file_name=fname,
+                file_size=len(text.encode('utf-8')),
+                content_type='text/plain',
+                ext='txt',
+                s3_key=s3_key,
+                extracted_text=text,
+                source=source or 'paste'
+            )
+        except Exception as e:
+            print(f"[from_text] Error guardando adjunto: {e}")
+
+    return {
+        "success": True,
+        "projectId": project_id,
+        "name": project_name,
+        "response": agent_result.get("response", ""),
+        "tools_used": agent_result.get("tools_used", []),
+    }
 
 
 def analyze_text_for_project(uid: str, project_id: str, text: str, source: str) -> dict:

@@ -10,6 +10,17 @@ GUIDANCE = """## GUÍA PARA PROYECTOS Y TAREAS:
 2. Si se creó un proyecto, tarea o recordatorio, confirma QUÉ se creó, en qué
    proyecto, responsable y fechas si las hay.
 
+3. Si se creó un proyecto Y múltiples tareas en el mismo plan (ingesta de conversación
+   o documento), NO digas "puedes pedir que asigne las tareas" — ya están asignadas.
+   En cambio:
+   — Lista los participantes detectados con sus roles.
+   — Muestra las tareas creadas con su responsable y fecha límite.
+   — Ejemplo:
+     "✅ Proyecto **DW - FUSTÉ CARRERAS** creado con 5 participantes y 7 tareas:
+      • Replicar diseño del theme → **Belen Alberdi** (hasta 14/05)
+      • Definir esquema de categorías → **Mat Two Zero** (hasta 22/05)
+      ..."
+
 3. Si se listaron proyectos Y también se creó/modificó algo, muestra ambas partes:
    qué había disponible y qué se hizo.
 
