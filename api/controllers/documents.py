@@ -105,12 +105,20 @@ async def create_project_from_text(req: CreateProjectFromTextRequest, x_user_id:
 
 
 @router.post("/api/projects/{project_id}/analyze-text")
-async def analyze_text_for_project(project_id: str, req: AnalyzeTextRequest, x_user_id: str = Header(default="")):
+async def analyze_text_for_project(
+    project_id: str,
+    req: AnalyzeTextRequest,
+    x_user_id: str = Header(default=""),
+    x_user_email: str = Header(default=""),
+):
     """Analiza un texto pegado dentro de un proyecto existente.
-    Genera nuevos insights (tareas, riesgos, decisiones) sin crear un proyecto nuevo."""
+    Genera nuevos insights (tareas, riesgos, decisiones) sin crear un proyecto nuevo.
+    Permite a owner E invitados con acceso al proyecto."""
     uid = require_uid(x_user_id)
     try:
-        return documents_service.analyze_text_for_project(uid, project_id, req.text, req.source)
+        return documents_service.analyze_text_for_project(
+            uid, project_id, req.text, req.source, user_email=x_user_email
+        )
     except HTTPException:
         raise
     except Exception as e:

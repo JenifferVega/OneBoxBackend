@@ -26,6 +26,13 @@ pypdf>=4.0.0
 python-docx>=1.1.0
 python-multipart>=0.0.9
 
+# numpy: pin a una versión con wheels para Lambda Python 3.11.
+# numpy 2.4.x solo tiene wheels nuevos que requieren toolchain meson + gcc no
+# presentes en la imagen Lambda → falla compilando from source. numpy 2.1
+# es la última con wheels manylinux_2_28 universales para esta imagen.
+# langchain-aws acepta numpy<3,>=1.0, así que esta pin es compatible.
+numpy>=1.26,<2.2
+
 # Grafo del agente (LangGraph + providers LangChain)
 langgraph>=1.0,<2
 langchain-core>=1.4,<2

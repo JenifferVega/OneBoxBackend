@@ -153,6 +153,54 @@ TWILIO_PHONE_NUMBER = os.environ.get("TWILIO_PHONE_NUMBER", "+15005550006")
 TWILIO_WHATSAPP_NUMBER = os.environ.get("TWILIO_WHATSAPP_NUMBER", "whatsapp:+14155238886")
 TWILIO_TEST_MODE = os.environ.get("TWILIO_TEST_MODE", "false").lower() == "true"
 
+# ============================================================================
+# SES (Amazon Simple Email Service) — para el canal "email"
+# ----------------------------------------------------------------------------
+# Hoy estamos en SANDBOX: solo se puede enviar a emails verificados en SES.
+# Por eso _ses_check_verified hace gate antes de mandar — si no está
+# verificado, se loguea como 'skipped_unverified' y NO se intenta enviar.
+# Cuando AWS apruebe production access, el gate se vuelve no-op (todos pasan).
+#
+# El FROM es jenifferf.funezp@gmail.com (verificado en SES). Se puede cambiar
+# con env var SES_FROM_EMAIL sin redeploy si en el futuro hay dominio propio.
+# ============================================================================
+SES_FROM_EMAIL = os.environ.get("SES_FROM_EMAIL", "jenifferf.funezp@gmail.com")
+SES_REGION = os.environ.get("SES_REGION", os.environ.get("AWS_REGION", "us-east-1"))
+_ses_client = None
+# Cache local de verificaciones — evita llamar a SES por cada email.
+# Se reinicia cuando reinicia el container (lo cual es OK porque añadir un
+# nuevo verificado en SES no es muy frecuente).
+_ses_verified_cache: dict = {}
+
+
+def _get_ses_client():
+    """Lazy init del cliente SES. Usa el rol IAM del ECS task (no API keys)."""
+    global _ses_client
+    if _ses_client is None:
+        _ses_client = boto3.client('ses', region_name=SES_REGION)
+    return _ses_client
+
+
+def _ses_check_verified(email: str) -> bool:
+    """Verifica si un email está verificado en SES (necesario en sandbox).
+    Cachea el resultado para no consultar en cada envío."""
+    email = (email or '').strip().lower()
+    if not email:
+        return False
+    if email in _ses_verified_cache:
+        return _ses_verified_cache[email]
+    try:
+        client = _get_ses_client()
+        result = client.get_identity_verification_attributes(Identities=[email])
+        attrs = result.get('VerificationAttributes', {}).get(email, {})
+        verified = attrs.get('VerificationStatus') == 'Success'
+        _ses_verified_cache[email] = verified
+        return verified
+    except Exception as e:
+        print(f"[SES] Error checking verification for {email}: {e}")
+        return False
+
+
 notifications_table = dynamodb.Table('onebox-notifications')
 invitations_table = dynamodb.Table('onebox-invitations')
 
@@ -509,6 +557,77 @@ def enviar_notificacion(destinatario: str, mensaje: str, canal: str = "whatsapp"
         return {"error": "Sin acceso a ese proyecto"}
     now = datetime.utcnow().isoformat()
 
+    # ──────────────────────────────────────────────────────────────────────
+    # CANAL EMAIL (SES) — branch independiente, no entra al flujo Twilio.
+    # Se decide al principio para no validar E.164 cuando el destinatario
+    # es un email (nada que ver con un teléfono).
+    # ──────────────────────────────────────────────────────────────────────
+    if canal == "email":
+        target = (destinatario or '').strip().lower()
+        if not target or '@' not in target:
+            _log_notification(now, project_id, project_name, canal, destinatario, mensaje,
+                              status='invalid_email', error=f"Email inválido: '{destinatario}'")
+            return {"error": f"Email inválido: '{destinatario}'", "status": "invalid_email"}
+
+        # En SES SANDBOX solo se puede enviar a verificados → gate explícito.
+        # Cuando AWS apruebe production access, el gate se vuelve transparente
+        # (todos los emails serán "verificados" desde el punto de vista del API).
+        if not _ses_check_verified(target):
+            _log_notification(now, project_id, project_name, canal, target, mensaje,
+                              status='skipped_unverified',
+                              error=f"Email no verificado en SES (sandbox): {target}")
+            print(f"[SES] SKIP: {target} no está verificado en SES sandbox")
+            return {"status": "skipped_unverified", "destinatario": target}
+
+        try:
+            subject = f"[OneBox] {project_name}" if project_name else "[OneBox] Notificación"
+            # HTML básico: envolver el mensaje en estructura mínima. El cron
+            # actual genera el mensaje en texto plano con \n; aquí lo
+            # convertimos a <br> para que se vea decente en el inbox.
+            safe_html = (
+                mensaje
+                .replace('&', '&amp;')
+                .replace('<', '&lt;')
+                .replace('>', '&gt;')
+                .replace('\n', '<br>')
+            )
+            html_body = (
+                "<html><body style=\"font-family:Arial,sans-serif;color:#222;\">"
+                f"<div style=\"max-width:600px;margin:0 auto;padding:20px;\">"
+                f"<p style=\"white-space:pre-wrap;\">{safe_html}</p>"
+                f"<hr style=\"border:none;border-top:1px solid #eee;margin:24px 0 12px;\">"
+                f"<p style=\"font-size:12px;color:#888;\">Enviado por OneBox · "
+                f"<a href=\"https://www.oneboxmanager.com\" style=\"color:#7c3aed;text-decoration:none;\">"
+                f"oneboxmanager.com</a></p>"
+                f"</div></body></html>"
+            )
+            client = _get_ses_client()
+            response = client.send_email(
+                Source=SES_FROM_EMAIL,
+                Destination={'ToAddresses': [target]},
+                Message={
+                    'Subject': {'Data': subject, 'Charset': 'UTF-8'},
+                    'Body': {
+                        'Text': {'Data': mensaje, 'Charset': 'UTF-8'},
+                        'Html': {'Data': html_body, 'Charset': 'UTF-8'},
+                    }
+                }
+            )
+            ses_message_id = response.get('MessageId', '')
+            print(f"[SES] sent to={target} messageId={ses_message_id}")
+            _log_notification(now, project_id, project_name, canal, target, mensaje,
+                              sid=ses_message_id, status='sent')
+            return {"success": True, "messageId": ses_message_id, "status": "sent"}
+        except Exception as e:
+            err_msg = str(e)[:300]
+            print(f"[SES] ERROR sending to {target}: {err_msg}")
+            _log_notification(now, project_id, project_name, canal, target, mensaje,
+                              status='ses_error', error=err_msg)
+            return {"error": err_msg, "status": "ses_error"}
+
+    # ──────────────────────────────────────────────────────────────────────
+    # CANALES TWILIO (whatsapp, sms) — flujo original sin cambios.
+    # ──────────────────────────────────────────────────────────────────────
     # 1) Validar/normalizar el teléfono ANTES de tocar Twilio (evita fallos silenciosos).
     clean = _normalize_e164(destinatario)
     if not clean:

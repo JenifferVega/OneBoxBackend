@@ -130,17 +130,26 @@ def list_projects(uid: str, user_email: str) -> list:
 
     projects = own_projects + shared_projects + invited_projects
 
-    all_tasks = scan_all_pages(
-        tasks_table,
-        FilterExpression=Attr('userId').eq(uid)
-    )
+    # FIX (#23): el filtro previo Attr('userId').eq(uid) ocultaba las
+    # tareas e insights de proyectos donde el usuario es shared o invited.
+    # Las tareas/insights persistidos llevan userId = owner del proyecto
+    # (no del usuario que las consulta), así un invitado nunca matcheaba y
+    # veía los proyectos correctos pero vacíos de tareas/insights.
+    #
+    # Solución: scan completo y filtro client-side por projectId ∈ proyectos
+    # accesibles. La autorización ya se hizo arriba (own + shared + invited):
+    # ese set define exactamente qué puede ver, y aplicarlo aquí garantiza
+    # que NUNCA caigan tareas de proyectos sin acceso.
+    # Coste: mismo scan completo que antes; DynamoDB aplicaba el filtro
+    # POST-scan internamente, así que el cambio no es más lento en práctica.
+    accessible_pids = {p['projectId'] for p in projects}
 
-    all_insights_raw = scan_all_pages(
-        insights_table,
-        FilterExpression=Attr('userId').eq(uid)
-    )
+    all_tasks_raw = scan_all_pages(tasks_table)
+    all_tasks = [t for t in all_tasks_raw if t.get('projectId') in accessible_pids]
+
+    all_insights_raw = scan_all_pages(insights_table)
     all_insights = sorted(
-        all_insights_raw,
+        [i for i in all_insights_raw if i.get('projectId') in accessible_pids],
         key=lambda x: x.get('createdAt', ''),
         reverse=True
     )
@@ -615,15 +624,40 @@ def _invite_by_email(email: str, uid: str, project_id: str, project_name: str) -
     except Exception as e:
         return {"success": False, "error": f"DynamoDB error: {str(e)}"}
 
-    # Mensaje contextual según el caso
+    # Mensaje contextual según el caso + share_url cuando hace falta avisar
+    # manualmente al invitante (porque Cognito NO envía email).
+    #
+    # Casos donde Cognito SÍ envía email automáticamente:
+    #   - Usuario nuevo (admin_create_user con DesiredDeliveryMediums=EMAIL)
+    #   - Usuario en FORCE_CHANGE_PASSWORD reenviado (MessageAction=RESEND)
+    #
+    # Casos donde Cognito NO envía email → ahí necesitamos share_url:
+    #   - userStatus = 'EXTERNAL_PROVIDER' (la persona se registró con Google)
+    #   - userStatus = 'CONFIRMED'         (la persona ya activó la cuenta)
+    # En ambos casos, sin share_url el invitado NO se entera de que fue invitado.
+    needs_manual_share = cognito_user_existed and not email_resent
+    share_url = ''
+    if needs_manual_share:
+        # Link directo a la home logueada de la app. Cuando la persona entre,
+        # el endpoint /api/projects auto-acepta su invitación y le aparece
+        # el proyecto en la lista.
+        share_url = f"https://www.oneboxmanager.com/?proyecto={project_id}"
+
     if not cognito_user_existed:
         msg = "Invitación enviada. El usuario recibirá un correo con su contraseña temporal."
     elif email_resent:
         msg = "El usuario ya tenía cuenta pendiente de activar. Le reenviamos el correo de invitación."
     elif user_status == 'CONFIRMED':
-        msg = "El usuario ya tiene cuenta activa. El proyecto le aparecerá la próxima vez que inicie sesión."
+        msg = (
+            "El usuario ya tiene cuenta activa pero NO recibe email automático. "
+            "Comparte el link directo del proyecto que está debajo."
+        )
     else:
-        msg = "Invitación registrada. El proyecto le aparecerá al iniciar sesión."
+        # EXTERNAL_PROVIDER (Google), UNCONFIRMED, etc. — Cognito no manda nada
+        msg = (
+            "El usuario está registrado con login externo (Google) y Cognito NO "
+            "envía email automático. Comparte el link directo del proyecto."
+        )
 
     return {
         "success": True,
@@ -633,6 +667,11 @@ def _invite_by_email(email: str, uid: str, project_id: str, project_name: str) -
         "emailResent": email_resent,
         "userStatus": user_status,
         "message": msg,
+        # share_url: si no está vacío, el frontend debe mostrar el botón
+        # "Copiar link para compartir" para que el invitante avise manualmente
+        # al invitado por su canal de preferencia (WhatsApp, Slack, etc.).
+        "share_url": share_url,
+        "needs_manual_share": needs_manual_share,
     }
 
 
