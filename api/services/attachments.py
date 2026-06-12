@@ -60,7 +60,7 @@ def upload_attachment(uid: str, user_email: str, project_id: str,
             project_name=existing.get('name', 'Proyecto'),
             project_type=existing.get('type', 'Otro'),
             description=text[:5000],
-            participants_count=len(existing.get('participants', []))
+            participants=existing.get('participants', []),
         )
 
         # Notificación in-app (queda en el feed del owner)

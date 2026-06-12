@@ -158,6 +158,38 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["text"],
       },
     },
+    {
+      name: "onebox_list_projects",
+      description:
+        "Lista los proyectos del usuario. Útil para obtener projectIds antes de llamar " +
+        "onebox_analyze_text_in_project.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+    },
+    {
+      name: "onebox_analyze_text_in_project",
+      description:
+        "Llama a POST /api/projects/{project_id}/analyze-text. " +
+        "Genera insights (tareas con assigned_to, riesgos, decisiones) dentro de un proyecto " +
+        "existente usando generate_insights_for_project con la lista real de participantes. " +
+        "Útil para verificar que las tareas quedan asignadas a los participantes correctos.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          project_id: { type: "string", description: "ID del proyecto existente (ej: proj-abc123)" },
+          text: { type: "string", description: "Texto o conversación a analizar dentro del proyecto" },
+          source: {
+            type: "string",
+            description: "Origen del texto: 'whatsapp', 'email', 'notes', etc.",
+            default: "whatsapp",
+          },
+        },
+        required: ["project_id", "text"],
+      },
+    },
   ],
 }));
 
@@ -174,8 +206,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case "onebox_history":           return handleHistory(args);
     case "onebox_report":            return handleReport(args);
     case "onebox_export":            return handleExport(args);
-    case "onebox_from_text_preview": return handleFromTextPreview(args);
-    case "onebox_from_text_create":  return handleFromTextCreate(args);
+    case "onebox_from_text_preview":        return handleFromTextPreview(args);
+    case "onebox_from_text_create":         return handleFromTextCreate(args);
+    case "onebox_list_projects":            return handleListProjects(args);
+    case "onebox_analyze_text_in_project":  return handleAnalyzeTextInProject(args);
     default:
       return text(`Herramienta desconocida: ${name}`);
   }
@@ -590,6 +624,108 @@ async function handleFromTextCreate(args) {
     `🤖 **Respuesta del agente:**`,
     data.response || "—",
   ];
+
+  return text(lines.join("\n"));
+}
+
+async function handleListProjects(args) {
+  const headers = { "x-user-id": USER_ID, "x-user-email": USER_EMAIL };
+  let data;
+  try {
+    const res = await fetch(`${BASE_URL}/api/projects`, { headers });
+    if (!res.ok) return text(`❌ Error HTTP ${res.status}`);
+    data = await res.json();
+  } catch (err) {
+    return text(`❌ Error: ${err.message}`);
+  }
+
+  const projects = Array.isArray(data) ? data : (data.projects || []);
+  if (!projects.length) return text("No hay proyectos.");
+
+  const lines = ["## 📁 Proyectos", ""];
+  for (const p of projects.slice(0, 20)) {
+    const participants = (p.participants || []).map(x => x.nombre || x.name).filter(Boolean).join(", ");
+    lines.push(`- **${p.name}** — \`${p.projectId}\``);
+    if (participants) lines.push(`  👥 ${participants}`);
+  }
+  return text(lines.join("\n"));
+}
+
+async function handleAnalyzeTextInProject(args) {
+  const projectId = (args.project_id || "").trim();
+  const textInput = (args.text || "").trim();
+  const source    = args.source || "whatsapp";
+
+  if (!projectId) return text("⚠️ project_id es requerido.");
+  if (!textInput)  return text("⚠️ El texto no puede estar vacío.");
+
+  const headers = {
+    "x-user-id":    USER_ID,
+    "x-user-email": USER_EMAIL,
+    "Content-Type": "application/json",
+  };
+
+  let data;
+  try {
+    const res = await fetch(`${BASE_URL}/api/projects/${projectId}/analyze-text`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ text: textInput, source }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      return text(`❌ Error HTTP ${res.status}: ${body.slice(0, 400)}`);
+    }
+    data = await res.json();
+  } catch (err) {
+    if (err.code === "ECONNREFUSED") return text(`❌ No se pudo conectar a ${BASE_URL}. ¿Está corriendo el servidor?`);
+    return text(`❌ Error: ${err.message}`);
+  }
+
+  const insights = data.insightsGenerated || {};
+  const analysis = insights.analysis || {};
+
+  const lines = [
+    `## 🔍 Insights generados para \`${projectId}\``,
+    `**Total insights:** ${insights.count || 0}`,
+    "",
+  ];
+
+  if (analysis.summary) {
+    lines.push(`### 📝 Resumen`, analysis.summary, "");
+  }
+
+  const tasks = analysis.tasks || [];
+  if (tasks.length) {
+    lines.push(`### ✅ Tareas (${tasks.length})`);
+    for (const t of tasks) {
+      const assigned = t.assigned_to ? ` → **${t.assigned_to}**` : "";
+      const due      = t.due_date    ? ` (hasta ${t.due_date})` : "";
+      lines.push(`  • ${t.text}${assigned}${due}`);
+    }
+    lines.push("");
+  }
+
+  const blockers = analysis.blockers || [];
+  if (blockers.length) {
+    lines.push(`### 🚫 Bloqueos`);
+    for (const b of blockers) {
+      const assigned = b.assigned_to ? ` → ${b.assigned_to}` : "";
+      lines.push(`  • ${b.text || b}${assigned}`);
+    }
+    lines.push("");
+  }
+
+  if ((analysis.risks || []).length) {
+    lines.push(`### ⚠️ Riesgos`);
+    for (const r of analysis.risks) lines.push(`  • ${r}`);
+    lines.push("");
+  }
+
+  if ((analysis.decisions || []).length) {
+    lines.push(`### 🎯 Decisiones`);
+    for (const d of analysis.decisions) lines.push(`  • ${d}`);
+  }
 
   return text(lines.join("\n"));
 }

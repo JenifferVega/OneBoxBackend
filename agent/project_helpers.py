@@ -125,7 +125,8 @@ def generate_insights_for_project(
     project_name: str,
     project_type: str,
     description: str,
-    participants_count: int = 0
+    participants_count: int = 0,
+    participants: list = None
 ) -> dict:
     """
     Llama a la IA para analizar la descripción y crear insights en DynamoDB.
@@ -134,15 +135,29 @@ def generate_insights_for_project(
     if not description:
         return {"generated": False, "reason": "no_description"}
 
+    participants = participants or []
+    if not participants_count and participants:
+        participants_count = len(participants)
+
     now = datetime.utcnow().isoformat()
     # Fecha de hoy para que el LLM pueda escalonar las tareas a partir de aquí
     today_str = datetime.utcnow().strftime('%Y-%m-%d')
+
+    # Construir sección de participantes para el prompt
+    if participants:
+        parts_lines = "\n".join(
+            f"  - {p.get('nombre', p.get('name', ''))} ({p.get('rol', p.get('role', 'Participante'))})"
+            for p in participants if p.get('nombre') or p.get('name')
+        )
+        participants_section = f"PARTICIPANTES ({participants_count}):\n{parts_lines}"
+    else:
+        participants_section = f"PARTICIPANTES: {participants_count} personas (sin detalle)"
 
     analysis_prompt = f"""Eres un analista senior de proyectos. Tu trabajo es extraer un resumen FÁCTICO del PROYECTO en sí (qué es, qué tiene, qué stack usa, qué entregables), NO de la conversación entre los autores.
 
 PROYECTO: {project_name}
 TIPO DECLARADO: {project_type}
-PARTICIPANTES: {participants_count} personas
+{participants_section}
 
 CONTENIDO A ANALIZAR (conversación, brief, acta, correo, etc.):
 {description}
@@ -210,16 +225,18 @@ EJEMPLO DE BUEN summary (referencia, no copiar):
 EJEMPLO DE MAL summary (NO HAGAS ESTO):
 "El proyecto es una iniciativa para optimizar y actualizar el sitio web institucional. Existen una serie de mejoras necesarias y un bloqueo técnico crítico que representa un desafío importante. Cliente institucional con un sitio web desactualizado."
 
-FECHAS DE TAREAS — IMPORTANTE PARA EL GANTT:
-Para "tasks", "work_done" y "blockers" devuelve OBJETOS con start_date y due_date estimadas (formato YYYY-MM-DD):
+FECHAS Y ASIGNACIÓN DE TAREAS — IMPORTANTE PARA EL GANTT:
+Para "tasks", "work_done" y "blockers" devuelve OBJETOS con start_date, due_date y assigned_to:
 - HOY es {today_str}. Distribuye las tareas secuencialmente desde mañana.
 - Si el texto menciona deadlines explícitos ("antes del 15 de junio", "para el viernes"), úsalos.
 - Si no hay deadlines, estima por complejidad:
   · Tareas pequeñas (configurar, ajustar, revisar): 2-3 días
   · Tareas medianas (implementar, integrar, diseñar): 5-7 días
   · Tareas grandes (módulo completo, release): 10-15 días
-- Para "work_done" pon fechas en el pasado (cuando estimes que se hizo) si hay pista; si no, déjalas en blanco.
+- Para "work_done" pon fechas en el pasado si hay pista; si no, déjalas en blanco.
 - Escalona con 1-2 días de margen entre tareas para que el Gantt se vea limpio.
+- "assigned_to": nombre exacto del participante responsable de la tarea (de la lista de PARTICIPANTES).
+  Si no hay participante claro para esa tarea, deja vacío.
 
 RESPONDE SOLO JSON, sin texto extra ni bloques de código:
 {{
@@ -227,10 +244,10 @@ RESPONDE SOLO JSON, sin texto extra ni bloques de código:
   "project_type_real": "Caracterización concreta en una frase (ej: 'Actualización de WordPress institucional con bloqueo de hosting')",
   "client_profile": "Caracterización del cliente con datos del texto (ej: 'Asociación LES España y Portugal con web institucional desactualizada'). Vacío si no hay datos suficientes.",
   "key_insight": "La observación estratégica más importante en una frase concreta",
-  "work_done": [{{"text": "Tarea ya hecha", "start_date": "YYYY-MM-DD o vacío", "due_date": "YYYY-MM-DD o vacío"}}],
-  "tasks": [{{"text": "Tarea pendiente concreta", "start_date": "YYYY-MM-DD", "due_date": "YYYY-MM-DD"}}],
+  "work_done": [{{"text": "Tarea ya hecha", "assigned_to": "Nombre o vacío", "start_date": "YYYY-MM-DD o vacío", "due_date": "YYYY-MM-DD o vacío"}}],
+  "tasks": [{{"text": "Tarea pendiente concreta", "assigned_to": "Nombre del responsable o vacío", "start_date": "YYYY-MM-DD", "due_date": "YYYY-MM-DD"}}],
   "risks": ["Riesgo general 1", "Riesgo 2"],
-  "blockers": [{{"text": "Bloqueo específico con detalle", "start_date": "YYYY-MM-DD", "due_date": "YYYY-MM-DD"}}],
+  "blockers": [{{"text": "Bloqueo específico con detalle", "assigned_to": "Nombre o vacío", "start_date": "YYYY-MM-DD", "due_date": "YYYY-MM-DD"}}],
   "decisions": ["Decisión concreta tomada o pendiente", "Otra decisión"],
   "metrics": ["Métrica exacta del texto (ej: '~10 horas estimadas', '14.5€/hora')"],
   "tech_issues": ["Problema técnico específico mencionado"]
@@ -301,10 +318,12 @@ RESPONDE SOLO JSON, sin texto extra ni bloques de código:
                     text = str(item_or_text.get('text', ''))[:500]
                     start_date = (item_or_text.get('start_date') or '').strip()
                     due_date = (item_or_text.get('due_date') or '').strip()
+                    assigned_to = (item_or_text.get('assigned_to') or '').strip()
                 else:
                     text = str(item_or_text)[:500]
                     start_date = ''
                     due_date = ''
+                    assigned_to = ''
                 if not text:
                     return
                 tasks_table.put_item(Item={
@@ -314,7 +333,7 @@ RESPONDE SOLO JSON, sin texto extra ni bloques de código:
                     'text': text,
                     'status': task_status,  # pending, in_progress, completed, blocked
                     'createdBy': 'IA',
-                    'assignedTo': '',
+                    'assignedTo': assigned_to,
                     'startDate': start_date,
                     'dueDate': due_date,
                     'sourceLabel': source_label,
@@ -456,7 +475,7 @@ def create_project_full(
         project_name=name,
         project_type=project_type,
         description=description,
-        participants_count=len(participants)
+        participants=participants,
     )
 
     # 3.5 Si la descripción original es larga (parece chat / texto crudo) y la IA generó

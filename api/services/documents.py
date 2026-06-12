@@ -45,32 +45,51 @@ def save_attachment_record(project_id: str, user_id: str, file_name: str,
 
 
 def analyze_text_preview(uid: str, text: str, source: str) -> dict:
-    """Analiza un texto pegado SIN crear proyecto. Delega al agente en modo debug
-    (dry-run) para obtener la misma profundidad que el chat: participantes reales,
-    tareas con assigned_to y fechas. Devuelve draftId + sugerencia del agente."""
+    """Analiza un texto pegado SIN crear proyecto.
+    Usa solo el planner del agente (sin executor): cero escrituras en DynamoDB,
+    cero dry-run. Devuelve draftId + sugerencia con participantes y tareas asignadas."""
     from agent.document_parser import upload_to_s3
-    from agent.graph import run_agent
-    from agent.tools import clear_current_user, set_current_user
+    from agent.graph.llm_factory import create_llm
+    from agent.graph.nodes.planner.node import planner_node
 
     text = (text or '').strip()
     if len(text) < 30:
         raise HTTPException(status_code=400, detail="El texto es muy corto. Pega al menos una conversación o un párrafo.")
 
-    # Correr el agente en modo debug (sin escribir en DynamoDB)
-    set_current_user(uid)
-    try:
-        message = f"Crea un proyecto a partir de esta conversación o texto:\n\n{text}"
-        agent_result = run_agent(message, history=[], debug_mode=True, session_id=f"preview-{uid}")
-    finally:
-        clear_current_user()
+    # Invocar solo el planner (sin executor, sin DynamoDB)
+    planner_llm = create_llm("planner")
+    planner_state = {
+        "user_message": f"Crea un proyecto a partir de esta conversación o texto:\n\n{text}",
+        "resolved_message": None,
+        "history": [],
+        "plan": [],
+        "results": {},
+        "tools_used": [],
+        "validation_feedback": None,
+        "iteration": 0,
+        "status": "planning",
+        "response": "",
+        "direct_response": None,
+        "debug_mode": False,
+        "session_id": f"preview-{uid}",
+        "intent_draft": None,
+        "debug_info": {},
+    }
+    planner_result = None
+    for attempt in range(3):
+        try:
+            planner_result = planner_node(planner_state, planner_llm)
+            break
+        except Exception as e:
+            print(f"[analyze_text_preview] Planner intento {attempt + 1}/3 falló: {e}")
+    if planner_result is None:
+        raise HTTPException(status_code=500, detail="No se pudo analizar el texto. Intenta de nuevo.")
 
-    # Extraer datos del plan generado por el agente
-    debug_info = agent_result.get("debug_info") or {}
-    plan = debug_info.get("plan") or []
-
+    # Extraer datos del plan
     project_name, project_type, description = "", "Otro", ""
     detected_participants, tasks = [], []
 
+    plan = (planner_result or {}).get("plan") or []
     for step in plan:
         tool = step.get("tool", "")
         params = step.get("params", {})
@@ -88,7 +107,6 @@ def analyze_text_preview(uid: str, text: str, source: str) -> dict:
                     })
         elif tool == "crear_tarea":
             task_text = params.get("text", "")
-            # Ignorar refs dinámicas (from_step)
             if task_text and isinstance(task_text, str):
                 tasks.append({
                     "text":        task_text,
@@ -98,7 +116,7 @@ def analyze_text_preview(uid: str, text: str, source: str) -> dict:
                     "status":      params.get("status", "pending"),
                 })
 
-    # Guardar el texto como draft .txt en S3 + DynamoDB para el paso de confirmación
+    # Guardar como draft .txt en S3 + DynamoDB
     draft_id = uuid.uuid4().hex
     source = source or 'paste'
     now = datetime.utcnow().isoformat()
@@ -128,7 +146,6 @@ def analyze_text_preview(uid: str, text: str, source: str) -> dict:
         "fileName": file_name,
         "fileSize": len(text_bytes),
         "extractedTextLength": len(text),
-        "agentResponse": agent_result.get("response", ""),
         "suggestion": {
             "name":                  project_name,
             "type":                  project_type,
@@ -142,11 +159,11 @@ def analyze_text_preview(uid: str, text: str, source: str) -> dict:
 
 def analyze_document_preview(uid: str, file_bytes: bytes, file_name: str, content_type: str) -> dict:
     """Analiza un documento (extrae texto + sugiere metadata) SIN crear el proyecto.
-    El frontend muestra el preview, el usuario revisa/edita y luego confirma.
+    Usa el planner del agente para obtener participantes con roles y tareas asignadas.
     Devuelve un draft_id que se usará después en /api/projects/from-document-draft."""
-    from agent.document_parser import (
-        analyze_document_for_project, extract_text, upload_to_s3, validate_file
-    )
+    from agent.document_parser import extract_text, upload_to_s3, validate_file
+    from agent.graph.llm_factory import create_llm
+    from agent.graph.nodes.planner.node import planner_node
 
     valid, ext, error = validate_file(file_bytes, file_name or '', content_type or '')
     if not valid:
@@ -156,14 +173,70 @@ def analyze_document_preview(uid: str, file_bytes: bytes, file_name: str, conten
     if not text or len(text.strip()) < 20:
         raise HTTPException(status_code=400, detail="No se pudo extraer texto del documento o es muy breve.")
 
-    # Sugerir metadata con IA
-    analysis = analyze_document_for_project(text)
+    # Invocar solo el planner (sin executor, sin DynamoDB)
+    planner_llm = create_llm("planner")
+    planner_state = {
+        "user_message": f"Crea un proyecto a partir de este documento:\n\n{text[:50000]}",
+        "resolved_message": None,
+        "history": [],
+        "plan": [],
+        "results": {},
+        "tools_used": [],
+        "validation_feedback": None,
+        "iteration": 0,
+        "status": "planning",
+        "response": "",
+        "direct_response": None,
+        "debug_mode": False,
+        "session_id": f"docpreview-{uid}",
+        "intent_draft": None,
+        "debug_info": {},
+    }
+
+    planner_result = None
+    for attempt in range(3):
+        try:
+            planner_result = planner_node(planner_state, planner_llm)
+            break
+        except Exception as e:
+            print(f"[analyze_document_preview] Planner intento {attempt + 1}/3 falló: {e}")
+    if planner_result is None:
+        raise HTTPException(status_code=500, detail="No se pudo analizar el documento. Intenta de nuevo.")
+
+    # Extraer datos del plan
+    project_name, project_type, description = "", "Otro", ""
+    detected_participants, tasks = [], []
+
+    for step in (planner_result.get("plan") or []):
+        tool = step.get("tool", "")
+        params = step.get("params", {})
+        if tool == "crear_proyecto":
+            project_name = params.get("name", "")
+            project_type = params.get("type", "Otro")
+            description = params.get("description", "")
+            for p in (params.get("participants") or []):
+                if isinstance(p, dict):
+                    detected_participants.append({
+                        "name":  p.get("nombre", ""),
+                        "role":  p.get("rol", ""),
+                        "email": p.get("email", ""),
+                        "phone": p.get("telefono", ""),
+                    })
+        elif tool == "crear_tarea":
+            task_text = params.get("text", "")
+            if task_text and isinstance(task_text, str):
+                tasks.append({
+                    "text":        task_text,
+                    "assigned_to": params.get("assigned_to", ""),
+                    "start_date":  params.get("start_date", ""),
+                    "due_date":    params.get("due_date", ""),
+                    "status":      params.get("status", "pending"),
+                })
 
     # Subir el archivo a un "draft" en S3 para confirmación posterior
     draft_id = uuid.uuid4().hex
     s3_key = upload_to_s3(file_bytes, f"_drafts/{uid}", file_name or f'doc.{ext}', content_type or '')
 
-    # Guardar el draft en DynamoDB attachments con projectId especial "_draft"
     attachments_table.put_item(Item={
         'projectId': f'_draft#{uid}',
         'attachmentId': draft_id,
@@ -185,12 +258,13 @@ def analyze_document_preview(uid: str, file_bytes: bytes, file_name: str, conten
         "fileSize": len(file_bytes),
         "extractedTextLength": len(text),
         "suggestion": {
-            "name": analysis['name'],
-            "type": analysis['type'],
-            "description": analysis['description'],
-            "extractedNotes": analysis.get('extractedNotes', ''),
-            "detected_participants": analysis.get('detected_participants', []),
-        }
+            "name":                  project_name,
+            "type":                  project_type,
+            "description":           description,
+            "extractedNotes":        "",
+            "detected_participants": detected_participants,
+            "tasks":                 tasks,
+        },
     }
 
 
@@ -505,7 +579,7 @@ def analyze_text_for_project(uid: str, project_id: str, text: str, source: str,
         project_name=existing.get('name', 'Proyecto'),
         project_type=existing.get('type', 'Otro'),
         description=text[:5000],
-        participants_count=len(existing.get('participants', []))
+        participants=existing.get('participants', []),
     )
 
     # Notificación in-app (queda en el feed del owner)
