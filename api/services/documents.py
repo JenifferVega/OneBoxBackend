@@ -401,17 +401,29 @@ def create_project_from_text(uid: str, text: str, name: str, channels, source: s
     return result
 
 
-def analyze_text_for_project(uid: str, project_id: str, text: str, source: str) -> dict:
+def analyze_text_for_project(uid: str, project_id: str, text: str, source: str,
+                              user_email: str = "") -> dict:
     """Analiza un texto pegado dentro de un proyecto existente.
-    Genera nuevos insights (tareas, riesgos, decisiones) sin crear un proyecto nuevo."""
+    Genera nuevos insights (tareas, riesgos, decisiones) sin crear un proyecto nuevo.
+
+    Permite tanto al owner como a los invitados con acceso al proyecto pegar
+    texto y generar insights. Antes solo el owner podía, lo cual era inconsistente
+    con upload_attachment (que sí permite invitados).
+    """
     from agent.document_parser import upload_to_s3
     from agent.project_helpers import generate_insights_for_project
+    from api.services.access import has_project_access
 
-    existing = projects_table.get_item(Key={'projectId': project_id}).get('Item')
+    has, _is_owner, existing = has_project_access(uid, user_email, project_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-    if existing.get('userId') != uid:
-        raise HTTPException(status_code=403, detail="No tienes permiso")
+    if not has:
+        raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
+
+    # Los insights y el adjunto se guardan asociados al owner (no al invitado
+    # que pegó el texto) para que la trazabilidad funcione con el filtro
+    # por projectId en /api/projects.
+    owner_uid = existing.get('userId', uid)
 
     text = (text or '').strip()
     if len(text) < 30:
@@ -423,7 +435,7 @@ def analyze_text_for_project(uid: str, project_id: str, text: str, source: str) 
         s3_key = upload_to_s3(text.encode('utf-8'), project_id, fname, 'text/plain')
         save_attachment_record(
             project_id=project_id,
-            user_id=uid,
+            user_id=owner_uid,
             file_name=fname,
             file_size=len(text.encode('utf-8')),
             content_type='text/plain',
@@ -435,9 +447,11 @@ def analyze_text_for_project(uid: str, project_id: str, text: str, source: str) 
     except Exception as e:
         print(f"[analyze_text] Error guardando texto: {e}")
 
-    # Generar insights con la IA
+    # Generar insights con la IA — los insights van asociados al owner para que
+    # aparezcan en la vista del owner Y de los invitados (el filtro por
+    # projectId en /api/projects los muestra a todos los que tienen acceso).
     insights_result = generate_insights_for_project(
-        user_id=uid,
+        user_id=owner_uid,
         project_id=project_id,
         project_name=existing.get('name', 'Proyecto'),
         project_type=existing.get('type', 'Otro'),
@@ -445,11 +459,11 @@ def analyze_text_for_project(uid: str, project_id: str, text: str, source: str) 
         participants_count=len(existing.get('participants', []))
     )
 
-    # Notificación in-app
+    # Notificación in-app (queda en el feed del owner)
     if insights_result.get('generated') and insights_result.get('count', 0) > 0:
         try:
             notifications_table.put_item(Item={
-                'userId': uid,
+                'userId': owner_uid,
                 'notificationId': f"{datetime.utcnow().isoformat()}#{uuid.uuid4().hex[:8]}",
                 'projectId': project_id,
                 'projectName': existing.get('name', 'Proyecto'),

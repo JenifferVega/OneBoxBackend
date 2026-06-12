@@ -115,43 +115,37 @@ def _create_llm(provider: str, model: str, temperature: float, max_tokens: int =
             max_retries=2,
         )
     if provider == "gemini":
-        try:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-        except ImportError as e:
-            raise RuntimeError(
-                "Provider 'gemini' seleccionado pero langchain-google-genai no está "
-                "instalado (conflicta con langchain-core>=1.0; ver requirements.txt). "
-                "Usa bedrock/anthropic o instala el paquete en un entorno compatible."
-            ) from e
-        return ChatGoogleGenerativeAI(
+        # Adapter HTTP propio (sin langchain-google-genai, que es incompatible
+        # con langgraph 1.x). Ver agent/graph/gemini_adapter.py para detalles.
+        from agent.graph.gemini_adapter import ChatGeminiHTTP
+        return ChatGeminiHTTP(
             model=model,
-            google_api_key=GEMINI_API_KEY,
+            api_key=GEMINI_API_KEY,
             temperature=temperature,
-            max_output_tokens=max_tokens,
+            max_tokens=max_tokens,
         )
     raise ValueError(f"Provider desconocido: {provider}")
 
 
 def _gemini_available() -> bool:
-    try:
-        import langchain_google_genai  # noqa: F401
-        return True
-    except ImportError:
-        return False
+    """Gemini está disponible si hay API key. El adapter ChatGeminiHTTP es
+    nativo de este repo, así que no depende de paquetes externos."""
+    return bool(GEMINI_API_KEY)
 
 
 def _default_provider() -> str:
     """Provider por defecto, degradando si el auto-seleccionado no es usable.
 
-    LLM_PROVIDER hereda la auto-selección de agent/llm.py (gemini si hay key),
-    pero langchain-google-genai no es instalable junto a langgraph 1.x: si el
-    default resuelve a gemini sin paquete, degradamos a anthropic/bedrock con
-    aviso. Un NODE_LLM_*=gemini:... EXPLÍCITO sí falla fuerte en _create_llm.
+    LLM_PROVIDER hereda la auto-selección de agent/llm.py. Antes había que
+    degradar gemini→bedrock cuando langchain-google-genai no estaba instalado.
+    Desde que tenemos ChatGeminiHTTP (adapter propio), Gemini funciona sin
+    paquete externo siempre que haya GEMINI_API_KEY.
     """
     provider = LLM_PROVIDER if LLM_PROVIDER in PROVIDERS else "bedrock"
     if provider == "gemini" and not _gemini_available():
+        # Solo degradamos si LITERALMENTE no hay GEMINI_API_KEY.
         fallback = "anthropic" if ANTHROPIC_API_KEY else "bedrock"
-        print(f"[llm_factory] ⚠️ default 'gemini' sin paquete instalado → usando '{fallback}'")
+        print(f"[llm_factory] ⚠️ default 'gemini' sin GEMINI_API_KEY → usando '{fallback}'")
         return fallback
     return provider
 
@@ -167,10 +161,8 @@ def _available_fallback_providers(primary: str) -> List[str]:
         if p == "gemini":
             if not GEMINI_API_KEY:
                 continue
-            try:
-                import langchain_google_genai  # noqa: F401
-            except ImportError:
-                continue
+            # Ya no probamos langchain_google_genai: usamos ChatGeminiHTTP propio
+            # (siempre disponible si hay key).
         # bedrock: usa credenciales IAM del entorno; lo consideramos disponible
         candidates.append(p)
     return candidates
