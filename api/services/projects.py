@@ -418,6 +418,94 @@ def update_participants(uid: str, project_id: str, participants: list) -> dict:
     return {"success": True, "projectId": project_id}
 
 
+# Estados válidos para el campo `status` del proyecto. Sirve para validar
+# antes de escribir DynamoDB (que aceptaría cualquier string) y mantener
+# coherencia con lo que el frontend filtra/pinta.
+_VALID_PROJECT_STATUS = {'active', 'paused', 'finished'}
+
+# Tipos válidos. Los acepta el frontend en el wizard de creación; aquí
+# permitimos también string libre para no romper proyectos legacy que tengan
+# otros valores. La validación es laxa: si viene un type, se acepta tal cual.
+
+
+def update_project(uid: str, project_id: str, updates: dict) -> dict:
+    """Actualización parcial de un proyecto. SOLO el owner puede editar.
+
+    Solo se escriben los campos que vengan no-None en `updates`. Valida el
+    `status` contra una whitelist y normaliza strings (trim). Si no hay
+    campos para actualizar, devuelve éxito sin tocar DynamoDB.
+    """
+    # 1) Verificar que el proyecto existe y que el usuario es el owner.
+    existing = projects_table.get_item(Key={'projectId': project_id}).get('Item')
+    if not existing:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    if existing.get('userId') != uid:
+        raise HTTPException(
+            status_code=403,
+            detail="Solo el dueño del proyecto puede editarlo",
+        )
+
+    # 2) Construir el set de campos a actualizar — solo los no-None.
+    allowed_fields = {'name', 'description', 'type', 'status', 'deliveryDate', 'timing'}
+    sanitized: dict = {}
+    for field, value in (updates or {}).items():
+        if field not in allowed_fields:
+            continue  # ignorar silenciosamente campos no permitidos
+        if value is None:
+            continue
+        # Normalizar strings
+        if isinstance(value, str):
+            value = value.strip()
+        sanitized[field] = value
+
+    # 3) Validar status
+    if 'status' in sanitized:
+        if sanitized['status'] not in _VALID_PROJECT_STATUS:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"status inválido: '{sanitized['status']}'. "
+                    f"Válidos: {sorted(_VALID_PROJECT_STATUS)}"
+                ),
+            )
+
+    # 4) Validar nombre no-vacío si se intenta cambiar
+    if 'name' in sanitized and not sanitized['name']:
+        raise HTTPException(status_code=400, detail="name no puede ser vacío")
+
+    if not sanitized:
+        # No hay nada que actualizar — no es error, devolver OK idempotente
+        return {"success": True, "projectId": project_id, "updated": []}
+
+    # 5) Construir UpdateExpression dinámico. Usamos placeholders para
+    # nombres de atributos por si chocan con palabras reservadas de DDB
+    # (ej. "name", "status" son palabras reservadas).
+    expr_parts: list = []
+    expr_values: dict = {}
+    expr_names: dict = {}
+    for i, (field, value) in enumerate(sanitized.items()):
+        expr_parts.append(f"#k{i} = :v{i}")
+        expr_values[f":v{i}"] = value
+        expr_names[f"#k{i}"] = field
+
+    try:
+        projects_table.update_item(
+            Key={'projectId': project_id},
+            UpdateExpression="SET " + ", ".join(expr_parts),
+            ExpressionAttributeValues=expr_values,
+            ExpressionAttributeNames=expr_names,
+            ConditionExpression=Attr('userId').eq(uid),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error actualizando proyecto: {str(e)}")
+
+    return {
+        "success": True,
+        "projectId": project_id,
+        "updated": sorted(sanitized.keys()),
+    }
+
+
 def invite_user(uid: str, project_id: str, email: str = '', phone: str = '',
                 name: str = '', role: str = '', send_notification: bool = True) -> dict:
     """Añade una persona al equipo del proyecto. Acepta email y/o teléfono.

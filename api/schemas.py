@@ -31,6 +31,18 @@ class UpdateParticipantsRequest(BaseModel):
     participants: List[dict]
 
 
+class UpdateProjectRequest(BaseModel):
+    """Edición parcial de un proyecto existente. Todos los campos son
+    opcionales — solo se actualizan los que vengan no-None en la request.
+    Owner-only (lo valida el service)."""
+    name: Optional[str] = None
+    description: Optional[str] = None
+    type: Optional[str] = None             # Marketing, Backend, Diseño, etc.
+    status: Optional[str] = None           # active | paused | finished
+    deliveryDate: Optional[str] = None     # ISO YYYY-MM-DD
+    timing: Optional[str] = None           # texto libre, ej. "8 semanas"
+
+
 class InviteRequest(BaseModel):
     # Email y/o teléfono — al menos uno requerido (validado en el servicio)
     email: Optional[str] = ""
