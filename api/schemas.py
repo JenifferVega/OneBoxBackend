@@ -27,20 +27,19 @@ class CreateProjectRequest(BaseModel):
     deliveryDate: Optional[str] = ""  # Fecha de entrega ISO (opcional)
 
 
-class UpdateParticipantsRequest(BaseModel):
-    participants: List[dict]
-
-
 class UpdateProjectRequest(BaseModel):
-    """Edición parcial de un proyecto existente. Todos los campos son
-    opcionales — solo se actualizan los que vengan no-None en la request.
-    Owner-only (lo valida el service)."""
+    # Todos opcionales — solo se actualizan los campos presentes en el body.
+    # El frontend envía únicamente los que cambiaron (edit modal).
     name: Optional[str] = None
     description: Optional[str] = None
-    type: Optional[str] = None             # Marketing, Backend, Diseño, etc.
-    status: Optional[str] = None           # active | paused | finished
-    deliveryDate: Optional[str] = None     # ISO YYYY-MM-DD
-    timing: Optional[str] = None           # texto libre, ej. "8 semanas"
+    type: Optional[str] = None
+    status: Optional[str] = None  # "active" | "paused" | "finished"
+    deliveryDate: Optional[str] = None
+    timing: Optional[str] = None
+
+
+class UpdateParticipantsRequest(BaseModel):
+    participants: List[dict]
 
 
 class InviteRequest(BaseModel):

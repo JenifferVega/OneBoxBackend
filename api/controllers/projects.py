@@ -58,37 +58,30 @@ async def create_project(req: CreateProjectRequest, x_user_id: str = Header(defa
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.put("/api/projects/{project_id}")
+async def update_project(project_id: str, req: UpdateProjectRequest, x_user_id: str = Header(default="")):
+    """Edita campos de un proyecto existente. Solo owner (RBAC en el service).
+    Solo se actualizan los campos presentes en el body (no-nulls)."""
+    uid = require_uid(x_user_id)
+    try:
+        # Filtrar solo los campos que vinieron seteados (evita sobreescribir con
+        # None valores existentes en DDB).
+        updates = {k: v for k, v in req.model_dump().items() if v is not None}
+        return projects_service.update_project(uid, project_id, updates)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[update_project] Error: {e}")
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.put("/api/projects/{project_id}/participants")
 async def update_participants(project_id: str, req: UpdateParticipantsRequest, x_user_id: str = Header(default="")):
     """Actualiza los participantes de un proyecto (incluye teléfonos)."""
     uid = require_uid(x_user_id)
     try:
         return projects_service.update_participants(uid, project_id, req.participants)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.put("/api/projects/{project_id}")
-async def update_project(
-    project_id: str,
-    req: UpdateProjectRequest,
-    x_user_id: str = Header(default=""),
-):
-    """Edita un proyecto existente (parcial). Solo el owner puede editar.
-
-    Acepta cualquier subconjunto de: name, description, type, status,
-    deliveryDate, timing. Los campos no enviados se quedan como estaban.
-    """
-    uid = require_uid(x_user_id)
-    try:
-        # Convertir Pydantic → dict pero solo con campos que vienen explícitos
-        # (exclude_unset=True deja fuera los None que NO se enviaron, y los
-        # None que SÍ se enviaron explícitamente — para nosotros igual son
-        # ignorados en el service porque solo aplicamos valores no-None).
-        updates = req.dict(exclude_unset=True)
-        return projects_service.update_project(uid, project_id, updates)
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

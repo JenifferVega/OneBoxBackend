@@ -39,6 +39,29 @@ def channel_icon(name: str) -> str:
 
 def list_projects(uid: str, user_email: str) -> list:
     """Lista todos los proyectos con datos enriquecidos (task counts, insights, etc.)."""
+    # Log de diagnóstico: sin email, el auto-accept de invitaciones NO dispara
+    # (query al GSI email-index requiere el email exacto). Si vemos requests con
+    # user_email vacío, el frontend no está mandando `x-user-email` — típico
+    # bug de sesiones viejas donde el email nunca llegó al localStorage.
+    print(f"[list_projects] uid={uid[:8]}... email={'<empty>' if not user_email else user_email}")
+    # Fallback: si el header x-user-email vino vacío (bug de frontend / sesión
+    # antigua / cache), resolvemos el email desde Cognito usando el sub. Sin
+    # esto, los invitados quedan varados sin ver sus proyectos vinculados.
+    # El sub es un UUID de Cognito, así que admin_get_user por Username=sub
+    # devuelve el UserAttributes.email autoritativo. Fallo silencioso: si
+    # Cognito falla o el user no existe, seguimos con email vacío como antes.
+    if not user_email and uid:
+        try:
+            pool_id = os.environ.get('COGNITO_USER_POOL_ID', 'us-east-1_b76prubhx')
+            cip = boto3.client('cognito-idp', region_name='us-east-1')
+            resp = cip.admin_get_user(UserPoolId=pool_id, Username=uid)
+            for a in resp.get('UserAttributes', []):
+                if a.get('Name') == 'email':
+                    user_email = (a.get('Value', '') or '').strip().lower()
+                    break
+            print(f"[list_projects] fallback lookup Cognito → email={user_email or '<not-found>'}")
+        except Exception as e:
+            print(f"[list_projects] Cognito fallback lookup falló: {e}")
     # IMPORTANTE: usamos scan_all_pages para evitar perder items por paginación.
     # DynamoDB Scan tiene límite de 1MB por página y aplica el filtro DESPUÉS de leer.
     own_projects = scan_all_pages(
@@ -74,9 +97,11 @@ def list_projects(uid: str, user_email: str) -> list:
                 IndexName='email-index',
                 KeyConditionExpression=Key('email').eq(user_email),
             )
+            invs = inv_resp.get('Items', [])
+            print(f"[list_projects] found {len(invs)} invitation(s) for {user_email}")
             inv_now = datetime.utcnow().isoformat()
             seen_proj_ids = own_ids | {p['projectId'] for p in shared_projects}
-            for inv in inv_resp.get('Items', []):
+            for inv in invs:
                 pid = inv.get('projectId')
                 if not pid or pid in seen_proj_ids:
                     continue
@@ -407,6 +432,49 @@ def create_project(uid: str, name: str, description: str, project_type: str,
     )
 
 
+def update_project(uid: str, project_id: str, updates: dict) -> dict:
+    """Edita campos permitidos de un proyecto. Solo el owner puede editar.
+
+    Campos válidos: name, description, type, status, deliveryDate, timing.
+    Todo lo demás se ignora (silenciosamente, sin raise) para no romper al
+    frontend si evoluciona el schema.
+    """
+    ALLOWED = {'name', 'description', 'type', 'status', 'deliveryDate', 'timing'}
+    filtered = {k: v for k, v in (updates or {}).items() if k in ALLOWED}
+    if not filtered:
+        raise HTTPException(status_code=400, detail="No hay campos válidos para actualizar")
+
+    # Validar status contra el set permitido (evita meter basura en DDB).
+    if 'status' in filtered and filtered['status'] not in ('active', 'paused', 'finished'):
+        raise HTTPException(status_code=400, detail=f"status inválido: {filtered['status']}")
+
+    # Verificar propiedad + existencia antes de intentar el update
+    proj = projects_table.get_item(Key={'projectId': project_id}).get('Item')
+    if not proj:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    if proj.get('userId') != uid:
+        raise HTTPException(status_code=403, detail="Solo el dueño puede editar este proyecto")
+
+    # Construir UpdateExpression dinámicamente. Usamos ExpressionAttributeNames
+    # porque `name`, `status`, `type` son palabras reservadas en DDB.
+    set_parts = []
+    ean = {}
+    eav = {}
+    for i, (k, v) in enumerate(filtered.items()):
+        ph = f":v{i}"
+        nm = f"#k{i}"
+        set_parts.append(f"{nm} = {ph}")
+        ean[nm] = k
+        eav[ph] = v
+    projects_table.update_item(
+        Key={'projectId': project_id},
+        UpdateExpression="SET " + ", ".join(set_parts),
+        ExpressionAttributeNames=ean,
+        ExpressionAttributeValues=eav,
+    )
+    return {"success": True, "projectId": project_id, "updated": list(filtered.keys())}
+
+
 def update_participants(uid: str, project_id: str, participants: list) -> dict:
     """Actualiza los participantes de un proyecto (incluye teléfonos)."""
     projects_table.update_item(
@@ -416,94 +484,6 @@ def update_participants(uid: str, project_id: str, participants: list) -> dict:
         ConditionExpression=Attr('userId').eq(uid)
     )
     return {"success": True, "projectId": project_id}
-
-
-# Estados válidos para el campo `status` del proyecto. Sirve para validar
-# antes de escribir DynamoDB (que aceptaría cualquier string) y mantener
-# coherencia con lo que el frontend filtra/pinta.
-_VALID_PROJECT_STATUS = {'active', 'paused', 'finished'}
-
-# Tipos válidos. Los acepta el frontend en el wizard de creación; aquí
-# permitimos también string libre para no romper proyectos legacy que tengan
-# otros valores. La validación es laxa: si viene un type, se acepta tal cual.
-
-
-def update_project(uid: str, project_id: str, updates: dict) -> dict:
-    """Actualización parcial de un proyecto. SOLO el owner puede editar.
-
-    Solo se escriben los campos que vengan no-None en `updates`. Valida el
-    `status` contra una whitelist y normaliza strings (trim). Si no hay
-    campos para actualizar, devuelve éxito sin tocar DynamoDB.
-    """
-    # 1) Verificar que el proyecto existe y que el usuario es el owner.
-    existing = projects_table.get_item(Key={'projectId': project_id}).get('Item')
-    if not existing:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
-    if existing.get('userId') != uid:
-        raise HTTPException(
-            status_code=403,
-            detail="Solo el dueño del proyecto puede editarlo",
-        )
-
-    # 2) Construir el set de campos a actualizar — solo los no-None.
-    allowed_fields = {'name', 'description', 'type', 'status', 'deliveryDate', 'timing'}
-    sanitized: dict = {}
-    for field, value in (updates or {}).items():
-        if field not in allowed_fields:
-            continue  # ignorar silenciosamente campos no permitidos
-        if value is None:
-            continue
-        # Normalizar strings
-        if isinstance(value, str):
-            value = value.strip()
-        sanitized[field] = value
-
-    # 3) Validar status
-    if 'status' in sanitized:
-        if sanitized['status'] not in _VALID_PROJECT_STATUS:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"status inválido: '{sanitized['status']}'. "
-                    f"Válidos: {sorted(_VALID_PROJECT_STATUS)}"
-                ),
-            )
-
-    # 4) Validar nombre no-vacío si se intenta cambiar
-    if 'name' in sanitized and not sanitized['name']:
-        raise HTTPException(status_code=400, detail="name no puede ser vacío")
-
-    if not sanitized:
-        # No hay nada que actualizar — no es error, devolver OK idempotente
-        return {"success": True, "projectId": project_id, "updated": []}
-
-    # 5) Construir UpdateExpression dinámico. Usamos placeholders para
-    # nombres de atributos por si chocan con palabras reservadas de DDB
-    # (ej. "name", "status" son palabras reservadas).
-    expr_parts: list = []
-    expr_values: dict = {}
-    expr_names: dict = {}
-    for i, (field, value) in enumerate(sanitized.items()):
-        expr_parts.append(f"#k{i} = :v{i}")
-        expr_values[f":v{i}"] = value
-        expr_names[f"#k{i}"] = field
-
-    try:
-        projects_table.update_item(
-            Key={'projectId': project_id},
-            UpdateExpression="SET " + ", ".join(expr_parts),
-            ExpressionAttributeValues=expr_values,
-            ExpressionAttributeNames=expr_names,
-            ConditionExpression=Attr('userId').eq(uid),
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error actualizando proyecto: {str(e)}")
-
-    return {
-        "success": True,
-        "projectId": project_id,
-        "updated": sorted(sanitized.keys()),
-    }
 
 
 def invite_user(uid: str, project_id: str, email: str = '', phone: str = '',
@@ -653,16 +633,29 @@ def invite_user(uid: str, project_id: str, email: str = '', phone: str = '',
 
 
 def _invite_by_email(email: str, uid: str, project_id: str, project_name: str) -> dict:
-    """Helper: lógica de invitación por email (Cognito + invitations_table).
-    Devuelve dict con el resultado en vez de raise para que el endpoint pueda
-    combinar email + whatsapp en una sola respuesta."""
-    # Crear usuario en Cognito (si no existe). Cognito enviará el email automáticamente.
+    """Helper: lógica de invitación por email (Cognito silencioso + email custom via SES).
+
+    Diseño:
+      - Cognito se usa SOLO para pre-crear la identidad (así el trigger
+        pre-signup puede auto-vincular cuando la persona se loguee por Google).
+        NO se envía el correo con contraseña temporal — la mayoría de los
+        invitados entran por Google y esa contraseña les confunde.
+      - El único correo que recibe la persona es uno custom via SES con el
+        link para "Entrar con Google" a la app.
+
+    Devuelve dict en vez de raise para que el endpoint pueda combinar email +
+    WhatsApp en una sola respuesta.
+    """
+    from agent.tools import enviar_notificacion, set_current_user
+
     cognito_client = boto3.client('cognito-idp', region_name='us-east-1')
     pool_id = os.environ.get('COGNITO_USER_POOL_ID', 'us-east-1_b76prubhx')
     cognito_user_existed = False
-    email_resent = False
     user_status = None
     try:
+        # SUPPRESS: crea el user en Cognito pero NO manda ningún correo.
+        # Sin esto, Cognito le manda la contraseña temporal a todos aunque la
+        # gente vaya a entrar por Google.
         cognito_client.admin_create_user(
             UserPoolId=pool_id,
             Username=email,
@@ -670,30 +663,16 @@ def _invite_by_email(email: str, uid: str, project_id: str, project_name: str) -
                 {'Name': 'email', 'Value': email},
                 {'Name': 'email_verified', 'Value': 'true'},
             ],
-            DesiredDeliveryMediums=['EMAIL'],
+            MessageAction='SUPPRESS',
         )
     except cognito_client.exceptions.UsernameExistsException:
         cognito_user_existed = True
-        # El usuario ya existe. Si todavía no activó la cuenta
-        # (FORCE_CHANGE_PASSWORD), re-enviamos el email de invitación con
-        # MessageAction=RESEND para recordarle que tiene proyectos esperando.
         try:
             u = cognito_client.admin_get_user(UserPoolId=pool_id, Username=email)
             user_status = u.get('UserStatus')
-            if user_status == 'FORCE_CHANGE_PASSWORD':
-                cognito_client.admin_create_user(
-                    UserPoolId=pool_id,
-                    Username=email,
-                    MessageAction='RESEND',
-                    DesiredDeliveryMediums=['EMAIL'],
-                )
-                email_resent = True
-                print(f"[invite] Email reenviado a {email} (estaba en FORCE_CHANGE_PASSWORD)")
         except Exception as inner:
-            # No bloqueamos el flujo si el resend falla; la invitación queda guardada.
-            print(f"[invite] No se pudo reenviar el email: {inner}")
+            print(f"[invite] admin_get_user falló para {email}: {inner}")
     except Exception as e:
-        # No hacemos raise: devolvemos error en el dict para no romper el WhatsApp
         return {"success": False, "error": f"Cognito error: {str(e)}"}
 
     # Guardar invitación (pendiente). Si ya estaba aceptada, no duplicamos.
@@ -712,54 +691,52 @@ def _invite_by_email(email: str, uid: str, project_id: str, project_name: str) -
     except Exception as e:
         return {"success": False, "error": f"DynamoDB error: {str(e)}"}
 
-    # Mensaje contextual según el caso + share_url cuando hace falta avisar
-    # manualmente al invitante (porque Cognito NO envía email).
-    #
-    # Casos donde Cognito SÍ envía email automáticamente:
-    #   - Usuario nuevo (admin_create_user con DesiredDeliveryMediums=EMAIL)
-    #   - Usuario en FORCE_CHANGE_PASSWORD reenviado (MessageAction=RESEND)
-    #
-    # Casos donde Cognito NO envía email → ahí necesitamos share_url:
-    #   - userStatus = 'EXTERNAL_PROVIDER' (la persona se registró con Google)
-    #   - userStatus = 'CONFIRMED'         (la persona ya activó la cuenta)
-    # En ambos casos, sin share_url el invitado NO se entera de que fue invitado.
-    needs_manual_share = cognito_user_existed and not email_resent
-    share_url = ''
-    if needs_manual_share:
-        # Link directo a la home logueada de la app. Cuando la persona entre,
-        # el endpoint /api/projects auto-acepta su invitación y le aparece
-        # el proyecto en la lista.
-        share_url = f"https://www.oneboxmanager.com/?proyecto={project_id}"
+    # Enviar email custom con el link — mismo tono personal para todos los
+    # casos (nuevo, existente, Google, etc.). Al hacer login, el endpoint
+    # /api/projects auto-acepta la invitación por email.
+    share_url = f"https://www.oneboxmanager.com/?proyecto={project_id}"
+    mensaje = (
+        f"Hola,\n\n"
+        f"Te añadieron al proyecto \"{project_name}\" en OneBox.\n\n"
+        f"Para entrar iniciá sesión con Google (o con tu correo si ya tenías cuenta) "
+        f"desde este enlace:\n{share_url}\n\n"
+        f"Cuando entres, el proyecto aparece automáticamente en tu lista.\n\n"
+        f"— OneBox"
+    )
+    try:
+        # enviar_notificacion registra la notif en la tabla y llama a SES.
+        # Requiere que el user actual esté seteado (para logs multi-tenant).
+        set_current_user(uid, "")
+        enviar_notificacion(
+            email, mensaje, canal='email',
+            project_id=project_id, project_name=project_name,
+        )
+        print(f"[invite] email custom enviado a {email} para {project_id}")
+    except Exception as e:
+        print(f"[invite] fallo al enviar email custom a {email}: {e}")
 
     if not cognito_user_existed:
-        msg = "Invitación enviada. El usuario recibirá un correo con su contraseña temporal."
-    elif email_resent:
-        msg = "El usuario ya tenía cuenta pendiente de activar. Le reenviamos el correo de invitación."
+        msg = "Invitación enviada. La persona recibirá un correo con el enlace para entrar."
+    elif user_status == 'FORCE_CHANGE_PASSWORD':
+        msg = "La persona ya tenía cuenta pendiente. Le reenviamos el enlace."
     elif user_status == 'CONFIRMED':
-        msg = (
-            "El usuario ya tiene cuenta activa pero NO recibe email automático. "
-            "Comparte el link directo del proyecto que está debajo."
-        )
+        msg = "La persona ya tiene cuenta activa. Le enviamos el enlace del proyecto."
     else:
-        # EXTERNAL_PROVIDER (Google), UNCONFIRMED, etc. — Cognito no manda nada
-        msg = (
-            "El usuario está registrado con login externo (Google) y Cognito NO "
-            "envía email automático. Comparte el link directo del proyecto."
-        )
+        msg = "La persona ya está registrada. Le enviamos el enlace del proyecto."
 
     return {
         "success": True,
         "invitationId": invitation_id,
         "email": email,
         "cognitoUserExisted": cognito_user_existed,
-        "emailResent": email_resent,
+        "emailResent": False,
         "userStatus": user_status,
         "message": msg,
-        # share_url: si no está vacío, el frontend debe mostrar el botón
-        # "Copiar link para compartir" para que el invitante avise manualmente
-        # al invitado por su canal de preferencia (WhatsApp, Slack, etc.).
+        # share_url: link directo al proyecto. El backend siempre manda su
+        # propio email con este link, pero el frontend lo devuelve por si el
+        # owner quiere copiarlo y compartirlo por otro canal.
         "share_url": share_url,
-        "needs_manual_share": needs_manual_share,
+        "needs_manual_share": False,
     }
 
 

@@ -6,7 +6,7 @@ import os
 import json
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 import boto3
@@ -414,6 +414,33 @@ def create_project_full(
     channels = channels or ['Gmail']
     participants = participants or []
 
+    # 0. Dedupe defensivo — si el mismo user ya creó un proyecto con el mismo
+    # nombre (normalizado) en los últimos 5 minutos, devolvemos ese en vez de
+    # crear otro. Cubre double-clicks del wizard, reintentos por timeout de
+    # red, tabs duplicadas, etc. 5 min es ventana amplia sin bloquear a un
+    # user legítimo que quiere crear dos proyectos parecidos consecutivos.
+    try:
+        from boto3.dynamodb.conditions import Attr
+        name_norm = (name or '').strip().lower()
+        cutoff = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
+        dupe_scan = projects_table.scan(
+            FilterExpression=Attr('userId').eq(user_id) & Attr('createdAt').gt(cutoff),
+            ProjectionExpression='projectId, #n, createdAt',
+            ExpressionAttributeNames={'#n': 'name'},
+        )
+        for it in dupe_scan.get('Items', []):
+            if (it.get('name') or '').strip().lower() == name_norm and name_norm:
+                print(f"[create_project_full] Dedupe: {name!r} ya creado hace <5min como {it['projectId']} → devolviendo existente")
+                return {
+                    "success": True,
+                    "projectId": it['projectId'],
+                    "name": name,
+                    "description": description,
+                    "insightsGenerated": {"generated": False, "count": 0, "deduped": True},
+                }
+    except Exception as e:
+        print(f"[create_project_full] Dedupe check falló (no bloquea): {e}")
+
     # 1. Crear proyecto
     item = {
         'projectId': project_id,
@@ -520,6 +547,32 @@ def create_project_full(
     except Exception as e:
         print(f"[create_project_full] No se pudo iniciar notificación WhatsApp: {e}")
 
+    # 6. Invitación por email a cada participant con correo. Sin esto, los emails
+    # detectados por la IA (o añadidos manualmente en el wizard) NO reciben el
+    # link para entrar y quedan solo como registro en participants[]. Usamos el
+    # helper _invite_by_email que crea la cuenta Cognito silenciosa + guarda la
+    # invitación en onebox-invitations + manda el email custom via SES. Corre
+    # en background para no bloquear la respuesta del create.
+    try:
+        import threading
+        emails_to_invite = []
+        seen_inv_emails = set()
+        for p in (participants or []):
+            if not isinstance(p, dict):
+                continue
+            em = (p.get('email') or '').strip().lower()
+            if em and '@' in em and em not in seen_inv_emails:
+                emails_to_invite.append(em)
+                seen_inv_emails.add(em)
+        if emails_to_invite:
+            threading.Thread(
+                target=_invite_by_email_async,
+                args=(user_id, project_id, name, emails_to_invite),
+                daemon=True,
+            ).start()
+    except Exception as e:
+        print(f"[create_project_full] No se pudo iniciar invitación por email: {e}")
+
     return {
         "success": True,
         "projectId": project_id,
@@ -527,6 +580,23 @@ def create_project_full(
         "description": final_description,
         "insightsGenerated": insights_result
     }
+
+
+def _invite_by_email_async(owner_uid: str, project_id: str, project_name: str, emails: list):
+    """Corre en background: por cada email, invoca _invite_by_email para crear
+    la cuenta Cognito silenciosa + guardar la invitación pendiente + mandar el
+    correo custom con el enlace del proyecto. Si uno falla, seguimos con los
+    otros (log y continue)."""
+    try:
+        # Import diferido para evitar dependencias circulares en el módulo.
+        from api.services.projects import _invite_by_email
+        for em in emails:
+            try:
+                _invite_by_email(email=em, uid=owner_uid, project_id=project_id, project_name=project_name)
+            except Exception as e:
+                print(f"[_invite_by_email_async] fallo con {em}: {e}")
+    except Exception as e:
+        print(f"[_invite_by_email_async] fallo global: {e}")
 
 
 def _notify_whatsapp_async(
