@@ -97,6 +97,45 @@ def validate_tool_params(tool_name: str, step_num: int, params: dict) -> dict | 
                 "Nunca inventes un email; pídelo al usuario si no lo mencionó."
             )
 
+    elif tool_name in ("actualizar_tarea", "eliminar_tarea"):
+        task_id = params.get("task_id", "")
+        if _is_invalid_scalar(task_id) or not str(task_id).strip():
+            errors.append(
+                f"{tool_name} requiere 'task_id' real. Usa listar_tareas (tras listar_proyectos) "
+                f'y referencia el ID con {{"from_step": N, "extract": "taskId"}} o con '
+                f'{{"from_step": N, "match": {{"key": "text", "value": "TEXTO DE LA TAREA"}}, "extract": "taskId"}}. '
+                f"Nunca inventes un task_id."
+            )
+        if tool_name == "actualizar_tarea":
+            campos = ("text", "status", "assigned_to", "due_date", "start_date", "description", "blocked_reason")
+            if not any(params.get(c) not in (None, "") for c in campos):
+                errors.append("actualizar_tarea necesita al menos un campo a cambiar (ej: status='pending' para desbloquear).")
+
+    elif tool_name == "actualizar_proyecto":
+        campos = ("name", "description", "type", "status", "delivery_date", "timing")
+        if not any(params.get(c) not in (None, "") for c in campos):
+            errors.append("actualizar_proyecto necesita al menos un campo a cambiar (name, description, type, status...).")
+
+    elif tool_name == "invitar_usuario":
+        email = params.get("email", "")
+        phone = params.get("phone", "")
+        has_email = isinstance(email, str) and "@" in email
+        has_phone = isinstance(phone, str) and phone.strip() != ""
+        if not has_email and not has_phone:
+            errors.append(
+                "invitar_usuario requiere 'email' (válido) o 'phone' (E.164). "
+                "Nunca inventes datos de contacto; pídelos al usuario si no los dio."
+            )
+
+    elif tool_name == "quitar_participante":
+        if not any(str(params.get(k, "")).strip() for k in ("email", "phone", "name")):
+            errors.append("quitar_participante requiere email, phone o name de la persona a quitar.")
+
+    elif tool_name == "actualizar_participantes":
+        parts = params.get("participants")
+        if not isinstance(parts, list):
+            errors.append("actualizar_participantes requiere 'participants' como lista de {nombre, email, rol, telefono}.")
+
     elif tool_name == "crear_recordatorio":
         titulo = params.get("titulo", "")
         fecha = params.get("fecha_vencimiento", "")

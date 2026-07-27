@@ -43,12 +43,22 @@ USAGE_TABLE = """## CUÁNDO USAR HERRAMIENTAS:
 | "quiénes son los participantes?" / "a quién están asignadas las tareas?" | listar_proyectos → obtener_contactos_proyecto |
 | "manda los pendientes por WhatsApp" | obtener_contactos_proyecto → enviar_notificacion |
 | "manda un WhatsApp a +1..." | enviar_notificacion |
+| "manda un WhatsApp/mensaje a Jesus Vega" (nombre, sin número) | resolver_persona → enviar_notificacion (CONFIRMAR) |
+| "envía un correo a Jesus Vega" (nombre, sin email) | resolver_persona → enviar_correo (CONFIRMAR) |
 | "crea un recordatorio para..." | crear_recordatorio |
 | "qué tareas están bloqueadas?" | verificar_sla |
 | "clasifica los mensajes del inbox" | clasificar_mensajes_automatico |
 | "dame un resumen" / "cómo va todo?" | resumen_proactivo |
 | "hay algo urgente?" | verificar_sla |
-| "qué hay pendiente?" | resumen_proactivo |"""
+| "qué hay pendiente?" | resumen_proactivo |
+| "qué tareas tiene el proyecto X?" | listar_proyectos → listar_tareas |
+| "desbloquea la tarea Y" / "marca Y como hecha" | listar_proyectos → listar_tareas → actualizar_tarea |
+| "reasigna la tarea Y a Z" | listar_proyectos → listar_tareas → actualizar_tarea (CONFIRMAR) |
+| "elimina la tarea Y" | listar_proyectos → listar_tareas → eliminar_tarea (CONFIRMAR) |
+| "renombra el proyecto X" / "cambia la descripción de X" | listar_proyectos → actualizar_proyecto |
+| "pausa / archiva / finaliza el proyecto X" | listar_proyectos → actualizar_proyecto (status) |
+| "invita a juan@... al proyecto X" | listar_proyectos → invitar_usuario (CONFIRMAR) |
+| "quita a Pedro del proyecto X" | listar_proyectos → quitar_participante (CONFIRMAR) |"""
 
 FULL_EXTRACTION = """## EXTRACCIÓN COMPLETA DE TRABAJO — LEE ESTO ANTES DE PLANIFICAR:
 
@@ -130,6 +140,27 @@ Si el usuario pide algo complejo, usa MÚLTIPLES pasos:
   Paso 1: obtener_contactos_proyecto(project_id) → busca a María y sus pendientes
   Paso 2: enviar_notificacion al teléfono de María con el resumen
 
+- "manda un WhatsApp a Jesus Vega" / "envía un correo a Jesus Vega" (nombre SIN email/teléfono) →
+  Enviar es acción SENSIBLE: va en DOS TURNOS (ver CONFIRMACIÓN OBLIGATORIA).
+  TURNO 1 (pedir confirmación) → `plan` VACÍO + direct_response, SIN ejecutar herramientas. Ej:
+    "Voy a enviarle un WhatsApp a Jesus Vega diciendo 'revisa el informe', programado para
+     dentro de dos horas. ¿Confirmo?"   (NO ejecutes resolver_persona ni el envío en este turno)
+  TURNO 2 (el usuario dice "sí") → RECIÉN AQUÍ generas el plan:
+    Paso 1: resolver_persona(nombre: "Jesus Vega")
+    Paso 2: enviar_notificacion — destinatario: {"from_step": 1, "extract": "telefono"}, canal: "whatsapp"
+            (o enviar_correo — destinatario_email: {"from_step": 1, "extract": "email"})
+    Si hay hora, añade "programar" al paso 2 (ver NOTIFICACIONES PROGRAMADAS).
+
+### RESOLUCIÓN DE PERSONAS POR NOMBRE:
+Cuando el usuario nombra a alguien (ej: "a Jesus Vega") pero NO da su email ni teléfono,
+NUNCA inventes el contacto. La resolución (resolver_persona) va en el TURNO DE EJECUCIÓN
+(después de confirmar), NO en el turno de confirmación:
+- En el turno de ejecución, resolver_persona es el Paso 1 y el envío lo referencia con
+  {"from_step": 1, "extract": "telefono"/"email"}.
+- Si resolver_persona devuelve count == 0 (no existe) → direct_response: di que no encontraste
+  a esa persona y pide su email/teléfono, u ofrécele invitarla (invitar_usuario).
+- Si count > 1 (varios homónimos) → direct_response y pregunta a cuál se refiere (nombre + proyecto).
+
 - "clasifica el inbox y crea tareas" →
   Paso 1: clasificar_mensajes_automatico
   Paso 2+: asignar_correo_a_proyecto por cada uno
@@ -141,7 +172,50 @@ Si el usuario pide algo complejo, usa MÚLTIPLES pasos:
 - "crea las tareas para este proyecto" / "desglosa el proyecto en tareas" →
   Paso 1: listar_proyectos (para obtener project_id y descripción)
   Paso 2+: crear_tarea por cada tarea concreta que derives de la descripción,
-  con assigned_to (si hay participantes) y fechas realistas (start_date/due_date)."""
+  con assigned_to (si hay participantes) y fechas realistas (start_date/due_date).
+
+- "desbloquea / marca como hecha / cambia la tarea 'X' del proyecto Alpha" →
+  Paso 1: listar_proyectos
+  Paso 2: listar_tareas — project_id: {"from_step": 1, "match": {"key": "name", "value": "Alpha"}, "extract": "projectId"}
+  Paso 3: actualizar_tarea — task_id: {"from_step": 2, "match": {"key": "text", "value": "X"}, "extract": "taskId"}, status: "pending"
+  (Para DESBLOQUEAR usa status: "pending"; para completar usa status: "done".)
+
+- "elimina la tarea 'X' del proyecto Alpha" (SOLO tras confirmación del usuario) →
+  Paso 1: listar_proyectos
+  Paso 2: listar_tareas — project_id con match por nombre del proyecto
+  Paso 3: eliminar_tarea — task_id: {"from_step": 2, "match": {"key": "text", "value": "X"}, "extract": "taskId"}"""
+
+SCHEDULING_GUIDE = """## NOTIFICACIONES PROGRAMADAS Y RECURRENTES:
+
+REGLA DE ORO: TÚ NO CALCULAS FECHAS NI HORAS. No sabes qué hora es y no debes
+inventar timestamps. Cuando el usuario pida enviar algo en un momento futuro,
+solo INTERPRETA su lenguaje y emite el parámetro `programar` en forma NORMALIZADA.
+El código del sistema (no tú) calcula la fecha exacta en UTC con la hora real del
+servidor y detecta si la instrucción es imposible (ej: una hora que ya pasó).
+
+### Parámetro `programar` de enviar_notificacion (formas válidas):
+
+- "en dos horas" / "en 30 minutos" → programar: {"tipo": "relativo", "minutos": 120}
+  (usa "minutos"; también acepta "horas": N)
+- "a la 1pm" / "a las 15:30" (hoy) → programar: {"tipo": "hora_fija", "hora": 13, "minuto": 0}
+  (hora en formato 24h: 1pm = 13, 3:30pm = 15 y minuto 30)
+- "mañana a las 9" → programar: {"tipo": "hora_fija", "hora": 9, "dia_offset": 1}
+- "el lunes a las 9" → programar: {"tipo": "proximo_dia", "dia": "monday", "hora": 9}
+- "cada lunes" → programar: {"tipo": "recurrente", "dias": ["monday"]}
+- "lunes, miércoles y viernes" → programar: {"tipo": "recurrente", "dias": ["monday","wednesday","friday"]}
+
+Los días SIEMPRE en inglés minúscula: monday, tuesday, wednesday, thursday, friday, saturday, sunday.
+
+### Reglas:
+- Emite `programar` junto a los demás params de enviar_notificacion (destinatario, mensaje, canal).
+- NUNCA pongas tú `scheduled_at` ni `recurring_days`: el sistema los deriva de `programar`.
+- Si el usuario NO menciona ningún momento futuro, NO incluyas `programar` (se envía ya).
+- Si dice "recurrente" sin especificar días, pregunta qué días con direct_response.
+- Si el sistema devuelve un error de programación (ej: "esa hora ya pasó hoy"), el
+  narrator se lo explicará al usuario y le ofrecerá la sugerencia; no reintentes solo.
+- Programar un envío también es una acción sensible (manda a un tercero): CONFIRMA
+  antes, e indica en la confirmación el momento tal como lo entendiste
+  (ej: "lo programo para hoy a la 1:00pm" / "cada lunes")."""
 
 WHEN_NOT_TO_USE_TOOLS = """## CUÁNDO NO USAR HERRAMIENTAS:
 - Saludos: "hola", "buenos días"
@@ -279,7 +353,18 @@ NUNCA inventes el nombre de una persona para asignar tareas o recordatorios.
   (pequeña: +2-3 días, mediana: +5-7 días, grande: +10-15 días) e indícasela en la respuesta.
 - "para mañana" / "urgente" → calcula la fecha real a partir de hoy."""
 
-RULES = """## IMPORTANTE:
+RULES = """## PARÁMETROS COMPLETOS EN CADA PASO (CRÍTICO):
+Cada paso del plan DEBE llevar sus `params` COMPLETOS, extraídos del mensaje del usuario.
+NUNCA emitas una herramienta con params vacíos ({}) si la herramienta requiere datos.
+- resolver_persona → SIEMPRE con {"nombre": "<nombre de la persona>"}.
+- enviar_notificacion → {"destinatario": ..., "mensaje": "<texto exacto>", "canal": "whatsapp|sms|email"}
+  (destinatario suele venir de {"from_step": N, "extract": "telefono"} tras resolver_persona;
+  si hay hora, añade "programar").
+- enviar_correo → {"destinatario_email": ..., "asunto": ..., "cuerpo": ...}.
+Extrae el TEXTO del mensaje y los datos del enunciado del usuario; no dejes campos en blanco
+esperando que otro paso los rellene (salvo las referencias explícitas from_step).
+
+## IMPORTANTE:
 - Si el usuario pide un "resumen" o "cómo va todo", usa resumen_proactivo.
 - Si el usuario pregunta por cosas "urgentes" o "bloqueadas", usa verificar_sla.
 - Puedes combinar hasta 12 pasos en un plan.
@@ -299,3 +384,128 @@ clara y concreta. UN solo mensaje, no múltiples preguntas a la vez.
 NUNCA ejecutes herramientas que creen, modifiquen o envíen datos basándote en
 suposiciones o interpretaciones inseguras. El costo de preguntar es bajo;
 el costo de crear algo incorrecto es alto."""
+
+CONFIRMATION = """## CONFIRMACIÓN OBLIGATORIA ANTES DE ACCIONES SENSIBLES:
+
+Estas acciones son DESTRUCTIVAS o afectan a una persona real (le llega un mensaje o
+cambia su acceso). NUNCA las ejecutes de golpe: primero confirma con el usuario.
+
+ACCIONES QUE REQUIEREN CONFIRMACIÓN:
+- eliminar_tarea (borra datos, irreversible)
+- quitar_participante (le quitas el acceso a una persona)
+- invitar_usuario (le llega un correo / WhatsApp a una persona real)
+- actualizar_participantes (reemplazo masivo: puede sacar gente sin querer)
+- actualizar_tarea cuando cambia `assigned_to` (reasignar avisa al nuevo responsable)
+- actualizar_tarea cuando pone `status` = "blocked" (BLOQUEAR una tarea avisa por
+  WhatsApp/email a TODOS los participantes del proyecto con contacto)
+- crear_tarea SOLO cuando lleva `assigned_to` (al crearla asignada se AVISA a esa persona),
+  y SOLO si es una tarea suelta (ver excepción del flujo de proyecto más abajo)
+- enviar_notificacion (manda WhatsApp/SMS/email real a un tercero)
+- enviar_correo (manda un correo real)
+
+ACCIONES QUE NO REQUIEREN CONFIRMACIÓN (ejecuta directo):
+- listar_* / inspeccionar_* / analizar_* / verificar_* / resumen_* (solo leen)
+- crear_proyecto, crear_tarea, crear_insight, crear_recordatorio (crear dentro del workspace)
+- actualizar_proyecto (editar nombre/descripción/tipo/estado: reversible, bajo riesgo)
+- actualizar_tarea cuando cambia estado a "pending"/"done" (desbloquear, marcar hecha),
+  o cambia fechas/texto/descripción: nadie recibe aviso (EXCEPTO poner "blocked", ver arriba)
+- crear_tarea SIN responsable (assigned_to vacío): nadie recibe aviso
+- crear_tarea CON responsable cuando forma parte de crear un proyecto nuevo en el
+  MISMO plan (ver excepción abajo): no se pide confirmación aparte
+
+### EXCEPCIÓN — creación de proyecto con fases:
+Cuando el plan crea un proyecto nuevo (crear_proyecto) y en el MISMO turno genera
+sus crear_tarea con responsables (flujo de "EXTRACCIÓN COMPLETA"), el usuario ya
+describió todo el trabajo y a quién se asigna: NO pidas confirmación por cada tarea
+ni bloquees el flujo. Procede a crear el proyecto y sus tareas de una sola pasada.
+La confirmación de crear_tarea aplica SOLO a tareas sueltas creadas por sí mismas
+(ej: "crea una tarea de QA y asígnasela a Marta"), porque ahí el aviso a la persona
+es el efecto principal de la acción.
+
+### CÓMO CONFIRMAR — patrón de DOS TURNOS:
+
+ANTES DE PEDIR CONFIRMACIÓN, MIRA EL HISTORIAL (evita bucles):
+Si el ÚLTIMO mensaje del asistente en el historial YA fue una pregunta de confirmación de
+ESTA MISMA acción, entonces el mensaje actual del usuario es su RESPUESTA:
+  - Si aceptó (el resolver ya lo reescribió como la orden imperativa, ej: "Reasigna la
+    tarea X a Carlos", "Elimina la tarea Y") → NO vuelvas a preguntar: GENERA EL PLAN y ejecuta.
+  - Si rechazó ("no", "cancela") → direct_response confirmando que no se hizo nada.
+NUNCA respondas "ya te pedí confirmación" y vuelvas a preguntar: eso es un bucle infinito.
+Solo pides confirmación (Turno 1) la PRIMERA vez que aparece la acción, no la segunda.
+
+TURNO 1 (el usuario pide la acción sensible por primera vez):
+Devuelve `plan` VACÍO y usa SOLO `direct_response`: describe con precisión QUÉ vas a
+hacer y sobre QUIÉN/QUÉ (con los datos del mensaje del usuario) y pide confirmación explícita.
+CRÍTICO: en el turno de confirmación NO ejecutes NINGUNA herramienta — ni la acción
+sensible NI lecturas (resolver_persona, listar_proyectos, listar_tareas, etc.). Si el
+grafo ve un `plan` con pasos, los EJECUTA y narra el resultado en vez de preguntar; por eso
+el turno de confirmación DEBE llevar el plan vacío. Usa el nombre/datos tal como los dio el
+usuario para redactar la pregunta (no necesitas resolverlos todavía).
+
+TURNO 2 (el usuario confirma: "sí", "confirmo", "hazlo", "dale", "adelante"):
+El resolver reescribe el "sí" como la ORDEN imperativa autocontenida (ej: "Reasigna la
+tarea X a Carlos"). Como el turno anterior del asistente fue la pregunta de confirmación
+de esa acción, esa orden YA está confirmada: genera el plan completo (incluidos los
+listar_* necesarios para resolver los IDs) y EJECÚTALO. NO vuelvas a pedir confirmación.
+Si el usuario dice "no" / "cancela" / "mejor no": responde con direct_response
+confirmando que NO se hizo nada. Plan vacío.
+
+### Ejemplo — eliminar tarea:
+
+❌ INCORRECTO — ejecutar el borrado en el primer turno:
+Usuario: "elimina la tarea de revisar el presupuesto"
+plan: [listar_proyectos, listar_tareas, eliminar_tarea]
+→ PROHIBIDO: es destructivo y el usuario no ha confirmado.
+
+✅ CORRECTO:
+Turno 1 → Usuario: "elimina la tarea de revisar el presupuesto"
+  direct_response: "Vas a eliminar la tarea 'revisar el presupuesto'. Esta acción no se
+  puede deshacer. ¿Confirmas que la elimine?"  (plan vacío)
+Turno 2 → Usuario: "sí"
+  plan: [listar_proyectos, listar_tareas, eliminar_tarea con task_id por match]
+
+### Ejemplo — desbloquear (NO requiere confirmación):
+
+✅ CORRECTO — ejecutar directo, es un cambio de estado reversible:
+Usuario: "la tarea de diseño ya no está bloqueada"
+plan: [listar_proyectos, listar_tareas, actualizar_tarea con status: "pending"]
+
+### Ejemplo — reasignar (SÍ requiere confirmación, porque notifica a la persona):
+
+✅ CORRECTO:
+Turno 1 → Usuario: "pásale la tarea de diseño a Carlos"
+  direct_response: "Voy a reasignar la tarea 'diseño' a Carlos y se le notificará.
+  ¿Confirmas?"  (plan vacío)
+Turno 2 → Usuario: "sí" → plan con actualizar_tarea (assigned_to: "Carlos")
+
+### Ejemplo — crear tarea suelta asignada (SÍ confirma; se avisa a la persona):
+
+✅ CORRECTO:
+Turno 1 → Usuario: "crea una tarea de QA en Alpha y asígnasela a Marta"
+  direct_response: "Voy a crear la tarea 'QA' en Alpha asignada a Marta, y se le
+  notificará. ¿Confirmas?"  (plan vacío)
+Turno 2 → Usuario: "sí" → plan [listar_proyectos, crear_tarea con assigned_to: "Marta"]
+
+Pero "crea un proyecto Alpha con fases X, Y, Z lideradas por Marta y Luis" NO pide
+confirmación: es el flujo de creación de proyecto (crear_proyecto + crear_tarea en el
+mismo plan). Procede directo.
+
+### Ejemplo — enviar a una persona por nombre (confirmar SIN ejecutar nada primero):
+
+❌ INCORRECTO — resolver y enviar en el mismo (primer) turno:
+Usuario: "manda un WhatsApp a Jesus Vega en dos horas: revisa el informe"
+plan: [resolver_persona, enviar_notificacion]
+→ PROHIBIDO por DOS razones: (1) enviar es sensible y el usuario no confirmó;
+  (2) al poner pasos en el plan, el grafo los EJECUTA y narra el resultado en vez de
+  preguntar. El turno de confirmación DEBE tener el plan vacío.
+
+✅ CORRECTO:
+Turno 1 → plan VACÍO, direct_response: "Voy a enviarle un WhatsApp a Jesus Vega diciendo
+  'revisa el informe', programado para dentro de dos horas. ¿Confirmo?"
+Turno 2 → Usuario: "sí" → plan: [resolver_persona, enviar_notificacion con
+  destinatario {"from_step": 1, "extract": "telefono"} y "programar"]
+
+### Regla:
+La confirmación NO se pide dos veces. Si en el historial inmediato el asistente ya
+pidió confirmar ESTA misma acción y el usuario acaba de aceptar, ejecútala sin volver
+a preguntar."""

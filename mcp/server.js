@@ -158,6 +158,22 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["text"],
       },
     },
+    {
+      name: "onebox_onboarding_dryrun",
+      description:
+        "DRY-RUN del análisis de onboarding: llama a POST /api/text/analyze-insights-dryrun. " +
+        "Corre la IA REAL sobre el TEXTO COMPLETO para ver la profundidad de los insights, " +
+        "pero NO crea proyecto ni escribe NADA en DynamoDB. Ideal para verificar la calidad " +
+        "de la IA sin ensuciar datos. Devuelve summary, tipo real, perfil del cliente, insight " +
+        "clave y las listas de tareas/trabajo hecho/bloqueos/riesgos/decisiones/métricas/problemas técnicos.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          text: { type: "string", description: "Texto/transcript a analizar (conversación, brief, acta)" },
+        },
+        required: ["text"],
+      },
+    },
   ],
 }));
 
@@ -176,6 +192,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case "onebox_export":            return handleExport(args);
     case "onebox_from_text_preview": return handleFromTextPreview(args);
     case "onebox_from_text_create":  return handleFromTextCreate(args);
+    case "onebox_onboarding_dryrun": return handleOnboardingDryrun(args);
     default:
       return text(`Herramienta desconocida: ${name}`);
   }
@@ -590,6 +607,72 @@ async function handleFromTextCreate(args) {
     `🤖 **Respuesta del agente:**`,
     data.response || "—",
   ];
+
+  return text(lines.join("\n"));
+}
+
+async function handleOnboardingDryrun(args) {
+  const textInput = (args.text || "").trim();
+  if (!textInput) return text("⚠️ 'text' no puede estar vacío.");
+
+  const headers = {
+    "x-user-id":    USER_ID,
+    "x-user-email": USER_EMAIL,
+    "Content-Type": "application/json",
+  };
+
+  let data;
+  try {
+    const res = await fetch(`${BASE_URL}/api/text/analyze-insights-dryrun`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ text: textInput }),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      return text(`❌ Error HTTP ${res.status}: ${body.slice(0, 500)}`);
+    }
+    data = await res.json();
+  } catch (err) {
+    if (err.code === "ECONNREFUSED") {
+      return text(`❌ No se pudo conectar a ${BASE_URL}. ¿Está corriendo el servidor?`);
+    }
+    return text(`❌ Error: ${err.message}`);
+  }
+
+  const a = data.analysis ?? {};
+  const txtOf  = (x) => (x && typeof x === "object" ? (x.text ?? "") : String(x));
+  const listOf = (key, n = 40) => (a[key] ?? []).slice(0, n).map(txtOf).filter(Boolean);
+
+  const lines = [
+    "## 🧪 Onboarding DRY-RUN (IA real, SIN crear datos)",
+    `**generated:** ${data.generated} · **insights (simulados):** ${data.insightCount}`,
+    "",
+    "### 📊 Resumen",
+    a.summary || "—",
+    "",
+    `**🎯 Tipo real:** ${a.project_type_real || "—"}`,
+    `**👤 Perfil cliente:** ${a.client_profile || "—"}`,
+    `**💡 Insight clave:** ${a.key_insight || "—"}`,
+    "",
+  ];
+
+  const groups = [
+    ["tasks", "✅ Tareas pendientes"],
+    ["work_done", "🏁 Trabajo hecho"],
+    ["blockers", "🚧 Bloqueos"],
+    ["risks", "⚠️ Riesgos"],
+    ["decisions", "🧭 Decisiones"],
+    ["metrics", "📈 Métricas"],
+    ["tech_issues", "🔧 Problemas técnicos"],
+  ];
+  for (const [key, label] of groups) {
+    const vals = listOf(key);
+    lines.push(`### ${label} (${vals.length})`);
+    for (const v of vals) lines.push(`  • ${v.slice(0, 220)}`);
+    lines.push("");
+  }
+  if (data.reason) lines.push(`⚠️ reason: ${data.reason}`);
 
   return text(lines.join("\n"));
 }

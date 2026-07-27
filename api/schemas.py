@@ -96,6 +96,9 @@ class CreateProjectFromDraftRequest(BaseModel):
     name: str
     type: Optional[str] = "Otro"
     description: str
+    # Texto original completo (transcript/pegado) para que el análisis de insights
+    # vea el material real, no la descripción corta. Opcional (backward-compatible).
+    sourceText: Optional[str] = ""
     channels: List[str] = []
     emails: Optional[List[str]] = []
     phones: Optional[List[str]] = []

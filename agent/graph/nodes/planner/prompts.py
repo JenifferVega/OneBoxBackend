@@ -5,8 +5,9 @@ el structured output (PlannerOutput) garantiza la forma de la salida.
 """
 from agent.graph import personality
 from agent.graph.nodes.planner.catalog import (
-    FULL_EXTRACTION, KEY_PARAMS, MULTISTEP_RECIPES, REQUIRED_PARAMS, RULES,
-    SEARCH_GUIDE, TOOL_CATALOG, USAGE_TABLE, WHEN_NOT_TO_USE_TOOLS,
+    CONFIRMATION, FULL_EXTRACTION, KEY_PARAMS, MULTISTEP_RECIPES, REQUIRED_PARAMS,
+    RULES, SCHEDULING_GUIDE, SEARCH_GUIDE, TOOL_CATALOG, USAGE_TABLE,
+    WHEN_NOT_TO_USE_TOOLS,
 )
 
 PLANNER_PROMPT = "\n\n".join([
@@ -17,9 +18,11 @@ PLANNER_PROMPT = "\n\n".join([
     USAGE_TABLE,
     FULL_EXTRACTION,
     MULTISTEP_RECIPES,
+    SCHEDULING_GUIDE,
     WHEN_NOT_TO_USE_TOOLS,
     KEY_PARAMS,
     REQUIRED_PARAMS,
+    CONFIRMATION,
     RULES,
     personality.LANGUAGE,
     """## Historial de conversación:

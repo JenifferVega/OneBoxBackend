@@ -74,6 +74,24 @@ _DRY_RUN_RESULTS = {
         {"nombre": "Ana Torres", "telefono": "+50494622817", "rol": "Coordinadora", "tareas_pendientes": 2},
         {"nombre": "Carlos López", "telefono": "+50494622818", "rol": "Desarrollador", "tareas_pendientes": 1},
     ], "_dry_run": True},
+    "listar_tareas":               lambda p: {"count": 2, "tareas": [
+        {"taskId": "task-DRYRUN-t1", "text": "Diseño de la landing", "status": "blocked",  "assignedTo": "Ana Torres",   "dueDate": "2026-07-30"},
+        {"taskId": "task-DRYRUN-t2", "text": "Integrar pasarela de pago", "status": "pending", "assignedTo": "Carlos López", "dueDate": "2026-08-05"},
+    ], "_dry_run": True},
+    "actualizar_tarea":            lambda p: {"success": True, "taskId": p.get("task_id", "?"), "status": "simulated", "_dry_run": True},
+    "eliminar_tarea":              lambda p: {"success": True, "taskId": p.get("task_id", "?"), "childrenAffected": 0, "cascade": p.get("cascade", False), "_dry_run": True},
+    "actualizar_proyecto":         lambda p: {"success": True, "projectId": p.get("project_id", "?"), "updated": [k for k in ("name","description","type","status","delivery_date","timing") if p.get(k) is not None], "_dry_run": True},
+    "invitar_usuario":             lambda p: {"success": True, "saved": True, "notified": bool(p.get("send_notification", True)), "email": p.get("email", ""), "phone": p.get("phone", ""), "_dry_run": True},
+    "actualizar_participantes":    lambda p: {"success": True, "projectId": p.get("project_id", "?"), "_dry_run": True},
+    "quitar_participante":         lambda p: {"success": True, "removed": {"email": p.get("email", ""), "telefono": p.get("phone", ""), "nombre": p.get("name", "")}, "_dry_run": True},
+    "resolver_persona":            lambda p: {
+        "query": p.get("nombre", "?"), "count": 1,
+        "matches": [{"nombre": p.get("nombre", "Jesus Vega"), "email": "jesus@empresa.com",
+                     "telefono": "+50494622817", "rol": "Colaborador",
+                     "proyectos": [{"projectId": "proj-DRYRUN-aaa111", "projectName": "Proyecto Demo A"}]}],
+        "nombre": p.get("nombre", "Jesus Vega"), "email": "jesus@empresa.com",
+        "telefono": "+50494622817", "projectId": "proj-DRYRUN-aaa111",
+        "projectName": "Proyecto Demo A", "_dry_run": True},
     "verificar_sla":               lambda p: {"total_alerts": 0, "alerts": [], "_dry_run": True},
     "clasificar_mensajes_automatico": lambda p: {"suggestions": [], "_dry_run": True},
     "resumen_proactivo":           lambda p: {"projects_count": 0, "suggested_actions": [], "_dry_run": True},
@@ -146,6 +164,16 @@ def _execute_foreach_step(
     # Resuelve el resto de parámetros (los que NO son foreach) una sola vez
     other_params = {k: v for k, v in params.items() if k != foreach_key}
     other_resolved = resolve_params(other_params, results)
+
+    # Programación relativa/absoluta → scheduled_at/recurring_days (determinista).
+    # Aplica al envío masivo (mismo scheduled_at para todos los destinatarios).
+    if isinstance(other_resolved.get("programar"), dict):
+        from agent.schedule import aplicar_programacion
+        other_resolved, _serr = aplicar_programacion(other_resolved)
+        if _serr:
+            return {"error": _serr.get("error"), "sugerencia": _serr.get("sugerencia"),
+                    "_schedule_error": True, "sent_count": 0, "skipped_count": 0,
+                    "sent": [], "skipped": [], "_foreach_result": True}
 
     sent = []
     skipped = []
@@ -224,11 +252,27 @@ def executor_node(state: AgentState) -> dict:
                 resolved_params = params  # para el log de simulated_calls
             else:
                 resolved_params = resolve_params(params, results)
+
+                # ── Programación determinista (solo enviar_notificacion) ─────
+                # El planner emite resolved_params["programar"] normalizado
+                # ({"tipo": "relativo"/"hora_fija"/"proximo_dia"/"recurrente", ...}).
+                # Aquí (código, no LLM) se convierte a scheduled_at UTC o
+                # recurring_days usando la hora real del servidor.
+                sched_error = None
+                if tool_name == "enviar_notificacion" and isinstance(resolved_params.get("programar"), dict):
+                    from agent.schedule import aplicar_programacion
+                    resolved_params, sched_error = aplicar_programacion(resolved_params)
+
                 print(f"   Params: {json.dumps(resolved_params, default=str)[:200]}")
 
                 # ── Validación de parámetros antes de ejecutar ──────────────
                 validation_error = validate_tool_params(tool_name, step_num, resolved_params)
-                if validation_error:
+                if sched_error:
+                    print(f"   ⚠️ PROGRAMACIÓN INVÁLIDA: {sched_error.get('error')}")
+                    result = {"error": sched_error.get("error"),
+                              "sugerencia": sched_error.get("sugerencia"),
+                              "_schedule_error": True}
+                elif validation_error:
                     print(f"   ⚠️ VALIDACIÓN FALLIDA: {validation_error['error'][:150]}")
                     result = validation_error
                 elif debug_mode:

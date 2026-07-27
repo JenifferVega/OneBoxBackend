@@ -8,6 +8,13 @@ Diseño:
       · si tiene teléfono → enviar_notificacion(tel, mensaje, canal='whatsapp')
   - enviar_notificacion ya hace el sandbox-check de SES y registra en la tabla
     onebox-notifications. Si no hay canal en el participant, simplemente skip.
+
+dispatch_pending_notifications():
+  - Escanea onebox-notifications con status='pending'.
+  - Notificaciones one-time (scheduledAt <= ahora): envía y marca como 'sent'.
+  - Notificaciones recurrentes (isRecurring=True): verifica si hoy es uno de
+    los recurringDays; si sí, envía pero mantiene status='pending' (vuelve a
+    correr la próxima semana). EventBridge dispara este endpoint cada hora.
 """
 from boto3.dynamodb.conditions import Attr
 
@@ -183,5 +190,141 @@ def send_scheduled_notifications() -> dict:
         "projects_processed": projects_processed,
         "notifications_sent": notifications_sent,
         "notifications_skipped": notifications_skipped,  # email no verificado en SES sandbox
+        "errors": errors if errors else None,
+    }
+
+
+def dispatch_pending_notifications() -> dict:
+    """Dispatcher de notificaciones programadas. Diseñado para correr cada hora
+    vía EventBridge → POST /api/scheduled/dispatch-pending.
+
+    Lógica:
+    - Escanea onebox-notifications con status='pending'.
+    - One-time (scheduledAt presente, isRecurring ausente o False):
+        Si scheduledAt <= ahora UTC → envía y actualiza status='sent'.
+    - Recurrentes (isRecurring=True, recurringDays presente):
+        Si el día de hoy (UTC) está en recurringDays → envía.
+        Mantiene status='pending' para que vuelva a correr la próxima semana.
+        Registra la última ejecución en 'lastSentAt' para evitar doble envío
+        dentro de la misma ventana horaria.
+    """
+    from datetime import datetime, timezone
+    from agent.tools import (
+        enviar_notificacion, notifications_table, set_current_user, clear_current_user,
+    )
+
+    now_dt = datetime.now(timezone.utc)
+    now_iso = now_dt.isoformat()
+    today_name = now_dt.strftime('%A').lower()  # 'monday', 'tuesday', etc.
+
+    try:
+        result = notifications_table.scan(
+            FilterExpression=Attr('status').eq('pending')
+        )
+        pending = result.get('Items', [])
+    except Exception as e:
+        return {"success": False, "error": f"scan error: {e}"}
+
+    sent = 0
+    skipped = 0
+    errors = []
+
+    for notif in pending:
+        uid = notif.get('userId', '')
+        if not uid:
+            continue
+
+        canal = notif.get('canal', '')
+        destinatario = notif.get('destinatario', '')
+        mensaje = notif.get('mensaje', '')
+        project_id = notif.get('projectId', '')
+        project_name = notif.get('projectName', '')
+        notif_id = notif.get('notificationId', '')
+        scheduled_at = notif.get('scheduledAt', '')
+        is_recurring = notif.get('isRecurring', False)
+        recurring_days = notif.get('recurringDays', [])
+
+        should_send = False
+
+        if is_recurring:
+            # Recurrente: verificar si hoy es uno de los días configurados.
+            if today_name not in (recurring_days or []):
+                skipped += 1
+                continue
+            # Evitar doble envío si ya se envió hoy (lastSentAt tiene fecha de hoy).
+            last_sent = notif.get('lastSentAt', '')
+            if last_sent and last_sent[:10] == now_dt.strftime('%Y-%m-%d'):
+                skipped += 1
+                continue
+            should_send = True
+        elif scheduled_at:
+            # One-time: enviar solo si scheduled_at <= ahora.
+            try:
+                # Normalizar a datetime aware
+                sat = scheduled_at.rstrip('Z')
+                sched_dt = datetime.fromisoformat(sat).replace(tzinfo=timezone.utc)
+                if sched_dt <= now_dt:
+                    should_send = True
+                else:
+                    skipped += 1
+                    continue
+            except ValueError:
+                errors.append(f"{notif_id}: scheduledAt inválido '{scheduled_at}'")
+                continue
+        else:
+            # Sin scheduledAt ni isRecurring → no debería estar en pending, skip.
+            skipped += 1
+            continue
+
+        if not should_send:
+            skipped += 1
+            continue
+
+        # Enviar usando el contexto del usuario dueño de la notificación.
+        set_current_user(uid, '')
+        try:
+            res = enviar_notificacion(
+                destinatario=destinatario,
+                mensaje=mensaje,
+                canal=canal,
+                project_id=project_id,
+                project_name=project_name,
+                # Sin scheduled_at ni recurring_days: envío inmediato.
+            )
+            if res.get('success') or res.get('status') in ('sent', 'queued', 'test_simulated', 'skipped_unverified'):
+                sent += 1
+                if is_recurring:
+                    # Actualizar lastSentAt pero mantener status=pending.
+                    try:
+                        notifications_table.update_item(
+                            Key={'userId': uid, 'notificationId': notif_id},
+                            UpdateExpression='SET lastSentAt = :ts',
+                            ExpressionAttributeValues={':ts': now_iso},
+                        )
+                    except Exception as ue:
+                        errors.append(f"{notif_id}: update lastSentAt error: {ue}")
+                else:
+                    # One-time: marcar como sent.
+                    try:
+                        notifications_table.update_item(
+                            Key={'userId': uid, 'notificationId': notif_id},
+                            UpdateExpression='SET #s = :sent, sentAt = :ts',
+                            ExpressionAttributeNames={'#s': 'status'},
+                            ExpressionAttributeValues={':sent': 'sent', ':ts': now_iso},
+                        )
+                    except Exception as ue:
+                        errors.append(f"{notif_id}: update status error: {ue}")
+            else:
+                errors.append(f"{notif_id} ({canal} → {destinatario}): {res.get('error', 'unknown')[:120]}")
+        except Exception as e:
+            errors.append(f"{notif_id}: exception: {str(e)[:120]}")
+        finally:
+            clear_current_user()
+
+    return {
+        "success": True,
+        "evaluated": len(pending),
+        "sent": sent,
+        "skipped": skipped,
         "errors": errors if errors else None,
     }

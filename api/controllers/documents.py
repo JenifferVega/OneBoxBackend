@@ -29,6 +29,22 @@ async def analyze_text_preview(req: AnalyzeTextPreviewRequest, x_user_id: str = 
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/api/text/analyze-insights-dryrun")
+async def analyze_text_insights_dryrun(req: AnalyzeTextRequest, x_user_id: str = Header(default="")):
+    """DRY-RUN: corre el análisis de insights de la IA sobre el texto completo SIN
+    crear proyecto ni escribir en DynamoDB. Devuelve la salida cruda del LLM para
+    verificar la calidad/profundidad de la IA. No persiste nada."""
+    uid = require_uid(x_user_id)
+    try:
+        return documents_service.analyze_text_insights_dryrun(uid, req.text)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[analyze_text_insights_dryrun] Error: {e}")
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/api/documents/analyze")
 async def analyze_document_preview(
     file: UploadFile = File(...),

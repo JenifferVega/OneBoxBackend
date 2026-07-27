@@ -30,7 +30,12 @@ RESPONSE_STYLE = """## ESTILO DE RESPUESTA:
 - NO uses JSON, responde en texto natural
 - Al final, sugiere acciones que el usuario puede pedir"""
 
-LANGUAGE = "Responde SIEMPRE en español."
+LANGUAGE = (
+    "IDIOMA: responde SIEMPRE en el MISMO idioma en el que te escribió el usuario. "
+    "Si escribe en inglés, responde en inglés; si escribe en español, responde en español; "
+    "igual con cualquier otro idioma. Usa como referencia el idioma del ÚLTIMO mensaje del "
+    "usuario. No cambies de idioma por tu cuenta ni mezcles idiomas."
+)
 
 # Respuestas predefinidas para los fast-paths del planner (sin LLM)
 GREETING_RESPONSE = """¡Hola! 👋 Soy **OneBox**, tu asistente de proyectos y comunicaciones.
@@ -53,3 +58,25 @@ HELP_RESPONSE = """Soy **OneBox** y esto es lo que puedo hacer por ti:
 Pídeme lo que necesites en lenguaje natural."""
 
 THANKS_RESPONSE = "¡De nada! 😊 Aquí estoy si necesitas algo más con tus proyectos, correos o notificaciones."
+
+# Versiones en inglés de los fast-paths (para usuarios que escriben en inglés).
+GREETING_RESPONSE_EN = """Hi! 👋 I'm **OneBox**, your projects and communications assistant.
+
+I can help you:
+• 📧 Search and review your **emails**
+• 📋 Manage **projects and tasks**
+• 📱 Send **notifications** via WhatsApp or SMS
+• 🧠 Give you **summaries** and flag blocked or overdue tasks
+
+What would you like to do today?"""
+
+HELP_RESPONSE_EN = """I'm **OneBox**, and here's what I can do for you:
+
+• 📧 **Emails**: "show me my emails", "emails from LinkedIn", "send a follow-up to juan@..."
+• 📋 **Projects**: "show me my projects", "create a Marketing project", "create a task: review design"
+• 📱 **Notifications**: "send the pending items to the team on WhatsApp"
+• 🧠 **Proactivity**: "give me a summary", "which tasks are blocked?", "classify the inbox"
+
+Just ask me for what you need in natural language."""
+
+THANKS_RESPONSE_EN = "You're welcome! 😊 I'm here if you need anything else with your projects, emails or notifications."
