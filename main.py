@@ -3,7 +3,7 @@
 - `lambda_handler`: entrypoint AWS Lambda (modo agente-only, request/response JSON).
 - `app`: aplicación FastAPI construida por api.app.create_app() — toda la
   implementación vive en api/ (schemas, controllers, services) y agent/.
-- `python main.py`: levanta el servidor uvicorn en el puerto 8000 (Docker CMD).
+- `python main.py`: levanta el servidor uvicorn en el puerto 8006 (Docker CMD).
 """
 from dotenv import load_dotenv
 load_dotenv()
@@ -103,8 +103,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="OneBox Agent server")
     parser.add_argument("--host", default=os.environ.get("HOST", "0.0.0.0"),
                         help="Host de escucha (default: 0.0.0.0 o env HOST)")
-    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8000)),
-                        help="Puerto de escucha (default: 8000 o env PORT)")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8006)),
+                        help="Puerto de escucha (default: 8006 o env PORT)")
     parser.add_argument("--reload", action="store_true",
                         help="Recarga automática en desarrollo")
     args = parser.parse_args()

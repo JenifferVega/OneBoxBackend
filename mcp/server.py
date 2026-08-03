@@ -32,7 +32,7 @@ except ImportError as e:
     sys.exit(1)
 
 # ── Configuración ─────────────────────────────────────────────────────────────
-BASE_URL   = os.getenv("ONEBOX_BASE_URL",   "http://localhost:8000")
+BASE_URL   = os.getenv("ONEBOX_BASE_URL",   "http://localhost:8006")
 USER_ID    = os.getenv("ONEBOX_USER_ID",    "debug-user-001")
 USER_EMAIL = os.getenv("ONEBOX_USER_EMAIL", "debug@onebox.com")
 REPORTS_DIR = Path(os.getenv("ONEBOX_REPORTS_DIR", Path(__file__).parent / "reports"))

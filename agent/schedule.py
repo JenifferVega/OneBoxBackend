@@ -56,7 +56,8 @@ def _to_utc_iso(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def resolver_tiempo(ref: dict, tz: str = None, now: datetime = None) -> dict:
+def resolver_tiempo(ref: dict, tz: str = None, now: datetime = None,
+                    min_lead_minutes: int = MIN_LEAD_MINUTES) -> dict:
     """Convierte una referencia de tiempo normalizada a scheduled_at/recurring_days.
 
     Args:
@@ -138,8 +139,8 @@ def resolver_tiempo(ref: dict, tz: str = None, now: datetime = None) -> dict:
     # ── Validaciones finales comunes ────────────────────────────────────────
     if objetivo <= ahora:
         return {"error": "la fecha calculada ya pasó"}
-    if objetivo < ahora + timedelta(minutes=MIN_LEAD_MINUTES):
-        return {"error": f"debe programarse con al menos {MIN_LEAD_MINUTES} minutos de anticipación",
+    if min_lead_minutes and objetivo < ahora + timedelta(minutes=min_lead_minutes):
+        return {"error": f"debe programarse con al menos {min_lead_minutes} minutos de anticipación",
                 "sugerencia": "elige una hora un poco más adelante"}
 
     return {"scheduled_at": _to_utc_iso(objetivo)}
@@ -157,7 +158,11 @@ def aplicar_programacion(params: dict, tz: str = None, now: datetime = None):
     if not isinstance(ref, dict):
         return params, None
 
-    res = resolver_tiempo(ref, tz=tz, now=now)
+    # El mínimo de 15 min es una restricción del scheduling NATIVO de Twilio
+    # (whatsapp/sms). El email va por el dispatcher propio y admite tiempos cortos.
+    canal = (params.get("canal") or "").strip().lower()
+    min_lead = 1 if canal == "email" else MIN_LEAD_MINUTES
+    res = resolver_tiempo(ref, tz=tz, now=now, min_lead_minutes=min_lead)
     if res.get("error"):
         return params, res
 

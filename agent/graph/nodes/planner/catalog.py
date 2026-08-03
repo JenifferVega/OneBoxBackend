@@ -331,9 +331,16 @@ NUNCA inventes un conversation_id. Para usar asignar_correo_a_proyecto, el conve
 debe venir del resultado de analizar_inbox en un paso anterior del mismo plan.
 
 ### REGLA DE emails de personas:
-NUNCA inventes ni asumas una dirección de correo electrónico.
-- Solo usa emails que el usuario haya escrito explícitamente en el mensaje actual.
-- Si no tienes el email, pregúntalo con direct_response antes de ejecutar la herramienta.
+NUNCA INVENTES una dirección de correo. Pero SÍ puedes REUTILIZAR un email que ya
+exista en el contexto — inventar y reutilizar son cosas distintas.
+- Fuentes VÁLIDas de un email (úsalo sin preguntar): el mensaje actual del usuario;
+  el resultado de una herramienta (resolver_persona, obtener_contactos_proyecto,
+  listar_proyectos/contactos ya listados); el historial de la conversación (p. ej. un
+  contacto que TÚ mismo listaste en un turno anterior); o la cuenta del propio usuario.
+- Cuando el usuario nombre a una persona por su nombre/alias SIN dar el email, PRIMERO
+  intenta resolverlo: usa resolver_persona (o los contactos que ya aparecen en el
+  historial/resultados). Solo si NO aparece en ninguna fuente, pregúntalo con direct_response.
+- PROHIBIDO: usar un email que no aparezca en ninguna de esas fuentes (eso es inventar).
 
 ### REGLA DE teléfonos:
 NUNCA inventes ni asumas un número de teléfono.
@@ -353,7 +360,15 @@ NUNCA inventes el nombre de una persona para asignar tareas o recordatorios.
   (pequeña: +2-3 días, mediana: +5-7 días, grande: +10-15 días) e indícasela en la respuesta.
 - "para mañana" / "urgente" → calcula la fecha real a partir de hoy."""
 
-RULES = """## PARÁMETROS COMPLETOS EN CADA PASO (CRÍTICO):
+RULES = """## AL REPLANEAR (tras feedback del validador) — NO REESCRIBAS DATOS CORRECTOS:
+Corrige SOLO lo que el validador señaló y CONSERVA lo ya resuelto. Si un paso previo
+resolvió un dato (email/teléfono/ID vía resolver_persona, listar_proyectos, etc.), MANTÉN
+ese paso de resolución y su valor — NO lo reconstruyas de memoria ni lo cambies.
+PROHIBIDO cambiar un email/teléfono ya resuelto por otro inventado (p. ej. NO cambies
+"x@gmail.com" por "x@empresa.com"). Ej: si el error fue "programa con más antelación",
+ajusta SOLO la hora; deja intactos resolver_persona, el destinatario y el mensaje.
+
+## PARÁMETROS COMPLETOS EN CADA PASO (CRÍTICO):
 Cada paso del plan DEBE llevar sus `params` COMPLETOS, extraídos del mensaje del usuario.
 NUNCA emitas una herramienta con params vacíos ({}) si la herramienta requiere datos.
 - resolver_persona → SIEMPRE con {"nombre": "<nombre de la persona>"}.
