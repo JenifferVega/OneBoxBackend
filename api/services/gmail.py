@@ -414,7 +414,7 @@ def handle_push_notification(body: dict) -> dict:
             import urllib.request as _req
             payload = json.dumps({}).encode('utf-8')
             req = _req.Request(
-                "http://localhost:8000/api/scheduled/gmail-sync",
+                "http://localhost:8006/api/scheduled/gmail-sync",
                 data=payload,
                 headers={'Content-Type': 'application/json', 'x-user-id': uid},
                 method='POST'

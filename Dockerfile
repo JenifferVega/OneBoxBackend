@@ -18,7 +18,7 @@ COPY api/ api/
 COPY main.py .
 COPY lambda_twilio_webhook.py .
 
-EXPOSE 8000
+EXPOSE 8006
 
 ENTRYPOINT []
 CMD ["python", "main.py"]

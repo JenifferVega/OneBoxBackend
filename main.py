@@ -3,7 +3,7 @@
 - `lambda_handler`: entrypoint AWS Lambda (modo agente-only, request/response JSON).
 - `app`: aplicación FastAPI construida por api.app.create_app() — toda la
   implementación vive en api/ (schemas, controllers, services) y agent/.
-- `python main.py`: levanta el servidor uvicorn en el puerto 8000 (Docker CMD).
+- `python main.py`: levanta el servidor uvicorn en el puerto 8006 (Docker CMD).
 """
 from dotenv import load_dotenv
 load_dotenv()
@@ -95,10 +95,25 @@ app = create_app()
 
 
 if __name__ == "__main__":
+    import argparse
+    import os
+
     import uvicorn
 
-    print("\n🚀 Iniciando OneBox Agent en http://localhost:8000")
-    print("📖 Docs en http://localhost:8000/docs")
+    parser = argparse.ArgumentParser(description="OneBox Agent server")
+    parser.add_argument("--host", default=os.environ.get("HOST", "0.0.0.0"),
+                        help="Host de escucha (default: 0.0.0.0 o env HOST)")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8006)),
+                        help="Puerto de escucha (default: 8006 o env PORT)")
+    parser.add_argument("--reload", action="store_true",
+                        help="Recarga automática en desarrollo")
+    args = parser.parse_args()
+
+    print(f"\n🚀 Iniciando OneBox Agent en http://localhost:{args.port}")
+    print(f"📖 Docs en http://localhost:{args.port}/docs")
     print("📡 REST API: /api/projects, /api/insights, /api/inbox, /api/notifications")
     print("📱 Twilio webhook: /api/twilio/webhook\n")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    # uvicorn exige el import string "main:app" cuando reload=True.
+    uvicorn.run("main:app" if args.reload else app,
+                host=args.host, port=args.port, reload=args.reload)

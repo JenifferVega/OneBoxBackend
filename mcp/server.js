@@ -159,35 +159,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
-      name: "onebox_list_projects",
+      name: "onebox_onboarding_dryrun",
       description:
-        "Lista los proyectos del usuario. Útil para obtener projectIds antes de llamar " +
-        "onebox_analyze_text_in_project.",
-      inputSchema: {
-        type: "object",
-        properties: {},
-        required: [],
-      },
-    },
-    {
-      name: "onebox_analyze_text_in_project",
-      description:
-        "Llama a POST /api/projects/{project_id}/analyze-text. " +
-        "Genera insights (tareas con assigned_to, riesgos, decisiones) dentro de un proyecto " +
-        "existente usando generate_insights_for_project con la lista real de participantes. " +
-        "Útil para verificar que las tareas quedan asignadas a los participantes correctos.",
+        "DRY-RUN del análisis de onboarding: llama a POST /api/text/analyze-insights-dryrun. " +
+        "Corre la IA REAL sobre el TEXTO COMPLETO para ver la profundidad de los insights, " +
+        "pero NO crea proyecto ni escribe NADA en DynamoDB. Ideal para verificar la calidad " +
+        "de la IA sin ensuciar datos. Devuelve summary, tipo real, perfil del cliente, insight " +
+        "clave y las listas de tareas/trabajo hecho/bloqueos/riesgos/decisiones/métricas/problemas técnicos.",
       inputSchema: {
         type: "object",
         properties: {
-          project_id: { type: "string", description: "ID del proyecto existente (ej: proj-abc123)" },
-          text: { type: "string", description: "Texto o conversación a analizar dentro del proyecto" },
-          source: {
-            type: "string",
-            description: "Origen del texto: 'whatsapp', 'email', 'notes', etc.",
-            default: "whatsapp",
-          },
+          text: { type: "string", description: "Texto/transcript a analizar (conversación, brief, acta)" },
         },
-        required: ["project_id", "text"],
+        required: ["text"],
       },
     },
   ],
@@ -206,10 +190,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case "onebox_history":           return handleHistory(args);
     case "onebox_report":            return handleReport(args);
     case "onebox_export":            return handleExport(args);
-    case "onebox_from_text_preview":        return handleFromTextPreview(args);
-    case "onebox_from_text_create":         return handleFromTextCreate(args);
-    case "onebox_list_projects":            return handleListProjects(args);
-    case "onebox_analyze_text_in_project":  return handleAnalyzeTextInProject(args);
+    case "onebox_from_text_preview": return handleFromTextPreview(args);
+    case "onebox_from_text_create":  return handleFromTextCreate(args);
+    case "onebox_onboarding_dryrun": return handleOnboardingDryrun(args);
     default:
       return text(`Herramienta desconocida: ${name}`);
   }
@@ -628,36 +611,9 @@ async function handleFromTextCreate(args) {
   return text(lines.join("\n"));
 }
 
-async function handleListProjects(args) {
-  const headers = { "x-user-id": USER_ID, "x-user-email": USER_EMAIL };
-  let data;
-  try {
-    const res = await fetch(`${BASE_URL}/api/projects`, { headers });
-    if (!res.ok) return text(`❌ Error HTTP ${res.status}`);
-    data = await res.json();
-  } catch (err) {
-    return text(`❌ Error: ${err.message}`);
-  }
-
-  const projects = Array.isArray(data) ? data : (data.projects || []);
-  if (!projects.length) return text("No hay proyectos.");
-
-  const lines = ["## 📁 Proyectos", ""];
-  for (const p of projects.slice(0, 20)) {
-    const participants = (p.participants || []).map(x => x.nombre || x.name).filter(Boolean).join(", ");
-    lines.push(`- **${p.name}** — \`${p.projectId}\``);
-    if (participants) lines.push(`  👥 ${participants}`);
-  }
-  return text(lines.join("\n"));
-}
-
-async function handleAnalyzeTextInProject(args) {
-  const projectId = (args.project_id || "").trim();
+async function handleOnboardingDryrun(args) {
   const textInput = (args.text || "").trim();
-  const source    = args.source || "whatsapp";
-
-  if (!projectId) return text("⚠️ project_id es requerido.");
-  if (!textInput)  return text("⚠️ El texto no puede estar vacío.");
+  if (!textInput) return text("⚠️ 'text' no puede estar vacío.");
 
   const headers = {
     "x-user-id":    USER_ID,
@@ -667,65 +623,56 @@ async function handleAnalyzeTextInProject(args) {
 
   let data;
   try {
-    const res = await fetch(`${BASE_URL}/api/projects/${projectId}/analyze-text`, {
+    const res = await fetch(`${BASE_URL}/api/text/analyze-insights-dryrun`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ text: textInput, source }),
+      body: JSON.stringify({ text: textInput }),
     });
     if (!res.ok) {
       const body = await res.text();
-      return text(`❌ Error HTTP ${res.status}: ${body.slice(0, 400)}`);
+      return text(`❌ Error HTTP ${res.status}: ${body.slice(0, 500)}`);
     }
     data = await res.json();
   } catch (err) {
-    if (err.code === "ECONNREFUSED") return text(`❌ No se pudo conectar a ${BASE_URL}. ¿Está corriendo el servidor?`);
+    if (err.code === "ECONNREFUSED") {
+      return text(`❌ No se pudo conectar a ${BASE_URL}. ¿Está corriendo el servidor?`);
+    }
     return text(`❌ Error: ${err.message}`);
   }
 
-  const insights = data.insightsGenerated || {};
-  const analysis = insights.analysis || {};
+  const a = data.analysis ?? {};
+  const txtOf  = (x) => (x && typeof x === "object" ? (x.text ?? "") : String(x));
+  const listOf = (key, n = 40) => (a[key] ?? []).slice(0, n).map(txtOf).filter(Boolean);
 
   const lines = [
-    `## 🔍 Insights generados para \`${projectId}\``,
-    `**Total insights:** ${insights.count || 0}`,
+    "## 🧪 Onboarding DRY-RUN (IA real, SIN crear datos)",
+    `**generated:** ${data.generated} · **insights (simulados):** ${data.insightCount}`,
+    "",
+    "### 📊 Resumen",
+    a.summary || "—",
+    "",
+    `**🎯 Tipo real:** ${a.project_type_real || "—"}`,
+    `**👤 Perfil cliente:** ${a.client_profile || "—"}`,
+    `**💡 Insight clave:** ${a.key_insight || "—"}`,
     "",
   ];
 
-  if (analysis.summary) {
-    lines.push(`### 📝 Resumen`, analysis.summary, "");
-  }
-
-  const tasks = analysis.tasks || [];
-  if (tasks.length) {
-    lines.push(`### ✅ Tareas (${tasks.length})`);
-    for (const t of tasks) {
-      const assigned = t.assigned_to ? ` → **${t.assigned_to}**` : "";
-      const due      = t.due_date    ? ` (hasta ${t.due_date})` : "";
-      lines.push(`  • ${t.text}${assigned}${due}`);
-    }
+  const groups = [
+    ["tasks", "✅ Tareas pendientes"],
+    ["work_done", "🏁 Trabajo hecho"],
+    ["blockers", "🚧 Bloqueos"],
+    ["risks", "⚠️ Riesgos"],
+    ["decisions", "🧭 Decisiones"],
+    ["metrics", "📈 Métricas"],
+    ["tech_issues", "🔧 Problemas técnicos"],
+  ];
+  for (const [key, label] of groups) {
+    const vals = listOf(key);
+    lines.push(`### ${label} (${vals.length})`);
+    for (const v of vals) lines.push(`  • ${v.slice(0, 220)}`);
     lines.push("");
   }
-
-  const blockers = analysis.blockers || [];
-  if (blockers.length) {
-    lines.push(`### 🚫 Bloqueos`);
-    for (const b of blockers) {
-      const assigned = b.assigned_to ? ` → ${b.assigned_to}` : "";
-      lines.push(`  • ${b.text || b}${assigned}`);
-    }
-    lines.push("");
-  }
-
-  if ((analysis.risks || []).length) {
-    lines.push(`### ⚠️ Riesgos`);
-    for (const r of analysis.risks) lines.push(`  • ${r}`);
-    lines.push("");
-  }
-
-  if ((analysis.decisions || []).length) {
-    lines.push(`### 🎯 Decisiones`);
-    for (const d of analysis.decisions) lines.push(`  • ${d}`);
-  }
+  if (data.reason) lines.push(`⚠️ reason: ${data.reason}`);
 
   return text(lines.join("\n"));
 }

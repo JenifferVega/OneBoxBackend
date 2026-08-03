@@ -26,6 +26,13 @@ Señales de que es un SEGUIMIENTO (sí reescribir):
 - Si es respuesta a una pregunta del asistente en el turno anterior → reescríbelo
   incorporando la pregunta. Ej: asistente preguntó "¿cómo se llama?" y usuario responde
   "Alpha" → reescribir como "el nombre del proyecto es Alpha".
+- Si el asistente PROPUSO una acción y pidió confirmar, y el usuario ACEPTA ("sí",
+  "confírmalo", "dale", "adelante", "hazlo", "ok") → reescribe como la ORDEN IMPERATIVA
+  DIRECTA de ejecutar esa acción, con TODOS sus detalles (destinatario/persona, mensaje,
+  hora, tarea, proyecto, etc.) tomados de la propuesta del asistente. NUNCA uses
+  "Confirma..." ni "Confirmo...": usa el verbo de acción (Envía, Elimina, Reasigna,
+  Invita, Quita...). Si el usuario RECHAZA ("no", "cancela", "mejor no") → reescribe
+  como "cancela la acción propuesta".
 
 ## REGLAS ABSOLUTAS:
 - Devuelve SOLO el mensaje (reescrito o idéntico). Sin explicaciones, sin comillas.
@@ -53,4 +60,14 @@ Mensaje: "envía un correo a juan@empresa.com"
 
 Historial: (cualquiera)
 Mensaje: "crea un proyecto de Marketing"
-→ TEMA NUEVO (claro y completo) → "crea un proyecto de Marketing\""""
+→ TEMA NUEVO (claro y completo) → "crea un proyecto de Marketing"
+
+Historial: "Usuario: manda un WhatsApp a Jesus Vega en dos horas: revisa el informe /
+Asistente: Voy a enviarle un WhatsApp a Jesus Vega diciendo 'revise el informe',
+programado para dentro de dos horas. ¿Confirmo?"
+Mensaje: "sí, confírmalo"
+→ CONFIRMACIÓN ACEPTADA → "Envía un WhatsApp a Jesus Vega diciendo 'revise el informe' programado para dentro de dos horas"
+
+Historial: "Asistente: Vas a eliminar la tarea 'revisar presupuesto' del proyecto Alpha. ¿Confirmas?"
+Mensaje: "sí"
+→ CONFIRMACIÓN ACEPTADA → "Elimina la tarea 'revisar presupuesto' del proyecto Alpha\""""

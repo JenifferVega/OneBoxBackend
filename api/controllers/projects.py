@@ -5,7 +5,7 @@ from fastapi import APIRouter, Header, HTTPException
 from api.deps import require_uid
 from api.schemas import (
     CreateProjectRequest, InviteRequest, RemoveParticipantRequest,
-    UpdateParticipantsRequest,
+    UpdateParticipantsRequest, UpdateProjectRequest,
 )
 from api.services import projects as projects_service
 
@@ -54,6 +54,24 @@ async def create_project(req: CreateProjectRequest, x_user_id: str = Header(defa
         )
     except Exception as e:
         print(f"[create_project] Error: {e}")
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/api/projects/{project_id}")
+async def update_project(project_id: str, req: UpdateProjectRequest, x_user_id: str = Header(default="")):
+    """Edita campos de un proyecto existente. Solo owner (RBAC en el service).
+    Solo se actualizan los campos presentes en el body (no-nulls)."""
+    uid = require_uid(x_user_id)
+    try:
+        # Filtrar solo los campos que vinieron seteados (evita sobreescribir con
+        # None valores existentes en DDB).
+        updates = {k: v for k, v in req.model_dump().items() if v is not None}
+        return projects_service.update_project(uid, project_id, updates)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[update_project] Error: {e}")
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 

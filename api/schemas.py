@@ -27,6 +27,17 @@ class CreateProjectRequest(BaseModel):
     deliveryDate: Optional[str] = ""  # Fecha de entrega ISO (opcional)
 
 
+class UpdateProjectRequest(BaseModel):
+    # Todos opcionales — solo se actualizan los campos presentes en el body.
+    # El frontend envía únicamente los que cambiaron (edit modal).
+    name: Optional[str] = None
+    description: Optional[str] = None
+    type: Optional[str] = None
+    status: Optional[str] = None  # "active" | "paused" | "finished"
+    deliveryDate: Optional[str] = None
+    timing: Optional[str] = None
+
+
 class UpdateParticipantsRequest(BaseModel):
     participants: List[dict]
 
@@ -85,6 +96,9 @@ class CreateProjectFromDraftRequest(BaseModel):
     name: str
     type: Optional[str] = "Otro"
     description: str
+    # Texto original completo (transcript/pegado) para que el análisis de insights
+    # vea el material real, no la descripción corta. Opcional (backward-compatible).
+    sourceText: Optional[str] = ""
     channels: List[str] = []
     emails: Optional[List[str]] = []
     phones: Optional[List[str]] = []

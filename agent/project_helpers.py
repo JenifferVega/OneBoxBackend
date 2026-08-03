@@ -6,7 +6,7 @@ import os
 import json
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 import boto3
@@ -126,13 +126,24 @@ def generate_insights_for_project(
     project_type: str,
     description: str,
     participants_count: int = 0,
-    participants: list = None
+    analysis_text: str = "",
+    dry_run: bool = False
 ) -> dict:
     """
-    Llama a la IA para analizar la descripción y crear insights en DynamoDB.
+    Llama a la IA para analizar el contenido y crear insights en DynamoDB.
     Retorna {generated: bool, count: int, analysis: dict}
+
+    dry_run: si True, corre el análisis con el LLM real pero NO escribe nada en
+    DynamoDB (ni insights ni tareas). Útil para verificar la calidad de la IA sin
+    crear datos. El campo `analysis` del retorno trae la salida cruda del LLM.
+
+    analysis_text: TEXTO COMPLETO original (transcript/documento). Si se pasa, se
+    analiza ESTE en vez de la descripción corta. Antes se analizaba solo la
+    descripción que redactaba el planner (pocas frases) → se perdía casi todo el
+    contexto de textos largos. Ahora el análisis profundo ve el material real.
     """
-    if not description:
+    content = (analysis_text or description or "").strip()
+    if not content:
         return {"generated": False, "reason": "no_description"}
 
     participants = participants or []
@@ -160,7 +171,7 @@ TIPO DECLARADO: {project_type}
 {participants_section}
 
 CONTENIDO A ANALIZAR (conversación, brief, acta, correo, etc.):
-{description}
+{content}
 
 REGLAS CRÍTICAS PARA EL "summary":
 1. El summary debe describir EL PROYECTO, no la conversación.
@@ -178,7 +189,7 @@ REGLAS CRÍTICAS PARA EL "summary":
    - Decisiones puntuales sobre el producto
 5. Las personas que solo conversan NO van en el summary.
    - Excepción: si una persona es el cliente final, responsable o rol clave del proyecto, sí incluir.
-6. 4-7 oraciones, densas en información concreta SOBRE EL PROYECTO.
+6. 8-14 oraciones, densas en información concreta SOBRE EL PROYECTO. Si el texto es largo y cubre varios sistemas/procesos, usa el rango alto y no dejes fuera procesos importantes.
 
 REGLAS ESTRICTAS PARA "work_done" vs "tasks" (MUY IMPORTANTE):
 - "work_done" = SOLO cosas EXPLÍCITAMENTE ya hechas/terminadas en el texto.
@@ -240,7 +251,7 @@ Para "tasks", "work_done" y "blockers" devuelve OBJETOS con start_date, due_date
 
 RESPONDE SOLO JSON, sin texto extra ni bloques de código:
 {{
-  "summary": "Resumen FÁCTICO con nombres, URLs, números, tareas y decisiones concretas mencionadas en el texto (4-7 oraciones)",
+  "summary": "Resumen FÁCTICO con nombres, URLs, números, tareas y decisiones concretas mencionadas en el texto (8-14 oraciones)",
   "project_type_real": "Caracterización concreta en una frase (ej: 'Actualización de WordPress institucional con bloqueo de hosting')",
   "client_profile": "Caracterización del cliente con datos del texto (ej: 'Asociación LES España y Portugal con web institucional desactualizada'). Vacío si no hay datos suficientes.",
   "key_insight": "La observación estratégica más importante en una frase concreta",
@@ -259,7 +270,7 @@ RESPONDE SOLO JSON, sin texto extra ni bloques de código:
             system_prompt="Eres un analista de proyectos que extrae datos CONCRETOS y FÁCTICOS de un texto. Tu prioridad es ser específico: nombres propios, URLs, números, fechas exactas, tareas concretas. Prohibido el lenguaje genérico. Devuelves SIEMPRE JSON válido en español sin bloques de código markdown.",
             user_message=analysis_prompt,
             temperature=0.15,
-            max_tokens=4096
+            max_tokens=8192
         )
         print(f"[insights] Respuesta LLM ({len(response)} chars)")
 
@@ -290,19 +301,20 @@ RESPONDE SOLO JSON, sin texto extra ni bloques de código:
         created = 0
 
         def _save_insight(itype, title, description=''):
-            """Helper para crear un insight."""
+            """Helper para crear un insight. En dry_run NO escribe en DynamoDB."""
             nonlocal created
-            insights_table.put_item(Item={
-                'userId': user_id,
-                'insightId': f"{datetime.utcnow().isoformat()}#{uuid.uuid4().hex[:8]}",
-                'projectId': project_id,
-                'projectName': project_name,
-                'type': itype,
-                'title': title,
-                'description': description or '',
-                'status': 'created',
-                'createdAt': datetime.utcnow().isoformat(),
-            })
+            if not dry_run:
+                insights_table.put_item(Item={
+                    'userId': user_id,
+                    'insightId': f"{datetime.utcnow().isoformat()}#{uuid.uuid4().hex[:8]}",
+                    'projectId': project_id,
+                    'projectName': project_name,
+                    'type': itype,
+                    'title': title,
+                    'description': description or '',
+                    'status': 'created',
+                    'createdAt': datetime.utcnow().isoformat(),
+                })
             created += 1
 
         def _save_task(item_or_text, task_status, source_label=''):
@@ -325,6 +337,8 @@ RESPONDE SOLO JSON, sin texto extra ni bloques de código:
                     due_date = ''
                     assigned_to = ''
                 if not text:
+                    return
+                if dry_run:
                     return
                 tasks_table.put_item(Item={
                     'projectId': project_id,
@@ -369,34 +383,34 @@ RESPONDE SOLO JSON, sin texto extra ni bloques de código:
             return str(item)
 
         # 5. Trabajo ya realizado → también como tareas COMPLETADAS (status='done')
-        for item in (analysis.get('work_done') or [])[:10]:
+        for item in (analysis.get('work_done') or [])[:20]:
             _save_insight('work_done', _text_of(item), f'Trabajo realizado en {project_name}')
             _save_task(item, 'done', 'work_done')
 
         # 6. Tareas pendientes → también como tareas PENDIENTES
-        for task in (analysis.get('tasks') or [])[:8]:
+        for task in (analysis.get('tasks') or [])[:30]:
             _save_insight('task_created', _text_of(task), f'Tarea detectada automáticamente en {project_name}')
             _save_task(task, 'pending', 'task_created')
 
         # 7. Riesgos generales
-        for risk in (analysis.get('risks') or [])[:5]:
+        for risk in (analysis.get('risks') or [])[:15]:
             _save_insight('risk', str(risk), f'Riesgo identificado en {project_name}')
 
         # 8. Bloqueos específicos del cliente → también como tareas BLOQUEADAS
-        for blocker in (analysis.get('blockers') or [])[:5]:
+        for blocker in (analysis.get('blockers') or [])[:15]:
             _save_insight('blocker', _text_of(blocker), f'Bloqueo o dependencia del cliente en {project_name}')
             _save_task(blocker, 'blocked', 'blocker')
 
         # 9. Decisiones (tomadas o pendientes)
-        for decision in (analysis.get('decisions') or [])[:5]:
+        for decision in (analysis.get('decisions') or [])[:15]:
             _save_insight('decision', str(decision), f'Decisión clave para {project_name}')
 
         # 10. Métricas (horas, costes, plazos)
-        for metric in (analysis.get('metrics') or [])[:5]:
+        for metric in (analysis.get('metrics') or [])[:15]:
             _save_insight('metric', str(metric), f'Métrica detectada en {project_name}')
 
         # 11. Problemas técnicos
-        for issue in (analysis.get('tech_issues') or [])[:5]:
+        for issue in (analysis.get('tech_issues') or [])[:15]:
             _save_insight('tech_issue', str(issue), f'Problema técnico identificado en {project_name}')
 
         print(f"[insights] {created} insights creados para {project_name} (con tareas operativas sincronizadas)")
@@ -416,7 +430,8 @@ def create_project_full(
     channels: list = None,
     participants: list = None,
     timing: str = "",
-    delivery_date: str = ""
+    delivery_date: str = "",
+    analysis_text: str = ""
 ) -> dict:
     """
     Crea un proyecto completo con:
@@ -432,6 +447,33 @@ def create_project_full(
     now = datetime.utcnow().isoformat()
     channels = channels or ['Gmail']
     participants = participants or []
+
+    # 0. Dedupe defensivo — si el mismo user ya creó un proyecto con el mismo
+    # nombre (normalizado) en los últimos 5 minutos, devolvemos ese en vez de
+    # crear otro. Cubre double-clicks del wizard, reintentos por timeout de
+    # red, tabs duplicadas, etc. 5 min es ventana amplia sin bloquear a un
+    # user legítimo que quiere crear dos proyectos parecidos consecutivos.
+    try:
+        from boto3.dynamodb.conditions import Attr
+        name_norm = (name or '').strip().lower()
+        cutoff = (datetime.utcnow() - timedelta(minutes=5)).isoformat()
+        dupe_scan = projects_table.scan(
+            FilterExpression=Attr('userId').eq(user_id) & Attr('createdAt').gt(cutoff),
+            ProjectionExpression='projectId, #n, createdAt',
+            ExpressionAttributeNames={'#n': 'name'},
+        )
+        for it in dupe_scan.get('Items', []):
+            if (it.get('name') or '').strip().lower() == name_norm and name_norm:
+                print(f"[create_project_full] Dedupe: {name!r} ya creado hace <5min como {it['projectId']} → devolviendo existente")
+                return {
+                    "success": True,
+                    "projectId": it['projectId'],
+                    "name": name,
+                    "description": description,
+                    "insightsGenerated": {"generated": False, "count": 0, "deduped": True},
+                }
+    except Exception as e:
+        print(f"[create_project_full] Dedupe check falló (no bloquea): {e}")
 
     # 1. Crear proyecto
     item = {
@@ -475,7 +517,8 @@ def create_project_full(
         project_name=name,
         project_type=project_type,
         description=description,
-        participants=participants,
+        participants_count=len(participants),
+        analysis_text=analysis_text,  # texto completo original si el caller lo tiene
     )
 
     # 3.5 Si la descripción original es larga (parece chat / texto crudo) y la IA generó
@@ -539,6 +582,32 @@ def create_project_full(
     except Exception as e:
         print(f"[create_project_full] No se pudo iniciar notificación WhatsApp: {e}")
 
+    # 6. Invitación por email a cada participant con correo. Sin esto, los emails
+    # detectados por la IA (o añadidos manualmente en el wizard) NO reciben el
+    # link para entrar y quedan solo como registro en participants[]. Usamos el
+    # helper _invite_by_email que crea la cuenta Cognito silenciosa + guarda la
+    # invitación en onebox-invitations + manda el email custom via SES. Corre
+    # en background para no bloquear la respuesta del create.
+    try:
+        import threading
+        emails_to_invite = []
+        seen_inv_emails = set()
+        for p in (participants or []):
+            if not isinstance(p, dict):
+                continue
+            em = (p.get('email') or '').strip().lower()
+            if em and '@' in em and em not in seen_inv_emails:
+                emails_to_invite.append(em)
+                seen_inv_emails.add(em)
+        if emails_to_invite:
+            threading.Thread(
+                target=_invite_by_email_async,
+                args=(user_id, project_id, name, emails_to_invite),
+                daemon=True,
+            ).start()
+    except Exception as e:
+        print(f"[create_project_full] No se pudo iniciar invitación por email: {e}")
+
     return {
         "success": True,
         "projectId": project_id,
@@ -546,6 +615,23 @@ def create_project_full(
         "description": final_description,
         "insightsGenerated": insights_result
     }
+
+
+def _invite_by_email_async(owner_uid: str, project_id: str, project_name: str, emails: list):
+    """Corre en background: por cada email, invoca _invite_by_email para crear
+    la cuenta Cognito silenciosa + guardar la invitación pendiente + mandar el
+    correo custom con el enlace del proyecto. Si uno falla, seguimos con los
+    otros (log y continue)."""
+    try:
+        # Import diferido para evitar dependencias circulares en el módulo.
+        from api.services.projects import _invite_by_email
+        for em in emails:
+            try:
+                _invite_by_email(email=em, uid=owner_uid, project_id=project_id, project_name=project_name)
+            except Exception as e:
+                print(f"[_invite_by_email_async] fallo con {em}: {e}")
+    except Exception as e:
+        print(f"[_invite_by_email_async] fallo global: {e}")
 
 
 def _notify_whatsapp_async(

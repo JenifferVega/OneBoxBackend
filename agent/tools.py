@@ -152,6 +152,10 @@ TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
 TWILIO_PHONE_NUMBER = os.environ.get("TWILIO_PHONE_NUMBER", "+15005550006")
 TWILIO_WHATSAPP_NUMBER = os.environ.get("TWILIO_WHATSAPP_NUMBER", "whatsapp:+14155238886")
 TWILIO_TEST_MODE = os.environ.get("TWILIO_TEST_MODE", "false").lower() == "true"
+# Messaging Service SID — necesario para scheduling nativo en Twilio.
+# Sin este SID, las notificaciones programadas (WhatsApp/SMS) se guardan en
+# DynamoDB y el dispatcher de EventBridge las envía en el momento correcto.
+TWILIO_MESSAGING_SERVICE_SID = os.environ.get("TWILIO_MESSAGING_SERVICE_SID", "")
 
 # ============================================================================
 # SES (Amazon Simple Email Service) — para el canal "email"
@@ -166,6 +170,10 @@ TWILIO_TEST_MODE = os.environ.get("TWILIO_TEST_MODE", "false").lower() == "true"
 # ============================================================================
 SES_FROM_EMAIL = os.environ.get("SES_FROM_EMAIL", "jenifferf.funezp@gmail.com")
 SES_REGION = os.environ.get("SES_REGION", os.environ.get("AWS_REGION", "us-east-1"))
+# La cuenta SES ya está en PRODUCCIÓN → se puede enviar a cualquier destinatario
+# sin verificarlo. Solo cuando SES_SANDBOX=true se aplica el gate de verificación
+# (útil para entornos de prueba con acceso sandbox). Default: producción (sin gate).
+SES_SANDBOX = os.environ.get("SES_SANDBOX", "false").lower() == "true"
 _ses_client = None
 # Cache local de verificaciones — evita llamar a SES por cada email.
 # Se reinicia cuando reinicia el container (lo cual es OK porque añadir un
@@ -224,11 +232,12 @@ def _normalize_e164(phone: str) -> Optional[str]:
 
 
 def _log_notification(now, project_id, project_name, canal, destinatario, mensaje,
-                      sid='', status='unknown', error=''):
+                      sid='', status='unknown', error='',
+                      scheduled_at='', is_recurring=False, recurring_days=None):
     """Registra CADA intento de envío en onebox-notifications, exitoso o no.
-    status: sent/queued/failed/invalid_phone/twilio_error/not_configured/test_simulated."""
+    status: sent/queued/failed/invalid_phone/twilio_error/not_configured/test_simulated/pending."""
     try:
-        notifications_table.put_item(Item={
+        item = {
             'userId': _current_uid(),
             'notificationId': f"{now}#{uuid.uuid4().hex[:8]}",
             'projectId': project_id,
@@ -240,7 +249,13 @@ def _log_notification(now, project_id, project_name, canal, destinatario, mensaj
             'status': status,
             'errorMessage': error,
             'createdAt': now,
-        })
+        }
+        if scheduled_at:
+            item['scheduledAt'] = scheduled_at
+        if is_recurring:
+            item['isRecurring'] = True
+            item['recurringDays'] = recurring_days or []
+        notifications_table.put_item(Item=item)
     except Exception as e:
         print(f"[Tool] no se pudo registrar notificación: {e}")
 
@@ -291,13 +306,22 @@ TOOLS_DESCRIPTION = """
     - due_date: (opcional) Fecha límite en formato YYYY-MM-DD. SIEMPRE intenta proponer una fecha realista
       según la complejidad: tareas pequeñas 2-3 días, medianas 5-7 días, grandes 10-15 días.
 
-- enviar_notificacion(destinatario, mensaje, canal, project_id, project_name): Envía una notificación por WhatsApp o SMS.
+- enviar_notificacion(destinatario, mensaje, canal, project_id, project_name, scheduled_at, recurring_days): Envía o agenda una notificación por WhatsApp, SMS o email.
   Parámetros:
-    - destinatario: Número de teléfono con código país. Ej: "+34612345678"
+    - destinatario: Número E.164 (WhatsApp/SMS) o email (canal email). Ej: "+34612345678"
     - mensaje: Texto del mensaje a enviar
-    - canal: "whatsapp" o "sms"
+    - canal: "whatsapp", "sms" o "email"
     - project_id: (opcional) ID del proyecto relacionado
     - project_name: (opcional) Nombre del proyecto
+    - scheduled_at: (opcional) Fecha y hora de envío en ISO 8601 UTC. Ej: "2026-06-20T09:00:00Z"
+      Si se proporciona, la notificación se agenda en vez de enviarse inmediatamente.
+      Para WhatsApp/SMS con Messaging Service configurado: Twilio la agenda nativamente.
+      Para email o sin Messaging Service: se guarda en DynamoDB y el dispatcher la envía.
+    - recurring_days: (opcional) Lista de días para envío recurrente semanal.
+      Valores válidos: "monday","tuesday","wednesday","thursday","friday","saturday","sunday"
+      Ej: ["monday","wednesday","friday"]
+      Si se proporciona, la notificación se repite cada semana en esos días.
+      Requiere que el dispatcher de EventBridge esté activo.
 
 - listar_notificaciones(project_id): Lista las notificaciones enviadas de un proyecto.
   Parámetros:
@@ -325,6 +349,41 @@ TOOLS_DESCRIPTION = """
 - clasificar_mensajes_automatico(): Lee los mensajes sin asignar del inbox y sugiere a qué proyecto asignarlos basándose en el contenido. No necesita parámetros.
 
 - resumen_proactivo(): Genera un resumen ejecutivo del estado de todos los proyectos, tareas pendientes, SLA y acciones sugeridas. No necesita parámetros.
+
+- listar_tareas(project_id): Lista las tareas de un proyecto (texto, estado, responsable, fechas, taskId).
+  Úsala para localizar el taskId de una tarea antes de actualizarla o eliminarla.
+
+- actualizar_tarea(task_id, text, status, assigned_to, due_date, start_date, description, blocked_reason): Actualiza una tarea existente.
+  Parámetros (todos opcionales salvo task_id; solo se cambian los que envíes):
+    - task_id: ID de la tarea a modificar (requerido). Obtenlo de listar_tareas.
+    - status: pending | done | blocked  (para DESBLOQUEAR una tarea, usa status="pending")
+    - assigned_to: nombre del nuevo responsable (REASIGNAR — requiere confirmación del usuario)
+    - text / description / start_date / due_date / blocked_reason: campos a editar.
+  NO crees una tarea nueva para "cambiar" una existente: usa esta herramienta.
+
+- eliminar_tarea(task_id, cascade): Elimina una tarea. Requiere confirmación del usuario.
+    - task_id: ID de la tarea (requerido). Obtenlo de listar_tareas.
+    - cascade: (opcional) si es True, borra también las subtareas; si False, las subtareas quedan como raíz.
+
+- actualizar_proyecto(project_id, name, description, type, status, delivery_date, timing): Edita campos de un proyecto existente. Solo el dueño puede editar.
+    - project_id: ID del proyecto (requerido). Obtenlo de listar_proyectos.
+    - status: active | paused | finished. Los demás campos son opcionales; solo se cambian los que envíes.
+
+- invitar_usuario(project_id, email, phone, name, role, send_notification): Añade una persona al equipo del proyecto. Requiere confirmación del usuario.
+    - project_id: ID del proyecto (requerido).
+    - email y/o phone: se requiere al menos uno. Con email se crea acceso y se le notifica; con phone se avisa por WhatsApp.
+    - name, role: opcionales. send_notification (opcional, default True): si es False solo registra el contacto sin avisar.
+
+- actualizar_participantes(project_id, participants): Reemplaza la lista COMPLETA de participantes del proyecto. Requiere confirmación (es un reemplazo masivo). Solo el dueño.
+    - participants: lista de dicts [{"nombre","email","rol","telefono"}].
+
+- quitar_participante(project_id, email, phone, name): Elimina a una persona del equipo del proyecto. Requiere confirmación del usuario. Solo el dueño.
+    - Identifica a la persona por email > phone > name (el primero que coincida). Sus tareas quedan sin asignar y pierde el acceso si era invitada.
+
+- resolver_persona(nombre): Busca a una persona por NOMBRE entre los participantes de tus proyectos y devuelve su contacto (email, teléfono, rol, proyecto).
+    - Úsala SIEMPRE que el usuario mencione a alguien por su nombre sin dar email ni teléfono, antes de enviarle o asignarle algo.
+    - Si count == 1, expone email/telefono/nombre/projectId al nivel superior para usarlos con {"from_step": N, "extract": "telefono"} (o "email").
+    - Si count == 0 (no existe) o count > 1 (varios homónimos), NO envíes: pregunta al usuario (email/teléfono, cuál de ellos, o si quiere invitar a la persona).
 """
 
 TOOL_MAP = {}
@@ -489,6 +548,7 @@ def crear_tarea(
     status: str = "pending",
     start_date: str = "",
     due_date: str = "",
+    description: str = "",
 ) -> dict:
     """Crea una tarea asociada a un proyecto.
 
@@ -496,28 +556,30 @@ def crear_tarea(
     siempre intentar proponerlas mirando el deliveryDate/timing del proyecto
     para que el Gantt funcione desde el día 1. Si no las pasa, la tarea
     queda sin fechas y no aparece en la línea de tiempo (sigue válida).
+
+    Reutiliza api.services.tasks.create_task (misma ruta que la API REST) para
+    tener PARIDAD de comportamiento: la tarea pertenece al owner del proyecto,
+    se guarda createdBy, y si se asigna a alguien se le NOTIFICA (WhatsApp/email)
+    igual que al reasignar con actualizar_tarea. Antes esta tool escribía directo
+    en DynamoDB y NO notificaba → inconsistencia con actualizar_tarea, ya corregida.
     """
     if not _has_project_access(project_id):
         return {"error": "Sin acceso a ese proyecto"}
     try:
-        task_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat()
-        item = {
-            'projectId': project_id,
-            'taskId': task_id,
-            'userId': _current_uid(),
-            'text': text,
-            'status': status,
-            'createdBy': 'OneBox IA',
-            'assignedTo': assigned_to,
-            'startDate': (start_date or '').strip(),
-            'dueDate': (due_date or '').strip(),
-            'createdAt': now
-        }
-        tasks_table.put_item(Item=item)
-        return {"success": True, "taskId": task_id, "text": text}
+        from types import SimpleNamespace
+        from api.services.tasks import create_task
+        req = SimpleNamespace(
+            text=text,
+            description=description or "",
+            status=status or "pending",
+            assigned_to=assigned_to or "",
+            start_date=(start_date or "").strip() or None,
+            due_date=(due_date or "").strip() or None,
+            parent_task_id=None,
+        )
+        return create_task(_current_uid(), _current_email(), project_id, req)
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": _svc_error(e)}
 
 
 @register_tool("listar_proyectos")
@@ -548,21 +610,72 @@ def listar_proyectos() -> dict:
 
 
 @register_tool("enviar_notificacion")
-def enviar_notificacion(destinatario: str, mensaje: str, canal: str = "whatsapp", project_id: str = "", project_name: str = "") -> dict:
-    """Envía una notificación por WhatsApp o SMS via Twilio (o simula en modo test).
+def enviar_notificacion(
+    destinatario: str,
+    mensaje: str,
+    canal: str = "whatsapp",
+    project_id: str = "",
+    project_name: str = "",
+    scheduled_at: str = "",
+    recurring_days: list = None,
+) -> dict:
+    """Envía o agenda una notificación por WhatsApp, SMS o email.
+    - Sin scheduled_at ni recurring_days: envío inmediato (comportamiento anterior).
+    - Con scheduled_at: agenda para esa fecha/hora UTC.
+      · WhatsApp/SMS + TWILIO_MESSAGING_SERVICE_SID → Twilio scheduling nativo.
+      · Email o sin Messaging Service → guarda en DynamoDB (dispatcher de EventBridge envía).
+    - Con recurring_days: guarda en DynamoDB con isRecurring=True; EventBridge dispatcher
+      ejecuta el envío cada semana en los días indicados.
     Valida el teléfono a E.164 antes de enviar y registra cada intento (éxito o fallo)."""
     # SEGURIDAD: si viene un project_id, debe ser accesible para el usuario.
-    # Si no viene (canal libre del agente), permitir.
     if project_id and not _has_project_access(project_id):
         return {"error": "Sin acceso a ese proyecto"}
     now = datetime.utcnow().isoformat()
 
     # ──────────────────────────────────────────────────────────────────────
+    # NOTIFICACIÓN RECURRENTE — siempre va a DynamoDB sin importar el canal.
+    # El dispatcher de EventBridge decide cuándo enviarla según recurring_days.
+    # ──────────────────────────────────────────────────────────────────────
+    if recurring_days:
+        valid_days = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
+        normalized = [d.strip().lower() for d in recurring_days if d.strip().lower() in valid_days]
+        if not normalized:
+            return {"error": "recurring_days inválido. Usa: monday,tuesday,wednesday,thursday,friday,saturday,sunday"}
+        _log_notification(
+            now, project_id, project_name, canal, destinatario, mensaje,
+            status='pending', scheduled_at=scheduled_at or '',
+            is_recurring=True, recurring_days=normalized,
+        )
+        print(f"[Tool] enviar_notificacion ← RECURRENTE guardada (días: {normalized})")
+        return {
+            "success": True,
+            "status": "scheduled_recurring",
+            "canal": canal,
+            "destinatario": destinatario,
+            "recurring_days": normalized,
+        }
+
+    # ──────────────────────────────────────────────────────────────────────
     # CANAL EMAIL (SES) — branch independiente, no entra al flujo Twilio.
-    # Se decide al principio para no validar E.164 cuando el destinatario
-    # es un email (nada que ver con un teléfono).
+    # SES no soporta scheduling nativo: si hay scheduled_at, siempre va a
+    # DynamoDB y el dispatcher de EventBridge lo envía en el momento correcto.
     # ──────────────────────────────────────────────────────────────────────
     if canal == "email":
+        # EMAIL PROGRAMADO → DynamoDB (SES no tiene scheduling nativo)
+        if scheduled_at:
+            target = (destinatario or '').strip().lower()
+            _log_notification(
+                now, project_id, project_name, canal, target, mensaje,
+                status='pending', scheduled_at=scheduled_at,
+            )
+            print(f"[Tool] enviar_notificacion ← EMAIL PROGRAMADO guardado para {scheduled_at}")
+            return {
+                "success": True,
+                "status": "scheduled_pending",
+                "canal": canal,
+                "destinatario": target,
+                "scheduled_at": scheduled_at,
+            }
         target = (destinatario or '').strip().lower()
         if not target or '@' not in target:
             _log_notification(now, project_id, project_name, canal, destinatario, mensaje,
@@ -572,7 +685,11 @@ def enviar_notificacion(destinatario: str, mensaje: str, canal: str = "whatsapp"
         # En SES SANDBOX solo se puede enviar a verificados → gate explícito.
         # Cuando AWS apruebe production access, el gate se vuelve transparente
         # (todos los emails serán "verificados" desde el punto de vista del API).
-        if not _ses_check_verified(target):
+        # ── CANDADO DE SANDBOX ──────────────────────────────────────────────
+        # La cuenta SES ya está en PRODUCCIÓN → se envía a cualquier destinatario.
+        # El gate solo actúa si SES_SANDBOX=true (entorno de prueba); en producción
+        # (default) esta condición es False y nunca bloquea.
+        if SES_SANDBOX and not _ses_check_verified(target):
             _log_notification(now, project_id, project_name, canal, target, mensaje,
                               status='skipped_unverified',
                               error=f"Email no verificado en SES (sandbox): {target}")
@@ -626,9 +743,9 @@ def enviar_notificacion(destinatario: str, mensaje: str, canal: str = "whatsapp"
             return {"error": err_msg, "status": "ses_error"}
 
     # ──────────────────────────────────────────────────────────────────────
-    # CANALES TWILIO (whatsapp, sms) — flujo original sin cambios.
+    # CANALES TWILIO (whatsapp, sms)
     # ──────────────────────────────────────────────────────────────────────
-    # 1) Validar/normalizar el teléfono ANTES de tocar Twilio (evita fallos silenciosos).
+    # 1) Validar/normalizar el teléfono ANTES de tocar Twilio.
     clean = _normalize_e164(destinatario)
     if not clean:
         _log_notification(now, project_id, project_name, canal, destinatario, mensaje,
@@ -645,7 +762,58 @@ def enviar_notificacion(destinatario: str, mensaje: str, canal: str = "whatsapp"
 
     print(f"[Tool] enviar_notificacion → {canal} a {to_number} (test_mode={TWILIO_TEST_MODE})")
 
-    # 2) Enviar (o simular).
+    # 2) SCHEDULING NATIVO DE TWILIO (WhatsApp/SMS con scheduled_at)
+    # Requiere MessagingServiceSid. Si no está configurado, cae a DynamoDB.
+    if scheduled_at and not TWILIO_TEST_MODE:
+        if TWILIO_MESSAGING_SERVICE_SID:
+            if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN:
+                _log_notification(now, project_id, project_name, canal, clean, mensaje,
+                                  status='not_configured', error='Twilio sin credenciales',
+                                  scheduled_at=scheduled_at)
+                return {"error": "Twilio no configurado (faltan credenciales).", "status": "not_configured"}
+            try:
+                from twilio.rest import Client
+                from datetime import timezone
+                client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+                # Twilio exige UTC ISO 8601 con timezone explícita.
+                send_time = scheduled_at if scheduled_at.endswith('Z') or '+' in scheduled_at[10:] else scheduled_at + 'Z'
+                tw_message = client.messages.create(
+                    body=mensaje,
+                    messaging_service_sid=TWILIO_MESSAGING_SERVICE_SID,
+                    to=to_number,
+                    schedule_type='fixed',
+                    send_time=send_time,
+                )
+                sid = tw_message.sid
+                tw_status = tw_message.status  # debería ser 'scheduled'
+                print(f"[Tool] enviar_notificacion ← TWILIO SCHEDULED (SID: {sid}, send_time: {send_time})")
+                _log_notification(now, project_id, project_name, canal, clean, mensaje,
+                                  sid=sid, status=tw_status, scheduled_at=scheduled_at)
+                return {
+                    "success": True,
+                    "sid": sid,
+                    "status": tw_status,
+                    "canal": canal,
+                    "destinatario": clean,
+                    "scheduled_at": scheduled_at,
+                    "mode": "TWILIO_SCHEDULED",
+                }
+            except Exception as e:
+                print(f"[Tool] Twilio scheduling error, cayendo a DynamoDB: {e}")
+                # Si Twilio falla (ej. formato de fecha inválido), caemos a DynamoDB.
+        # Sin Messaging Service SID o si Twilio falló → guardar en DynamoDB
+        _log_notification(now, project_id, project_name, canal, clean, mensaje,
+                          status='pending', scheduled_at=scheduled_at)
+        print(f"[Tool] enviar_notificacion ← PROGRAMADA en DynamoDB para {scheduled_at}")
+        return {
+            "success": True,
+            "status": "scheduled_pending",
+            "canal": canal,
+            "destinatario": clean,
+            "scheduled_at": scheduled_at,
+        }
+
+    # 3) Enviar inmediatamente (o simular en test_mode).
     if TWILIO_TEST_MODE:
         sid = f"SM_TEST_{uuid.uuid4().hex[:16]}"
         tw_status = "test_simulated"
@@ -668,7 +836,7 @@ def enviar_notificacion(destinatario: str, mensaje: str, canal: str = "whatsapp"
                               status='twilio_error', error=str(e))
             return {"error": f"Error de Twilio: {str(e)}", "status": "twilio_error"}
 
-    # 3) Registrar el envío (con su status real) y la conversación del proyecto.
+    # 4) Registrar el envío (con su status real) y la conversación del proyecto.
     _log_notification(now, project_id, project_name, canal, clean, mensaje, sid=sid, status=tw_status)
 
     if project_id:
@@ -781,14 +949,62 @@ def obtener_contactos_proyecto(project_id: str) -> dict:
 
 @register_tool("enviar_correo")
 def enviar_correo(destinatario_email: str, asunto: str, cuerpo: str, project_id: str = "", project_name: str = "") -> dict:
-    """Envía un correo de seguimiento (simulado en modo demo, registra en DynamoDB)."""
+    """Envía un correo de seguimiento REAL vía Amazon SES y lo registra en DynamoDB.
+
+    Gate de sandbox (mismo patrón que el canal 'email' de enviar_notificacion):
+    mientras SES esté en sandbox solo se puede enviar a direcciones verificadas.
+    Si el destinatario NO está verificado, NO se intenta enviar: se registra como
+    'skipped_unverified' y se devuelve ese estado (sin error feo). Cuando AWS
+    apruebe production access, _ses_check_verified deja de bloquear y todos pasan.
+    """
     try:
         now = datetime.utcnow().isoformat()
         email_sid = f"email_{uuid.uuid4().hex[:12]}"
+        target = (destinatario_email or "").strip().lower()
 
-        print(f"[Tool] enviar_correo → {destinatario_email} | Asunto: {asunto}")
+        print(f"[Tool] enviar_correo → {target} | Asunto: {asunto}")
 
-        status = "sent_simulated"
+        # ── Validación básica ──────────────────────────────────────────────
+        if not target or "@" not in target:
+            return {"error": f"Email inválido: '{destinatario_email}'", "status": "invalid_email"}
+
+        # ── Envío real por SES ─────────────────────────────────────────────
+        # En producción (SES_SANDBOX=false, default) se envía a cualquiera.
+        # Solo en sandbox se exige que el destinatario esté verificado.
+        if SES_SANDBOX and not _ses_check_verified(target):
+            status = "skipped_unverified"
+            print(f"[SES] {target} NO verificado en sandbox → no se envía (skipped_unverified)")
+        else:
+            try:
+                client = _get_ses_client()
+                response = client.send_email(
+                    Source=SES_FROM_EMAIL,
+                    Destination={'ToAddresses': [target]},
+                    Message={
+                        'Subject': {'Data': asunto or '', 'Charset': 'UTF-8'},
+                        'Body': {'Text': {'Data': cuerpo or '', 'Charset': 'UTF-8'}},
+                    },
+                )
+                email_sid = response.get('MessageId', email_sid)
+                status = "sent"
+                print(f"[SES] enviar_correo enviado to={target} messageId={email_sid}")
+            except Exception as ses_err:
+                err_msg = f"Error SES enviando a {target}: {ses_err}"
+                print(f"[SES] {err_msg}")
+                # Registrar el intento fallido para trazabilidad y devolver error.
+                try:
+                    conversations_table.put_item(Item={
+                        'projectId': project_id or 'unassigned',
+                        'conversationId': f"email_out#{email_sid}",
+                        'userId': _current_uid(),
+                        'from': 'OneBox IA', 'fromEmail': SES_FROM_EMAIL,
+                        'to': target, 'subject': asunto, 'body': cuerpo,
+                        'date': now, 'channel': 'gmail', 'status': 'ses_error',
+                        'type': 'outbound', 'createdAt': now,
+                    })
+                except Exception:
+                    pass
+                return {"error": err_msg, "status": "ses_error", "destinatario": target}
 
         conv_id = f"email_out#{email_sid}"
         try:
@@ -797,8 +1013,8 @@ def enviar_correo(destinatario_email: str, asunto: str, cuerpo: str, project_id:
                 'conversationId': conv_id,
                 'userId': _current_uid(),
                 'from': 'OneBox IA',
-                'fromEmail': 'onebox-ia@onebox.app',
-                'to': destinatario_email,
+                'fromEmail': SES_FROM_EMAIL,
+                'to': target,
                 'subject': asunto,
                 'body': cuerpo,
                 'date': now,
@@ -818,25 +1034,37 @@ def enviar_correo(destinatario_email: str, asunto: str, cuerpo: str, project_id:
                 'projectId': project_id,
                 'projectName': project_name,
                 'type': 'followup',
-                'title': f'Correo de seguimiento enviado a {destinatario_email}',
+                'title': f'Correo de seguimiento enviado a {target}',
                 'description': f'Asunto: {asunto}',
                 'actor': 'OneBox IA',
-                'relatedPerson': destinatario_email,
+                'relatedPerson': target,
                 'actionsTaken': [f'Envió correo: {asunto}'],
-                'status': 'executed',
+                'status': 'executed' if status == 'sent' else 'skipped',
                 'createdAt': now
             })
         except Exception:
             pass
 
-        print(f"[Tool] enviar_correo ← OK (ID: {email_sid})")
+        print(f"[Tool] enviar_correo ← {status} (ID: {email_sid})")
+        if status == "skipped_unverified":
+            return {
+                "success": False,
+                "email_id": email_sid,
+                "status": status,
+                "destinatario": target,
+                "asunto": asunto,
+                "mensaje": (
+                    f"No se envió: '{target}' no está verificado en SES (sandbox). "
+                    f"Verifica esa dirección en SES o solicita production access para enviar a cualquiera."
+                ),
+            }
         return {
             "success": True,
             "email_id": email_sid,
             "status": status,
-            "destinatario": destinatario_email,
+            "destinatario": target,
             "asunto": asunto,
-            "mode": "SIMULATED"
+            "mode": "SES",
         }
     except Exception as e:
         return {"error": f"Error enviando correo: {str(e)}"}
@@ -1141,6 +1369,223 @@ def resumen_proactivo() -> dict:
         }
     except Exception as e:
         return {"error": f"Error generando resumen: {str(e)}"}
+
+
+@register_tool("resolver_persona")
+def resolver_persona(nombre: str) -> dict:
+    """Busca una persona por NOMBRE entre los participantes de los proyectos del
+    usuario y devuelve sus datos de contacto (email, teléfono, rol, proyecto).
+
+    Uso: cuando el usuario menciona a alguien por su nombre SIN dar email/teléfono
+    (ej: "manda un WhatsApp a Jesus Vega"). Permite resolver el nombre → contacto.
+
+    Devuelve:
+      - matches: personas DISTINTAS que coinciden (deduplicadas por email >
+        teléfono > nombre), cada una con los proyectos donde aparece.
+      - count: número de personas distintas.
+      - Cuando count == 1: expone además email/telefono/nombre/projectId/projectName
+        al nivel superior, para referenciarlos con {"from_step": N, "extract": "telefono"}.
+    """
+    q = (nombre or "").strip().lower()
+    if not q:
+        return {"error": "Indica el nombre de la persona a buscar", "count": 0, "matches": []}
+    try:
+        pids = _accessible_project_ids()
+        found = {}  # key (email|telefono|nombre) -> agregado
+        for pid in pids:
+            proj = projects_table.get_item(Key={'projectId': pid}).get('Item') or {}
+            pname = proj.get('name', '')
+            for p in (proj.get('participants') or []):
+                if not isinstance(p, dict):
+                    continue
+                pn = (p.get('nombre', '') or '').strip()
+                if not pn:
+                    continue
+                pnl = pn.lower()
+                # Coincidencia flexible: substring en cualquier dirección.
+                if q not in pnl and pnl not in q:
+                    continue
+                email = (p.get('email', '') or '').strip().lower()
+                tel = (p.get('telefono', '') or p.get('phone', '') or '').strip()
+                key = email or tel or pnl
+                if key not in found:
+                    found[key] = {"nombre": pn, "email": email, "telefono": tel,
+                                  "rol": (p.get('rol', '') or ''), "proyectos": []}
+                if email and not found[key]["email"]:
+                    found[key]["email"] = email
+                if tel and not found[key]["telefono"]:
+                    found[key]["telefono"] = tel
+                found[key]["proyectos"].append({"projectId": pid, "projectName": pname})
+        matches = list(found.values())
+        result = {"query": nombre, "count": len(matches), "matches": matches}
+        if len(matches) == 1:
+            m = matches[0]
+            result["nombre"] = m["nombre"]
+            result["email"] = m["email"]
+            result["telefono"] = m["telefono"]
+            if m["proyectos"]:
+                result["projectId"] = m["proyectos"][0]["projectId"]
+                result["projectName"] = m["proyectos"][0]["projectName"]
+        return result
+    except Exception as e:
+        return {"error": str(e), "count": 0, "matches": []}
+
+
+# ============================================================================
+# MUTACIONES DE PROYECTOS Y TAREAS (update / delete / invite)
+# ----------------------------------------------------------------------------
+# Estas tools son wrappers finos sobre la capa api.services.*, para que el
+# agente respete EXACTAMENTE el mismo RBAC y los mismos efectos secundarios
+# (notificaciones de bloqueo/asignación, borrado de subtareas, revocación de
+# invitaciones) que la API REST. Las tools NUNCA lanzan: convierten cualquier
+# HTTPException/Exception en {"error": ...} para que el executor/narrator lo
+# manejen con gracia. El import de api.services es LAZY (dentro de cada función)
+# para evitar un ciclo de import con api.services.*, que a su vez importa de
+# agent.tools. En modo debug (dry-run) estas funciones NO se invocan: el
+# executor simula el resultado, así que no se toca DynamoDB ni Twilio.
+# ============================================================================
+
+def _svc_error(e) -> str:
+    """Extrae un mensaje legible de una excepción (HTTPException.detail o str)."""
+    detail = getattr(e, "detail", None)
+    return str(detail) if detail is not None else str(e)
+
+
+@register_tool("listar_tareas")
+def listar_tareas(project_id: str) -> dict:
+    """Lista las tareas de un proyecto. Útil para localizar el taskId real."""
+    if not _has_project_access(project_id):
+        return {"error": "Sin acceso a ese proyecto"}
+    try:
+        from api.services.tasks import list_tasks
+        items = list_tasks(_current_uid(), _current_email(), project_id)
+        tareas = [{
+            "taskId":       t.get("taskId", ""),
+            "text":         t.get("text", ""),
+            "status":       t.get("status", ""),
+            "assignedTo":   t.get("assignedTo", ""),
+            "startDate":    t.get("startDate", ""),
+            "dueDate":      t.get("dueDate", ""),
+            "parentTaskId": t.get("parentTaskId", ""),
+        } for t in items]
+        return {"count": len(tareas), "tareas": tareas}
+    except Exception as e:
+        return {"error": _svc_error(e)}
+
+
+@register_tool("actualizar_tarea")
+def actualizar_tarea(task_id: str, text: str = None, status: str = None,
+                     assigned_to: str = None, due_date: str = None,
+                     start_date: str = None, description: str = None,
+                     blocked_reason: str = None) -> dict:
+    """Actualiza una tarea existente. Solo cambia los campos que se envían.
+    Reutiliza api.services.tasks.update_task → conserva las notificaciones de
+    bloqueo y de reasignación."""
+    if not task_id or not isinstance(task_id, str):
+        return {"error": "Falta task_id. Usa listar_tareas para obtener el ID real de la tarea."}
+    try:
+        from types import SimpleNamespace
+        from api.services.tasks import update_task
+        req = SimpleNamespace(
+            text=text, status=status, assigned_to=assigned_to,
+            description=description, blocked_reason=blocked_reason,
+            start_date=start_date, due_date=due_date, parent_task_id=None,
+        )
+        return update_task(_current_uid(), _current_email(), task_id, req)
+    except Exception as e:
+        return {"error": _svc_error(e)}
+
+
+@register_tool("eliminar_tarea")
+def eliminar_tarea(task_id: str, cascade: bool = False) -> dict:
+    """Elimina una tarea (y opcionalmente sus subtareas)."""
+    if not task_id or not isinstance(task_id, str):
+        return {"error": "Falta task_id. Usa listar_tareas para obtener el ID real de la tarea."}
+    try:
+        from api.services.tasks import delete_task
+        return delete_task(_current_uid(), _current_email(), task_id, bool(cascade))
+    except Exception as e:
+        return {"error": _svc_error(e)}
+
+
+@register_tool("actualizar_proyecto")
+def actualizar_proyecto(project_id: str, name: str = None, description: str = None,
+                        type: str = None, status: str = None,
+                        delivery_date: str = None, timing: str = None) -> dict:
+    """Edita campos permitidos de un proyecto. Solo el dueño puede editar."""
+    if not _has_project_access(project_id):
+        return {"error": "Sin acceso a ese proyecto"}
+    updates = {}
+    if name is not None:
+        updates["name"] = name
+    if description is not None:
+        updates["description"] = description
+    if type is not None:
+        updates["type"] = type
+    if status is not None:
+        updates["status"] = status
+    if delivery_date is not None:
+        updates["deliveryDate"] = delivery_date
+    if timing is not None:
+        updates["timing"] = timing
+    if not updates:
+        return {"error": "No indicaste ningún campo para actualizar."}
+    try:
+        from api.services.projects import update_project
+        return update_project(_current_uid(), project_id, updates)
+    except Exception as e:
+        return {"error": _svc_error(e)}
+
+
+@register_tool("invitar_usuario")
+def invitar_usuario(project_id: str, email: str = "", phone: str = "",
+                    name: str = "", role: str = "", send_notification: bool = True) -> dict:
+    """Añade una persona al equipo del proyecto (email y/o teléfono)."""
+    if not _has_project_access(project_id):
+        return {"error": "Sin acceso a ese proyecto"}
+    if not (email or "").strip() and not (phone or "").strip():
+        return {"error": "Se requiere email o teléfono para invitar a alguien."}
+    try:
+        from api.services.projects import invite_user
+        return invite_user(
+            _current_uid(), project_id,
+            email=email or "", phone=phone or "",
+            name=name or "", role=role or "",
+            send_notification=send_notification,
+        )
+    except Exception as e:
+        return {"error": _svc_error(e)}
+
+
+@register_tool("actualizar_participantes")
+def actualizar_participantes(project_id: str, participants: list = None) -> dict:
+    """Reemplaza la lista completa de participantes del proyecto. Solo el dueño."""
+    if not _has_project_access(project_id):
+        return {"error": "Sin acceso a ese proyecto"}
+    if not isinstance(participants, list):
+        return {"error": "participants debe ser una lista de {nombre, email, rol, telefono}."}
+    try:
+        from api.services.projects import update_participants
+        return update_participants(_current_uid(), project_id, participants)
+    except Exception as e:
+        return {"error": _svc_error(e)}
+
+
+@register_tool("quitar_participante")
+def quitar_participante(project_id: str, email: str = "", phone: str = "", name: str = "") -> dict:
+    """Elimina a una persona del equipo del proyecto. Solo el dueño."""
+    if not _has_project_access(project_id):
+        return {"error": "Sin acceso a ese proyecto"}
+    if not (email or "").strip() and not (phone or "").strip() and not (name or "").strip():
+        return {"error": "Indica email, phone o name de la persona a quitar."}
+    try:
+        from api.services.projects import remove_participant
+        return remove_participant(
+            _current_uid(), project_id,
+            email=email or "", phone=phone or "", name=name or "",
+        )
+    except Exception as e:
+        return {"error": _svc_error(e)}
 
 
 def execute_tool(tool_name: str, params: dict) -> dict:

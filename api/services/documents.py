@@ -157,6 +157,36 @@ def analyze_text_preview(uid: str, text: str, source: str) -> dict:
     }
 
 
+def analyze_text_insights_dryrun(uid: str, text: str) -> dict:
+    """DRY-RUN de generación de insights: corre el LLM real sobre el TEXTO COMPLETO
+    pero NO escribe nada en DynamoDB (ni proyecto, ni insights, ni tareas).
+    Sirve para verificar la calidad/profundidad de la IA sin crear datos.
+    Devuelve la salida cruda del análisis (summary, tipo real, perfil, tareas, etc.)."""
+    text = (text or '').strip()
+    if len(text) < 30:
+        raise HTTPException(status_code=400, detail="El texto es muy corto. Pega al menos una conversación o un párrafo.")
+
+    from agent.project_helpers import generate_insights_for_project
+    result = generate_insights_for_project(
+        user_id=uid,
+        project_id="_dryrun",
+        project_name="(dry-run)",
+        project_type="Otro",
+        description="",
+        participants_count=0,
+        analysis_text=text,
+        dry_run=True,
+    )
+    analysis = result.get("analysis", {}) or {}
+    return {
+        "dryRun": True,
+        "generated": result.get("generated", False),
+        "reason": result.get("reason"),
+        "insightCount": result.get("count", 0),
+        "analysis": analysis,
+    }
+
+
 def analyze_document_preview(uid: str, file_bytes: bytes, file_name: str, content_type: str) -> dict:
     """Analiza un documento (extrae texto + sugiere metadata) SIN crear el proyecto.
     Usa el planner del agente para obtener participantes con roles y tareas asignadas.
@@ -343,7 +373,25 @@ def create_project_from_draft(uid: str, req) -> dict:
                 })
                 seen_phones.add(formatted)
 
-    # Crear el proyecto con la info revisada por el usuario
+    # Recuperar el TEXTO ORIGINAL COMPLETO del draft para el análisis de insights,
+    # así el análisis profundo ve el material real y no la descripción corta.
+    # Prioridad: sourceText del request (si el frontend lo reenvía) → texto del
+    # draft guardado en S3 por analyze_text_preview → (fallback) la descripción.
+    full_text = (req.sourceText or '').strip()
+    if not full_text and req.draftId:
+        try:
+            from agent.document_parser import get_s3_client, S3_ATTACHMENTS_BUCKET
+            draft_item = attachments_table.get_item(
+                Key={'projectId': f'_draft#{uid}', 'attachmentId': req.draftId}
+            ).get('Item') or {}
+            s3_key = draft_item.get('s3Key')
+            if s3_key:
+                obj = get_s3_client().get_object(Bucket=S3_ATTACHMENTS_BUCKET, Key=s3_key)
+                full_text = obj['Body'].read().decode('utf-8', errors='replace')
+        except Exception as e:
+            print(f"[from_draft] No se pudo recuperar el texto completo del draft {req.draftId}: {e}")
+
+    # Crear el proyecto con la info revisada por el usuario.
     result = create_project_full(
         user_id=uid,
         name=name,
@@ -352,7 +400,8 @@ def create_project_from_draft(uid: str, req) -> dict:
         channels=req.channels,
         participants=participants,
         timing=req.timing or '',
-        delivery_date=req.deliveryDate or ''
+        delivery_date=req.deliveryDate or '',
+        analysis_text=full_text,
     )
     project_id = result['projectId']
 
@@ -430,14 +479,16 @@ def create_project_from_document(uid: str, file_bytes: bytes, file_name: str,
     if not channel_list:
         channel_list = ['Gmail']
 
-    # Crear proyecto + insights
+    # Crear proyecto + insights. Pasamos el TEXTO COMPLETO del documento para que
+    # el análisis de insights vea el material real y no solo la descripción corta.
     result = create_project_full(
         user_id=uid,
         name=project_name,
         description=description,
         project_type=project_type,
         channels=channel_list,
-        participants=[]
+        participants=[],
+        analysis_text=text,
     )
     project_id = result['projectId']
 

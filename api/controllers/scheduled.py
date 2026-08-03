@@ -37,3 +37,19 @@ async def scheduled_notifications():
         print(f"[Scheduled] Error en notificaciones: {e}")
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/scheduled/dispatch-pending")
+async def dispatch_pending_notifications():
+    """
+    Dispatcher de notificaciones programadas por el usuario desde el chat.
+    Envía notificaciones con status='pending' cuyo scheduledAt ya pasó,
+    y notificaciones recurrentes si hoy es uno de sus días configurados.
+    Diseñado para ser invocado por EventBridge cada hora.
+    """
+    try:
+        return notifications_service.dispatch_pending_notifications()
+    except Exception as e:
+        print(f"[Scheduled] Error en dispatch-pending: {e}")
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
