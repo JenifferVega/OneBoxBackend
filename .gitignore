@@ -1,6 +1,11 @@
-/node_modules
-.env
-.env.production
+cat > .gitignore << 'EOF'
+.venv/
+venv/
 __pycache__/
 *.pyc
-mcp/node_modules/
+docs/
+scripts/
+.DS_Store
+.env
+node_modules/
+EOF

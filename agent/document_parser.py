@@ -371,14 +371,37 @@ def upload_to_s3(file_bytes: bytes, project_id: str, file_name: str, content_typ
 
 
 def generate_download_url(s3_key: str, file_name: str = "", expires_in: int = 600) -> str:
-    """Genera una URL presignada para descargar un archivo (válida por X segundos)."""
+    """Genera una URL presignada para descargar un archivo (válida por X segundos).
+
+    Content-Disposition sigue RFC 5987 con doble filename para poder mandar
+    nombres con acentos/ñ/emoji sin romper la validación ISO-8859-1 de S3
+    (S3 rechaza cualquier caracter no-ASCII en el valor del header con error
+    "InvalidArgument: Header value cannot be represented using ISO-8859-1").
+      · filename=  → versión ASCII transliterada, fallback para browsers viejos.
+      · filename*= → versión UTF-8 percent-encoded, la que usan Chrome/Safari/Firefox modernos.
+    """
+    import unicodedata
+    from urllib.parse import quote
+
     client = get_s3_client()
     params = {
         'Bucket': S3_ATTACHMENTS_BUCKET,
         'Key': s3_key,
     }
     if file_name:
-        params['ResponseContentDisposition'] = f'attachment; filename="{file_name}"'
+        # Fallback ASCII: NFKD normaliza los acentos como caracteres base +
+        # combining marks; encode('ascii','ignore') se queda solo con los base.
+        ascii_fallback = (
+            unicodedata.normalize('NFKD', file_name)
+            .encode('ascii', 'ignore')
+            .decode('ascii')
+            .replace('"', '')
+        ) or 'download'
+        utf8_encoded = quote(file_name, safe='')
+        params['ResponseContentDisposition'] = (
+            f'attachment; filename="{ascii_fallback}"; '
+            f"filename*=UTF-8''{utf8_encoded}"
+        )
     return client.generate_presigned_url('get_object', Params=params, ExpiresIn=expires_in)
 
 
