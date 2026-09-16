@@ -1,14 +1,14 @@
-"""Construcción del grafo del agente (LangGraph StateGraph).
+"""Agent graph construction (LangGraph StateGraph).
 
-Cableado:
+Wiring:
     START → context_resolver → planner
-    planner --(status=="direct")--> narrator ; sino → executor
+    planner --(status=="direct")--> narrator ; else → executor
     executor → validator
-    validator --(status=="replan")--> planner ; sino → narrator
+    validator --(status=="replan")--> planner ; else → narrator
     narrator → END
 
-Los routers son funciones puras que leen `status` (la lógica de transición
-queda separada de la lógica de los nodos, como en la arquitectura de referencia).
+The routers are pure functions that read `status` (the transition logic
+stays separated from the node logic, as in the reference architecture).
 """
 from functools import partial
 
@@ -30,12 +30,12 @@ def _route_after_validator(state: AgentState) -> str:
 
 
 def build_graph(llms: dict):
-    """Compila el grafo con los LLMs por nodo inyectados (testeable con stubs)."""
+    """Compiles the graph with per-node LLMs injected (testable with stubs)."""
     g = StateGraph(AgentState)
 
     g.add_node("context_resolver", partial(context_resolver_node, llm=llms["context_resolver"]))
     g.add_node("planner", partial(planner_node, llm=llms["planner"]))
-    g.add_node("executor", executor_node)  # sin LLM
+    g.add_node("executor", executor_node)  # no LLM
     g.add_node("validator", partial(validator_node, llm=llms["validator"]))
     g.add_node("narrator", partial(narrator_node, llm=llms["narrator"]))
 

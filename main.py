@@ -1,9 +1,9 @@
-"""Punto de entrada de OneBox Backend.
+"""OneBox Backend entry point.
 
-- `lambda_handler`: entrypoint AWS Lambda (modo agente-only, request/response JSON).
-- `app`: aplicación FastAPI construida por api.app.create_app() — toda la
-  implementación vive en api/ (schemas, controllers, services) y agent/.
-- `python main.py`: levanta el servidor uvicorn en el puerto 8006 (Docker CMD).
+- `lambda_handler`: AWS Lambda entrypoint (agent-only mode, request/response JSON).
+- `app`: FastAPI application built by api.app.create_app() — the full
+  implementation lives in api/ (schemas, controllers, services) and agent/.
+- `python main.py`: starts the uvicorn server on port 8006 (Docker CMD).
 """
 from dotenv import load_dotenv
 load_dotenv()
@@ -37,12 +37,12 @@ def lambda_handler(event, context):
             return {
                 "statusCode": 400,
                 "headers": headers,
-                "body": json.dumps({"error": "El campo 'message' es requerido"})
+                "body": json.dumps({"error": "The 'message' field is required"})
             }
 
-        # Contexto multi-tenant: SIN userId las tools fallan a propósito
-        # (mismo patrón que /chat en api/controllers/chat.py). Antes este
-        # handler corría sin contexto → riesgo de fuga entre usuarios.
+        # Multi-tenant context: WITHOUT userId, tools deliberately fail
+        # (same pattern as /chat in api/controllers/chat.py). Previously this
+        # handler ran without context → risk of leaking data between users.
         event_headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
         user_id = event_headers.get("x-user-id") or body.get("userId") or body.get("uid") or ""
         user_email = (event_headers.get("x-user-email") or body.get("email") or "").lower()
@@ -50,11 +50,11 @@ def lambda_handler(event, context):
             return {
                 "statusCode": 401,
                 "headers": headers,
-                "body": json.dumps({"error": "Falta userId (header x-user-id o body.userId)"})
+                "body": json.dumps({"error": "Missing userId (header x-user-id or body.userId)"})
             }
 
-        print(f"[Agent] Mensaje: {message}")
-        print(f"[Agent] Historial: {len(history)} mensajes")
+        print(f"[Agent] Message: {message}")
+        print(f"[Agent] History: {len(history)} messages")
 
         set_current_user(user_id, user_email)
         try:
@@ -63,7 +63,7 @@ def lambda_handler(event, context):
             clear_current_user()
 
         print(f"[Agent] Tools: {result.get('tools_used', [])}")
-        print(f"[Agent] Respuesta: {result.get('response', '')[:100]}...")
+        print(f"[Agent] Response: {result.get('response', '')[:100]}...")
 
         return {
             "statusCode": 200,
@@ -83,7 +83,7 @@ def lambda_handler(event, context):
             "statusCode": 500,
             "headers": headers,
             "body": json.dumps({
-                "error": "Error interno del agente",
+                "error": "Internal agent error",
                 "details": str(e)
             })
         }
@@ -102,18 +102,18 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="OneBox Agent server")
     parser.add_argument("--host", default=os.environ.get("HOST", "0.0.0.0"),
-                        help="Host de escucha (default: 0.0.0.0 o env HOST)")
+                        help="Listen host (default: 0.0.0.0 or env HOST)")
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8006)),
-                        help="Puerto de escucha (default: 8006 o env PORT)")
+                        help="Listen port (default: 8006 or env PORT)")
     parser.add_argument("--reload", action="store_true",
-                        help="Recarga automática en desarrollo")
+                        help="Auto-reload in development")
     args = parser.parse_args()
 
-    print(f"\n🚀 Iniciando OneBox Agent en http://localhost:{args.port}")
-    print(f"📖 Docs en http://localhost:{args.port}/docs")
+    print(f"\n🚀 Starting OneBox Agent at http://localhost:{args.port}")
+    print(f"📖 Docs at http://localhost:{args.port}/docs")
     print("📡 REST API: /api/projects, /api/insights, /api/inbox, /api/notifications")
     print("📱 Twilio webhook: /api/twilio/webhook\n")
 
-    # uvicorn exige el import string "main:app" cuando reload=True.
+    # uvicorn requires the "main:app" import string when reload=True.
     uvicorn.run("main:app" if args.reload else app,
                 host=args.host, port=args.port, reload=args.reload)

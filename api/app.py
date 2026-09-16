@@ -1,4 +1,4 @@
-"""Fábrica de la aplicación FastAPI de OneBox."""
+"""OneBox FastAPI application factory."""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 

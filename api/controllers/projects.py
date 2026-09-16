@@ -1,5 +1,5 @@
-"""Endpoints de proyectos: listado, detalle, creación, participantes,
-invitaciones y borrado."""
+"""Project endpoints: list, detail, creation, participants,
+invitations and deletion."""
 from fastapi import APIRouter, Header, HTTPException
 
 from api.deps import require_uid
@@ -14,20 +14,20 @@ router = APIRouter()
 
 @router.get("/api/projects")
 async def get_projects(user_id: str = Header(alias="x-user-id", default=""), x_user_email: str = Header(default="")):
-    """Lista todos los proyectos con datos enriquecidos (task counts, insights, etc.)."""
+    """List all projects with enriched data (task counts, insights, etc.)."""
     uid = require_uid(user_id)
     user_email = x_user_email.lower() if x_user_email else ""
     try:
         return projects_service.list_projects(uid, user_email)
     except Exception as e:
-        print(f"[API] Error en get_projects: {e}")
+        print(f"[API] Error in get_projects: {e}")
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/api/projects/{project_id}")
 async def get_project(project_id: str, x_user_id: str = Header(default="")):
-    """Obtiene un proyecto específico con todos sus datos."""
+    """Get a specific project with all its data."""
     uid = require_uid(x_user_id)
     try:
         return projects_service.get_project_detail(uid, project_id)
@@ -39,7 +39,7 @@ async def get_project(project_id: str, x_user_id: str = Header(default="")):
 
 @router.post("/api/projects")
 async def create_project(req: CreateProjectRequest, x_user_id: str = Header(default="")):
-    """Crea un nuevo proyecto con análisis IA, notificaciones e insights."""
+    """Create a new project with AI analysis, notifications and insights."""
     uid = require_uid(x_user_id)
     try:
         return projects_service.create_project(
@@ -60,12 +60,12 @@ async def create_project(req: CreateProjectRequest, x_user_id: str = Header(defa
 
 @router.put("/api/projects/{project_id}")
 async def update_project(project_id: str, req: UpdateProjectRequest, x_user_id: str = Header(default="")):
-    """Edita campos de un proyecto existente. Solo owner (RBAC en el service).
-    Solo se actualizan los campos presentes en el body (no-nulls)."""
+    """Edit fields of an existing project. Owner only (RBAC in the service).
+    Only fields present in the body are updated (non-null)."""
     uid = require_uid(x_user_id)
     try:
-        # Filtrar solo los campos que vinieron seteados (evita sobreescribir con
-        # None valores existentes en DDB).
+        # Keep only the fields that were set (avoid overwriting existing DDB
+        # values with None).
         updates = {k: v for k, v in req.model_dump().items() if v is not None}
         return projects_service.update_project(uid, project_id, updates)
     except HTTPException:
@@ -78,7 +78,7 @@ async def update_project(project_id: str, req: UpdateProjectRequest, x_user_id: 
 
 @router.put("/api/projects/{project_id}/participants")
 async def update_participants(project_id: str, req: UpdateParticipantsRequest, x_user_id: str = Header(default="")):
-    """Actualiza los participantes de un proyecto (incluye teléfonos)."""
+    """Update a project's participants (includes phones)."""
     uid = require_uid(x_user_id)
     try:
         return projects_service.update_participants(uid, project_id, req.participants)
@@ -88,13 +88,13 @@ async def update_participants(project_id: str, req: UpdateParticipantsRequest, x
 
 @router.post("/api/projects/{project_id}/invite")
 async def invite_user_to_project(project_id: str, req: InviteRequest, x_user_id: str = Header(default="")):
-    """Añade una persona al equipo del proyecto. Acepta email y/o teléfono.
+    """Add a person to the project team. Accepts email and/or phone.
 
-    - Email + send_notification=True: crea usuario en Cognito (email con
-      contraseña temporal) y guarda invitación pendiente.
-    - Teléfono + send_notification=True: manda WhatsApp via Twilio.
-    - En todos los casos registra el contacto en participants[] del proyecto.
-    - send_notification=False: solo registra el contacto, sin notificar."""
+    - Email + send_notification=True: creates a user in Cognito (email with
+      temporary password) and stores a pending invitation.
+    - Phone + send_notification=True: sends a WhatsApp via Twilio.
+    - In every case records the contact in the project's participants[].
+    - send_notification=False: only records the contact, without notifying."""
     uid = require_uid(x_user_id)
     return projects_service.invite_user(
         uid, project_id,
@@ -105,8 +105,8 @@ async def invite_user_to_project(project_id: str, req: InviteRequest, x_user_id:
 
 @router.delete("/api/projects/{project_id}/participants")
 async def remove_participant(project_id: str, req: RemoveParticipantRequest, x_user_id: str = Header(default="")):
-    """Elimina un participante del equipo: lo saca de participants[], vacía el
-    assignedTo de sus tareas y revoca sus invitaciones. Solo el owner (RBAC)."""
+    """Remove a participant from the team: takes them out of participants[],
+    clears the assignedTo on their tasks and revokes their invitations. Owner only (RBAC)."""
     uid = require_uid(x_user_id)
     return projects_service.remove_participant(
         uid, project_id,
@@ -116,7 +116,7 @@ async def remove_participant(project_id: str, req: RemoveParticipantRequest, x_u
 
 @router.delete("/api/projects/{project_id}")
 async def delete_project(project_id: str, x_user_id: str = Header(default="")):
-    """Elimina un proyecto y sus datos relacionados (insights, notificaciones, tareas)."""
+    """Delete a project and its related data (insights, notifications, tasks)."""
     uid = require_uid(x_user_id)
     try:
         return projects_service.delete_project(uid, project_id)

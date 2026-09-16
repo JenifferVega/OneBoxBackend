@@ -1,4 +1,4 @@
-"""Routers de la API. `all_routers` se registra en api.app.create_app()."""
+"""API routers. `all_routers` is registered in api.app.create_app()."""
 from api.controllers.attachments import router as attachments_router
 from api.controllers.chat import router as chat_router
 from api.controllers.documents import router as documents_router
@@ -9,6 +9,7 @@ from api.controllers.phones import router as phones_router
 from api.controllers.projects import router as projects_router
 from api.controllers.scheduled import router as scheduled_router
 from api.controllers.tasks import router as tasks_router
+from api.controllers.trello import router as trello_router
 from api.controllers.whatsapp import router as whatsapp_router
 
 all_routers = [
@@ -23,4 +24,5 @@ all_routers = [
     phones_router,
     whatsapp_router,
     scheduled_router,
+    trello_router,
 ]

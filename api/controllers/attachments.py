@@ -1,4 +1,4 @@
-"""Endpoints de adjuntos de proyecto: subir, listar, descargar y borrar."""
+"""Project attachment endpoints: upload, list, download and delete."""
 from fastapi import APIRouter, File, Header, HTTPException, UploadFile
 
 from api.deps import require_uid
@@ -14,7 +14,7 @@ async def upload_attachment(
     x_user_id: str = Header(default=""),
     x_user_email: str = Header(default=""),
 ):
-    """Adjunta un documento a un proyecto. Owner Y invitados con acceso pueden subir."""
+    """Attach a document to a project. Owner AND invited users with access may upload."""
     uid = require_uid(x_user_id)
     try:
         file_bytes = await file.read()
@@ -31,7 +31,7 @@ async def upload_attachment(
 
 @router.get("/api/projects/{project_id}/attachments")
 async def list_attachments(project_id: str, x_user_id: str = Header(default=""), x_user_email: str = Header(default="")):
-    """Lista los adjuntos de un proyecto. Owner Y invitados con acceso."""
+    """List a project's attachments. Owner AND invited users with access."""
     uid = require_uid(x_user_id)
     try:
         return attachments_service.list_attachments(uid, x_user_email, project_id)
@@ -43,7 +43,7 @@ async def list_attachments(project_id: str, x_user_id: str = Header(default=""),
 
 @router.get("/api/attachments/{project_id}/{attachment_id}/download")
 async def download_attachment(project_id: str, attachment_id: str, x_user_id: str = Header(default=""), x_user_email: str = Header(default="")):
-    """Genera URL presignada de S3 para descargar el adjunto."""
+    """Generate a presigned S3 URL to download the attachment."""
     uid = require_uid(x_user_id)
     try:
         return attachments_service.get_download_url(uid, x_user_email, project_id, attachment_id)
@@ -55,7 +55,7 @@ async def download_attachment(project_id: str, attachment_id: str, x_user_id: st
 
 @router.delete("/api/attachments/{project_id}/{attachment_id}")
 async def delete_attachment(project_id: str, attachment_id: str, x_user_id: str = Header(default=""), x_user_email: str = Header(default="")):
-    """Elimina un adjunto (S3 + registro DynamoDB). SOLO el owner del proyecto puede borrar."""
+    """Delete an attachment (S3 + DynamoDB record). ONLY the project owner can delete."""
     uid = require_uid(x_user_id)
     try:
         return attachments_service.delete_attachment(uid, x_user_email, project_id, attachment_id)

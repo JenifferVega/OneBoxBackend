@@ -1,8 +1,8 @@
 # ==============================================================================
 # lambda_twilio_webhook.py
 # ==============================================================================
-# Lambda que recibe mensajes entrantes de WhatsApp/SMS via Twilio webhook.
-# Mantiene sesiones por número de teléfono para contexto conversacional.
+# Lambda that receives incoming WhatsApp/SMS messages via Twilio webhook.
+# Maintains per-phone-number sessions for conversational context.
 #
 
 # ==============================================================================
@@ -27,11 +27,11 @@ TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_WHATSAPP_NUMBER = os.environ.get('TWILIO_WHATSAPP_NUMBER', 'whatsapp:+14155238886')
 
 SESSION_TIMEOUT_HOURS = 2
-MAX_HISTORY = 10  
+MAX_HISTORY = 10
 
 
 def send_whatsapp_reply(to_number: str, message: str):
-    """Envía respuesta por WhatsApp usando Twilio API."""
+    """Sends a WhatsApp reply using the Twilio API."""
     try:
         from twilio.rest import Client
         client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
@@ -40,36 +40,36 @@ def send_whatsapp_reply(to_number: str, message: str):
             from_=TWILIO_WHATSAPP_NUMBER,
             to=to_number
         )
-        print(f"[Webhook] Respuesta enviada a {to_number}")
+        print(f"[Webhook] Reply sent to {to_number}")
     except Exception as e:
-        print(f"[Webhook] Error enviando respuesta: {e}")
+        print(f"[Webhook] Error sending reply: {e}")
 
 
 def get_session(phone_number: str) -> dict:
-    """Obtiene la sesión activa de un número o crea una nueva."""
+    """Gets the active session for a phone number or creates a new one."""
     try:
         result = sessions_table.get_item(Key={'phoneNumber': phone_number})
         session = result.get('Item')
 
         if session:
-            # Verificar si la sesión expiró
+            # Check whether the session has expired
             last_activity = session.get('lastActivity', '')
             if last_activity:
                 last_time = datetime.fromisoformat(last_activity)
                 if datetime.utcnow() - last_time > timedelta(hours=SESSION_TIMEOUT_HOURS):
-                    print(f"[Session] Sesión expirada para {phone_number}, creando nueva")
+                    print(f"[Session] Session expired for {phone_number}, creating a new one")
                     return create_new_session(phone_number)
 
             return session
 
         return create_new_session(phone_number)
     except Exception as e:
-        print(f"[Session] Error obteniendo sesión: {e}")
+        print(f"[Session] Error getting session: {e}")
         return create_new_session(phone_number)
 
 
 def create_new_session(phone_number: str) -> dict:
-    """Crea una sesión nueva para un número."""
+    """Creates a new session for a phone number."""
     session = {
         'phoneNumber': phone_number,
         'activeProjectId': '',
@@ -84,7 +84,7 @@ def create_new_session(phone_number: str) -> dict:
 
 def update_session(phone_number: str, message: str, response: str,
                    project_id: str = '', project_name: str = ''):
-    """Actualiza la sesión con el nuevo mensaje y respuesta."""
+    """Updates the session with the new message and response."""
     try:
         session = get_session(phone_number)
         history = session.get('history', [])
@@ -114,19 +114,19 @@ def update_session(phone_number: str, message: str, response: str,
             ExpressionAttributeNames=expr_names
         )
     except Exception as e:
-        print(f"[Session] Error actualizando sesión: {e}")
+        print(f"[Session] Error updating session: {e}")
 
 
 def build_context_message(session: dict, new_message: str) -> str:
-    """Construye el mensaje con contexto de sesión para el agente."""
+    """Builds the message with session context for the agent."""
     parts = []
 
-    # Agregar contexto del proyecto activo
+    # Add active project context
     active_project = session.get('activeProjectId', '')
     active_name = session.get('activeProjectName', '')
     if active_project:
-        parts.append(f"[CONTEXTO: El usuario está hablando sobre el proyecto '{active_name}' (ID: {active_project}). "
-                     f"Si el mensaje se refiere a este proyecto, úsalo. Si habla de algo nuevo, crea uno nuevo.]")
+        parts.append(f"[CONTEXT: The user is talking about the project '{active_name}' (ID: {active_project}). "
+                     f"If the message refers to this project, use it. If they are talking about something new, create a new one.]")
 
     parts.append(new_message)
 
@@ -134,8 +134,8 @@ def build_context_message(session: dict, new_message: str) -> str:
 
 
 def extract_project_from_response(response_text: str, tools_used: list) -> tuple:
-    """Intenta extraer el proyecto mencionado en la respuesta del agente."""
-    if 'crear_proyecto' in tools_used:
+    """Attempts to extract the project mentioned in the agent's response."""
+    if 'create_project' in tools_used:
         import re
         id_match = re.search(r'proj-[a-f0-9]+', response_text)
         name_match = re.search(r'\*\*(.+?)\*\*', response_text)
@@ -144,7 +144,7 @@ def extract_project_from_response(response_text: str, tools_used: list) -> tuple
             name_match.group(1) if name_match else ''
         )
 
-    if any(t in tools_used for t in ['listar_proyectos', 'obtener_contactos_proyecto']):
+    if any(t in tools_used for t in ['list_projects', 'get_project_contacts']):
         import re
         id_match = re.search(r'proj-[a-f0-9]+', response_text)
         name_match = re.search(r'\*\*(.+?)\*\*', response_text)
@@ -157,11 +157,11 @@ def extract_project_from_response(response_text: str, tools_used: list) -> tuple
 
 
 def process_with_agent(message: str, from_number: str, clean_number: str):
-    """Envía el mensaje al agente IA con contexto de sesión y responde por WhatsApp."""
+    """Sends the message to the AI agent with session context and replies via WhatsApp."""
     import urllib.request
 
     try:
-        # Obtener sesión
+        # Get session
         session = get_session(clean_number)
         history = session.get('history', [])
 
@@ -169,7 +169,7 @@ def process_with_agent(message: str, from_number: str, clean_number: str):
 
         payload = json.dumps({
             "message": context_message,
-            "history": history[-6:]  
+            "history": history[-6:]
         }).encode('utf-8')
 
         req = urllib.request.Request(
@@ -181,11 +181,11 @@ def process_with_agent(message: str, from_number: str, clean_number: str):
 
         with urllib.request.urlopen(req, timeout=90) as resp:
             result = json.loads(resp.read().decode('utf-8'))
-            agent_response = result.get('response', 'No pude procesar tu mensaje.')
+            agent_response = result.get('response', 'I could not process your message.')
             tools_used = result.get('toolsUsed', [])
 
         if len(agent_response) > 1500:
-            agent_response = agent_response[:1500] + "\n\n_...mensaje truncado_"
+            agent_response = agent_response[:1500] + "\n\n_...message truncated_"
 
         project_id, project_name = extract_project_from_response(agent_response, tools_used)
 
@@ -197,15 +197,15 @@ def process_with_agent(message: str, from_number: str, clean_number: str):
         send_whatsapp_reply(from_number, agent_response)
 
     except Exception as e:
-        print(f"[Webhook] Error procesando con agente: {e}")
+        print(f"[Webhook] Error processing with agent: {e}")
         import traceback
         traceback.print_exc()
-        send_whatsapp_reply(from_number, "⚠️ Hubo un error procesando tu mensaje. Intenta de nuevo.")
+        send_whatsapp_reply(from_number, "⚠️ There was an error processing your message. Please try again.")
 
 
 def lambda_handler(event, context):
     """
-    Twilio envía un POST con form-urlencoded body.
+    Twilio sends a POST with a form-urlencoded body.
     """
     try:
         body_raw = event.get('body', '')
@@ -221,10 +221,10 @@ def lambda_handler(event, context):
         message_sid = params.get('MessageSid', [''])[0]
         num_media = int(params.get('NumMedia', ['0'])[0])
 
-        canal = 'whatsapp' if from_number.startswith('whatsapp:') else 'sms'
+        channel = 'whatsapp' if from_number.startswith('whatsapp:') else 'sms'
         clean_number = from_number.replace('whatsapp:', '')
 
-        print(f"[Webhook] {canal} de {clean_number}: {message_body[:100]}")
+        print(f"[Webhook] {channel} from {clean_number}: {message_body[:100]}")
 
         now = datetime.utcnow().isoformat()
         conversation_id = f"twilio#{message_sid}"
@@ -236,10 +236,10 @@ def lambda_handler(event, context):
                 'userId': DEFAULT_USER_ID,
                 'from': clean_number,
                 'fromEmail': '',
-                'subject': f'Mensaje {canal.upper()} entrante',
+                'subject': f'Incoming {channel.upper()} message',
                 'body': message_body,
                 'date': now,
-                'channel': canal,
+                'channel': channel,
                 'twilioMessageSid': message_sid,
                 'hasAttachments': num_media > 0,
                 'status': 'unassigned',
@@ -249,7 +249,7 @@ def lambda_handler(event, context):
         )
 
         if message_body.strip().lower().startswith('join'):
-            print(f"[Webhook] Mensaje de join sandbox, no procesar")
+            print(f"[Webhook] Sandbox join message, do not process")
             return {
                 'statusCode': 200,
                 'headers': {'Content-Type': 'text/xml'},

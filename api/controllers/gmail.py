@@ -1,4 +1,4 @@
-"""Endpoints de Gmail: OAuth, estado, desconexión, push notifications y watch."""
+"""Gmail endpoints: OAuth, status, disconnect, push notifications and watch."""
 from fastapi import APIRouter, Header, Query, Request
 from fastapi.responses import RedirectResponse
 
@@ -10,14 +10,14 @@ router = APIRouter()
 
 @router.get("/api/gmail/auth")
 async def gmail_auth(x_user_id: str = Header(default="")):
-    """Genera URL de autorización de Google OAuth para conectar Gmail."""
+    """Generate a Google OAuth authorization URL to connect Gmail."""
     uid = require_uid(x_user_id)
     return gmail_service.build_auth_url(uid)
 
 
 @router.get("/api/gmail/callback")
 async def gmail_callback(code: str = Query(...), state: str = Query("")):
-    """Callback de Google OAuth. Intercambia code por tokens y guarda."""
+    """Google OAuth callback. Exchanges the code for tokens and saves them."""
     uid = require_uid(state)
     try:
         gmail_service.exchange_oauth_code(uid, code)
@@ -30,14 +30,14 @@ async def gmail_callback(code: str = Query(...), state: str = Query("")):
 
 @router.get("/api/gmail/status")
 async def gmail_status(x_user_id: str = Header(default="")):
-    """Verifica si el usuario tiene Gmail conectado."""
+    """Check whether the user has Gmail connected."""
     uid = require_uid(x_user_id)
     return gmail_service.get_status(uid)
 
 
 @router.delete("/api/gmail/disconnect")
 async def gmail_disconnect(x_user_id: str = Header(default="")):
-    """Desconecta Gmail del usuario."""
+    """Disconnect the user's Gmail."""
     uid = require_uid(x_user_id)
     return gmail_service.disconnect(uid)
 
@@ -45,8 +45,8 @@ async def gmail_disconnect(x_user_id: str = Header(default="")):
 @router.post("/api/gmail/push-notification")
 async def gmail_push_notification(request: Request):
     """
-    Webhook que recibe notificaciones de Google Pub/Sub cuando llega un correo nuevo.
-    Dispara el sync de Gmail automáticamente.
+    Webhook receiving Google Pub/Sub notifications when a new email arrives.
+    Triggers Gmail sync automatically.
     """
     try:
         body = await request.json()
@@ -58,6 +58,6 @@ async def gmail_push_notification(request: Request):
 
 @router.post("/api/gmail/register-watch")
 async def gmail_register_watch(x_user_id: str = Header(default="")):
-    """Registra el watch de Gmail para recibir notificaciones push via Pub/Sub."""
+    """Register the Gmail watch to receive push notifications via Pub/Sub."""
     uid = require_uid(x_user_id)
     return gmail_service.register_watch(uid)

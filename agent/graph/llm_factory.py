@@ -1,28 +1,28 @@
-"""Fábrica de LLMs por nodo del grafo (y reutilizable fuera del grafo).
+"""Per-node LLM factory for the graph (also reusable outside the graph).
 
-Configuración por variables de entorno, formato "provider:model":
+Configuration via environment variables, format "provider:model":
   - NODE_LLM_CONTEXT_RESOLVER, NODE_LLM_PLANNER, NODE_LLM_VALIDATOR, NODE_LLM_NARRATOR
-  - providers soportados: bedrock | anthropic | gemini
-  - Ej: NODE_LLM_NARRATOR=bedrock:us.anthropic.claude-haiku-4-5-20251001-v1:0
-        (se separa en el PRIMER ':' — los IDs de Bedrock contienen ':')
+  - Supported providers: bedrock | anthropic | gemini
+  - E.g.: NODE_LLM_NARRATOR=bedrock:us.anthropic.claude-haiku-4-5-20251001-v1:0
+        (split on the FIRST ':' — Bedrock IDs contain ':')
 
-Sin override, todos los nodos usan el provider por defecto (misma lógica que
-agent/llm.py: gemini si hay GEMINI_API_KEY, sino anthropic si hay key, sino
-bedrock) con su modelo por defecto. Defaulteamos TODOS los nodos al mismo
-modelo Sonnet ya habilitado en prod; los modelos ligeros por nodo se activan
-vía env cuando se validen en la cuenta.
+Without an override, all nodes use the default provider (same logic as
+agent/llm.py: gemini if GEMINI_API_KEY is set, else anthropic if key is set,
+else bedrock) with its default model. We default ALL nodes to the same
+Sonnet model already enabled in prod; the lighter per-node models get
+activated via env once they're validated in the account.
 
-Los imports de providers son perezosos: solo se importa el paquete del
-provider seleccionado (controla el tamaño de la imagen Lambda).
+Provider imports are lazy: only the selected provider's package is imported
+(keeps the Lambda image size in check).
 
-IMPORTANTE: este módulo no importa nada del grafo — api/services puede usarlo
-directamente (p. ej. generación de tareas con IA con structured output).
+IMPORTANT: this module does not import anything from the graph — api/services
+can use it directly (e.g. AI-generated tasks with structured output).
 """
 import os
 from typing import List, Optional
 
-# Reutiliza las mismas constantes/semántica de agent/llm.py para que la
-# configuración del sistema sea una sola.
+# Reuses the same constants/semantics as agent/llm.py so the system
+# configuration lives in a single place.
 from agent.llm import (
     ANTHROPIC_API_KEY, ANTHROPIC_MODEL,
     BEDROCK_REGION, MODEL_ID,
@@ -40,7 +40,7 @@ _DEFAULT_MODELS = {
 
 NODE_NAMES = ("context_resolver", "planner", "validator", "narrator")
 
-# Temperaturas por nodo (preservan las del agente anterior)
+# Per-node temperatures (preserve those of the previous agent)
 _NODE_TEMPERATURE = {
     "context_resolver": 0.0,
     "planner": 0.2,
@@ -50,11 +50,11 @@ _NODE_TEMPERATURE = {
 
 
 class NodeLLM:
-    """Envuelve un LLM primario + fallbacks manteniendo la interfaz de chat.
+    """Wraps a primary LLM + fallbacks while preserving the chat interface.
 
-    `.with_fallbacks()` de LangChain devuelve un Runnable genérico SIN
-    `.with_structured_output()`, así que componemos el schema en cada provider
-    ANTES de encadenar los fallbacks (riesgo de composición documentado en el plan).
+    LangChain's `.with_fallbacks()` returns a generic Runnable WITHOUT
+    `.with_structured_output()`, so we compose the schema on each provider
+    BEFORE chaining the fallbacks (composition risk documented in the plan).
     """
 
     def __init__(self, primary, fallbacks: Optional[list] = None):
@@ -77,7 +77,7 @@ class NodeLLM:
 
 
 def _parse_config(value: str) -> tuple:
-    """Parsea 'provider:model' separando en el PRIMER ':' (IDs Bedrock llevan ':')."""
+    """Parses 'provider:model' splitting on the FIRST ':' (Bedrock IDs contain ':')."""
     raw = (value or "").strip()
     if not raw:
         return None, None
@@ -86,16 +86,16 @@ def _parse_config(value: str) -> tuple:
         provider = provider.strip().lower()
         if provider in PROVIDERS:
             return provider, model.strip()
-    # Solo provider, sin modelo explícito
+    # Provider only, no explicit model
     if raw.lower() in PROVIDERS:
         return raw.lower(), None
     raise ValueError(
-        f"Config LLM inválida: '{value}'. Usa 'provider:model' con provider en {PROVIDERS}"
+        f"Invalid LLM config: '{value}'. Use 'provider:model' with provider in {PROVIDERS}"
     )
 
 
 def _create_llm(provider: str, model: str, temperature: float, max_tokens: int = 4096):
-    """Crea el chat model del provider (import perezoso por provider)."""
+    """Creates the provider's chat model (lazy per-provider import)."""
     if provider == "bedrock":
         from langchain_aws import ChatBedrockConverse
         return ChatBedrockConverse(
@@ -115,8 +115,8 @@ def _create_llm(provider: str, model: str, temperature: float, max_tokens: int =
             max_retries=2,
         )
     if provider == "gemini":
-        # Adapter HTTP propio (sin langchain-google-genai, que es incompatible
-        # con langgraph 1.x). Ver agent/graph/gemini_adapter.py para detalles.
+        # Our own HTTP adapter (no langchain-google-genai, which is incompatible
+        # with langgraph 1.x). See agent/graph/gemini_adapter.py for details.
         from agent.graph.gemini_adapter import ChatGeminiHTTP
         return ChatGeminiHTTP(
             model=model,
@@ -124,34 +124,34 @@ def _create_llm(provider: str, model: str, temperature: float, max_tokens: int =
             temperature=temperature,
             max_tokens=max_tokens,
         )
-    raise ValueError(f"Provider desconocido: {provider}")
+    raise ValueError(f"Unknown provider: {provider}")
 
 
 def _gemini_available() -> bool:
-    """Gemini está disponible si hay API key. El adapter ChatGeminiHTTP es
-    nativo de este repo, así que no depende de paquetes externos."""
+    """Gemini is available if there is an API key. The ChatGeminiHTTP adapter
+    is native to this repo, so it does not depend on any external package."""
     return bool(GEMINI_API_KEY)
 
 
 def _default_provider() -> str:
-    """Provider por defecto, degradando si el auto-seleccionado no es usable.
+    """Default provider, degrading if the auto-selected one isn't usable.
 
-    LLM_PROVIDER hereda la auto-selección de agent/llm.py. Antes había que
-    degradar gemini→bedrock cuando langchain-google-genai no estaba instalado.
-    Desde que tenemos ChatGeminiHTTP (adapter propio), Gemini funciona sin
-    paquete externo siempre que haya GEMINI_API_KEY.
+    LLM_PROVIDER inherits the auto-selection from agent/llm.py. We used to
+    have to degrade gemini→bedrock when langchain-google-genai wasn't
+    installed. Since we have ChatGeminiHTTP (our own adapter), Gemini works
+    without an external package as long as GEMINI_API_KEY is set.
     """
     provider = LLM_PROVIDER if LLM_PROVIDER in PROVIDERS else "bedrock"
     if provider == "gemini" and not _gemini_available():
-        # Solo degradamos si LITERALMENTE no hay GEMINI_API_KEY.
+        # Only degrade if there is LITERALLY no GEMINI_API_KEY.
         fallback = "anthropic" if ANTHROPIC_API_KEY else "bedrock"
-        print(f"[llm_factory] ⚠️ default 'gemini' sin GEMINI_API_KEY → usando '{fallback}'")
+        print(f"[llm_factory] ⚠️ default 'gemini' without GEMINI_API_KEY → using '{fallback}'")
         return fallback
     return provider
 
 
 def _available_fallback_providers(primary: str) -> List[str]:
-    """Providers alternativos utilizables (con credenciales/paquete disponibles)."""
+    """Usable alternative providers (with credentials/package available)."""
     candidates = []
     for p in PROVIDERS:
         if p == primary:
@@ -161,16 +161,16 @@ def _available_fallback_providers(primary: str) -> List[str]:
         if p == "gemini":
             if not GEMINI_API_KEY:
                 continue
-            # Ya no probamos langchain_google_genai: usamos ChatGeminiHTTP propio
-            # (siempre disponible si hay key).
-        # bedrock: usa credenciales IAM del entorno; lo consideramos disponible
+            # We no longer probe langchain_google_genai: we use our own
+            # ChatGeminiHTTP (always available if the key is set).
+        # bedrock: uses IAM credentials from the environment; we consider it available
         candidates.append(p)
     return candidates
 
 
 def create_llm(node: str = "narrator", env_value: str = "", temperature: float = None,
                max_tokens: int = 4096, with_fallbacks: bool = True) -> NodeLLM:
-    """Crea el NodeLLM de un nodo (o de un consumidor externo del factory)."""
+    """Creates the NodeLLM for a graph node (or an external factory consumer)."""
     provider, model = _parse_config(
         env_value or os.environ.get(f"NODE_LLM_{node.upper()}", "")
     )
@@ -185,12 +185,12 @@ def create_llm(node: str = "narrator", env_value: str = "", temperature: float =
             try:
                 fallbacks.append(_create_llm(p, _DEFAULT_MODELS[p], temp, max_tokens))
             except Exception as e:
-                print(f"[llm_factory] fallback {p} no disponible: {e}")
+                print(f"[llm_factory] fallback {p} not available: {e}")
     return NodeLLM(primary, fallbacks)
 
 
 def create_node_llms() -> dict:
-    """Crea los LLMs de los 4 nodos del grafo (claves = nombres de nodo)."""
+    """Creates LLMs for the 4 graph nodes (keys = node names)."""
     llms = {}
     for node in NODE_NAMES:
         llms[node] = create_llm(node)

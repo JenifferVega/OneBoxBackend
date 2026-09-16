@@ -1,7 +1,7 @@
 """
-Wizard conversacional de creación de proyectos vía WhatsApp.
-Mantiene un estado por número de teléfono en la sesión y guía al usuario
-paso a paso para recolectar la información necesaria antes de crear el proyecto.
+Conversational wizard for creating projects via WhatsApp.
+Keeps per-phone state in the session and walks the user step by step to
+collect the information needed before creating the project.
 """
 import re
 from datetime import datetime
@@ -12,7 +12,7 @@ from agent.project_helpers import (
 )
 
 
-# Estados del wizard
+# Wizard states
 STEP_IDLE = 'idle'
 STEP_AWAITING_EMAIL = 'awaiting_email'
 STEP_AWAITING_NAME = 'awaiting_name'
@@ -22,22 +22,36 @@ STEP_AWAITING_EMAILS = 'awaiting_emails'
 STEP_AWAITING_PHONES = 'awaiting_phones'
 STEP_CONFIRMING = 'confirming'
 
-# Detectar intenciones
-INTENT_GREETING = ['hola', 'hi', 'hello', 'buenas', 'qué tal', 'ola', 'oye', 'hey']
-INTENT_CREATE_PROJECT = ['crear proyecto', 'nuevo proyecto', 'agregar proyecto', 'añadir proyecto',
-                         'crear un proyecto', 'quiero crear', 'iniciar proyecto', 'arrancar proyecto']
-# Palabras que cancelan el wizard. No incluye "no" porque es ambiguo
-# (en pasos opcionales el usuario puede decir "no" para saltar, no para cancelar todo).
-INTENT_CANCEL = ['cancelar', 'cancela', 'olvida', 'borra', 'dejalo', 'salir', 'salgo', 'abortar']
-INTENT_LIST_PROJECTS = ['ver proyectos', 'mis proyectos', 'lista', 'listar', 'qué proyectos tengo']
-INTENT_HELP = ['ayuda', 'help', '?', 'qué puedes', 'opciones']
+# Intent detection. Keeps Spanish keywords alongside English so both languages
+# are recognised (the app defaults to English but Spanish speakers still work).
+INTENT_GREETING = [
+    'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening',
+    'hola', 'holi', 'buenas', 'qué tal', 'ola', 'oye',
+]
+INTENT_CREATE_PROJECT = [
+    'create project', 'new project', 'add project', 'start project',
+    'create a project', 'i want to create', 'kick off project', 'begin project',
+    'crear proyecto', 'nuevo proyecto', 'agregar proyecto', 'añadir proyecto',
+    'crear un proyecto', 'quiero crear', 'iniciar proyecto', 'arrancar proyecto',
+]
+# Words that cancel the wizard. Does NOT include "no" because it is ambiguous
+# (in optional steps the user may say "no" to skip, not to cancel everything).
+INTENT_CANCEL = [
+    'cancel', 'nevermind', 'never mind', 'stop', 'quit', 'abort', 'exit',
+    'cancelar', 'cancela', 'olvida', 'borra', 'dejalo', 'salir', 'salgo', 'abortar',
+]
+INTENT_LIST_PROJECTS = [
+    'see projects', 'my projects', 'list projects', 'what projects do i have',
+    'ver proyectos', 'mis proyectos', 'lista', 'listar', 'qué proyectos tengo',
+]
+INTENT_HELP = ['help', '?', 'what can you do', 'options', 'ayuda', 'qué puedes', 'opciones']
 
 EMAIL_REGEX = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}')
 PHONE_REGEX = re.compile(r'\+?\d[\d\s\-]{7,}\d')
 
 
 def detect_intent(message: str) -> str:
-    """Detecta la intención del mensaje."""
+    """Detects the message intent."""
     msg = message.strip().lower()
     if any(w in msg for w in INTENT_CANCEL) and len(msg) < 20:
         return 'cancel'
@@ -53,7 +67,7 @@ def detect_intent(message: str) -> str:
 
 
 def get_flow_state(session: dict) -> dict:
-    """Obtiene o inicializa el estado del wizard."""
+    """Gets or initializes the wizard state."""
     return session.get('creationFlow') or {
         'step': STEP_IDLE,
         'data': {
@@ -96,34 +110,34 @@ def parse_phones(text: str) -> list:
 def parse_channels(text: str) -> list:
     msg = text.lower()
     channels = []
-    if 'gmail' in msg or 'correo' in msg or 'email' in msg or 'mail' in msg:
+    if 'gmail' in msg or 'email' in msg or 'mail' in msg:
         channels.append('Gmail')
     if 'whats' in msg or 'wapp' in msg or 'wpp' in msg:
         channels.append('WhatsApp')
-    if 'ambos' in msg or 'los dos' in msg or 'todo' in msg:
+    if 'both' in msg or 'all' in msg or 'ambos' in msg or 'los dos' in msg or 'todo' in msg:
         return ['Gmail', 'WhatsApp']
     return channels
 
 
 def menu_message() -> str:
     return (
-        "👋 ¡Hola! Soy *OneBox*. ¿Qué quieres hacer?\n\n"
-        "1️⃣  Crear un proyecto nuevo\n"
-        "2️⃣  Ver mis proyectos\n"
-        "3️⃣  Ayuda\n\n"
-        "Responde con el número o cuéntame en tus palabras."
+        "👋 Hi! I'm *OneBox*. What would you like to do?\n\n"
+        "1️⃣  Create a new project\n"
+        "2️⃣  See my projects\n"
+        "3️⃣  Help\n\n"
+        "Reply with the number or tell me in your own words."
     )
 
 
 def help_message() -> str:
     return (
-        "🤖 *OneBox por WhatsApp*\n\n"
-        "Puedo ayudarte a:\n"
-        "• Crear proyectos nuevos (con análisis IA)\n"
-        "• Consultar tus proyectos\n"
-        "• Recibir alertas de tus pendientes\n\n"
-        "Para *crear un proyecto*, escribe: \"crear proyecto\"\n"
-        "Para *cancelar* en cualquier momento: \"cancelar\""
+        "🤖 *OneBox on WhatsApp*\n\n"
+        "I can help you:\n"
+        "• Create updated projects (with AI analysis)\n"
+        "• Check your projects\n"
+        "• Receive alerts about your pending items\n\n"
+        "To *create a project*, type: \"create project\"\n"
+        "To *cancel* at any time: \"cancel\""
     )
 
 
@@ -134,28 +148,31 @@ def handle_wizard(
     auto_link_phone_func=None
 ) -> Tuple[Optional[str], Optional[dict]]:
     """
-    Procesa el mensaje según el estado del wizard.
-    Retorna (response_text, new_flow_state) o (None, None) si no es para el wizard.
+    Processes the message based on the wizard state.
+    Returns (response_text, new_flow_state), or (None, None) if not for the wizard.
 
-    auto_link_phone_func: callable que recibe (phone, userId, email, name)
-                          para vincular el número WhatsApp al usuario Cognito.
+    auto_link_phone_func: callable that receives (phone, userId, email, name)
+                          to link the WhatsApp number to the Cognito user.
     """
     flow = get_flow_state(session)
     step = flow.get('step', STEP_IDLE)
     msg = message.strip()
     msg_lower = msg.lower()
 
-    # === Cancelación universal ===
-    # Nota: "no" NO cancela porque puede significar "no agregar más" en pasos opcionales.
-    # En STEP_CONFIRMING sí lo manejamos como cancelación específica abajo.
-    if step != STEP_IDLE and msg_lower in ['cancelar', 'cancela', 'salir', 'salgo', 'abortar', 'olvida', 'borra']:
-        return ("✋ Cancelado. Si quieres empezar de nuevo, escríbeme \"crear proyecto\".", reset_flow())
+    # === Universal cancellation ===
+    # Note: "no" does NOT cancel because it may mean "don't add more" in optional steps.
+    # In STEP_CONFIRMING we do handle it as an explicit cancel below.
+    if step != STEP_IDLE and msg_lower in [
+        'cancel', 'stop', 'quit', 'abort', 'exit', 'nevermind', 'never mind',
+        'cancelar', 'cancela', 'salir', 'salgo', 'abortar', 'olvida', 'borra',
+    ]:
+        return ("✋ Cancelled. To start again, message me \"create project\".", reset_flow())
 
-    # === Estado IDLE: detectar intención ===
+    # === IDLE state: detect intent ===
     if step == STEP_IDLE:
         intent = detect_intent(msg)
 
-        if intent == 'greeting' or msg_lower in ['1', 'menu', 'menú', 'inicio']:
+        if intent == 'greeting' or msg_lower in ['1', 'menu', 'menú', 'start', 'inicio']:
             return (menu_message(), flow)
 
         if intent == 'help' or msg_lower == '3':
@@ -165,35 +182,35 @@ def handle_wizard(
             new_flow = reset_flow()
             new_flow['step'] = STEP_AWAITING_EMAIL
             return (
-                "📋 *Crear nuevo proyecto*\n\n"
-                "Para empezar necesito tu correo (debe ser el mismo de tu cuenta OneBox).\n\n"
-                "Escribe \"cancelar\" en cualquier momento para abortar.",
+                "📋 *Create a new project*\n\n"
+                "To get started I need your email (it must match your OneBox account).\n\n"
+                "Type \"cancel\" at any time to abort.",
                 new_flow
             )
 
         if intent == 'list_projects' or msg_lower == '2':
-            # Esto lo maneja el agente IA (run_agent), devolvemos None para que pase
+            # Handled by the AI agent (run_agent); return None to pass through
             return (None, None)
 
-        # Intención desconocida → devolvemos None para que el agente IA procese
+        # Unknown intent → return None so the AI agent processes it
         return (None, None)
 
-    # === Estado: esperando email ===
+    # === State: awaiting email ===
     if step == STEP_AWAITING_EMAIL:
         emails = parse_emails(msg)
         if not emails:
             return (
-                "❌ No detecté un correo válido en tu mensaje. Por favor envíame solo el correo, ej: *juan@empresa.com*",
+                "❌ I didn't detect a valid email in your message. Please send only the email, e.g.: *jane@company.com*",
                 flow
             )
         email = emails[0]
-        # Buscar en Cognito
+        # Look up in Cognito
         user = lookup_user_by_email(email)
         if not user:
             return (
-                f"❌ No encontré una cuenta de OneBox con el correo *{email}*.\n\n"
-                "Por favor regístrate primero en *oneboxmanager.com* y vuelve. O envíame otro correo si te equivocaste.\n\n"
-                "(Escribe \"cancelar\" para salir)",
+                f"❌ I couldn't find a OneBox account with the email *{email}*.\n\n"
+                "Please sign up first at *oneboxmanager.com* and come back. Or send me another email if you mistyped it.\n\n"
+                "(Type \"cancel\" to exit)",
                 flow
             )
 
@@ -202,71 +219,71 @@ def handle_wizard(
         flow['cognitoName'] = user.get('name', email.split('@')[0])
         flow['step'] = STEP_AWAITING_NAME
 
-        # Auto-agregar el email del usuario como participante
+        # Auto-add the user's email as a participant
         flow['data']['emails'] = [user['email']]
 
-        # Vincular número si no está (le preguntamos al final, en STEP_CONFIRMING)
+        # Link phone number if not linked (asked at the end, in STEP_CONFIRMING)
         return (
-            f"✅ Encontré tu cuenta, *{flow['cognitoName']}*.\n\n"
-            "*Paso 2/4* — ¿Cómo se llamará el proyecto?",
+            f"✅ Found your account, *{flow['cognitoName']}*.\n\n"
+            "*Step 2/4* — What will the project be called?",
             flow
         )
 
-    # === Estado: esperando nombre ===
+    # === State: awaiting name ===
     if step == STEP_AWAITING_NAME:
         if len(msg) < 3:
-            return ("❌ El nombre es muy corto. Dame un nombre más descriptivo.", flow)
+            return ("❌ That name is too short. Give me a more descriptive name.", flow)
         if len(msg) > 80:
-            return ("❌ El nombre es muy largo (máx 80 caracteres). Acórtalo un poco.", flow)
+            return ("❌ That name is too long (80 characters max). Shorten it a bit.", flow)
         flow['data']['name'] = msg
         flow['step'] = STEP_AWAITING_DESCRIPTION
         return (
-            f"📝 Nombre: *{msg}*\n\n"
-            "*Paso 3/4* — Cuéntame de qué trata el proyecto.\n\n"
-            "Sé detallado: incluye objetivos, plazos, equipo y posibles riesgos. "
-            "Cuanto mejor describas, mejor será el análisis con IA.",
+            f"📝 Name: *{msg}*\n\n"
+            "*Step 3/4* — Tell me what the project is about.\n\n"
+            "Be detailed: include goals, deadlines, team and possible risks. "
+            "The better the description, the better the AI analysis.",
             flow
         )
 
-    # === Estado: esperando descripción ===
+    # === State: awaiting description ===
     if step == STEP_AWAITING_DESCRIPTION:
         if len(msg) < 30:
             return (
-                "❌ Esa descripción es muy corta. Cuéntame más sobre objetivos, plazos y equipo.\n\n"
-                "Ejemplo: \"Tienda online en 8 semanas con Stripe y Shopify, equipo de 4 personas, "
-                "necesitamos diseño UX, desarrollo y marketing\"",
+                "❌ That description is too short. Tell me more about goals, deadlines and team.\n\n"
+                "Example: \"Online store in 8 weeks with Stripe and Shopify, 4-person team, "
+                "we need UX design, development and marketing\"",
                 flow
             )
 
-        # Evaluar con IA si la descripción es suficiente
+        # Evaluate with AI whether the description is sufficient
         eval_result = evaluate_description(flow['data']['name'], msg)
         if not eval_result.get('sufficient'):
-            missing = eval_result.get('missing', 'más detalle')
+            missing = eval_result.get('missing', 'more detail')
             return (
-                f"🤔 La descripción aún necesita más detalle para que la IA pueda analizarla bien.\n\n"
-                f"Falta: *{missing}*\n\n"
-                "Envíame una descripción más completa (combinando lo que ya escribiste con los detalles que faltan).",
+                f"🤔 The description still needs more detail so the AI can analyze it well.\n\n"
+                f"Missing: *{missing}*\n\n"
+                "Send me a more complete description (combining what you already wrote with the missing details).",
                 flow
             )
 
         flow['data']['description'] = msg
         flow['step'] = STEP_AWAITING_CHANNELS
         return (
-            "✅ Descripción aceptada.\n\n"
-            "*Paso 4/4* — ¿Qué canales usarás en este proyecto?\n\n"
-            "• *Gmail* (correos)\n"
-            "• *WhatsApp* (mensajes)\n"
-            "• *Ambos*\n\n"
-            "Escribe la opción.",
+            "✅ Description accepted.\n\n"
+            "*Step 4/4* — Which channels will this project use?\n\n"
+            "• *Gmail* (emails)\n"
+            "• *WhatsApp* (messages)\n"
+            "• *Both*\n\n"
+            "Type your choice.",
             flow
         )
 
-    # === Estado: esperando canales ===
+    # === State: awaiting channels ===
     if step == STEP_AWAITING_CHANNELS:
         channels = parse_channels(msg)
         if not channels:
             return (
-                "❌ No entendí. Responde con: *Gmail*, *WhatsApp* o *Ambos*.",
+                "❌ I didn't get that. Reply with: *Gmail*, *WhatsApp* or *Both*.",
                 flow
             )
         flow['data']['channels'] = channels
@@ -274,103 +291,103 @@ def handle_wizard(
         if 'Gmail' in channels:
             flow['step'] = STEP_AWAITING_EMAILS
             return (
-                f"📧 Canal Gmail seleccionado.\n\n"
-                f"Tu correo (*{flow['cognitoEmail']}*) ya está incluido como participante.\n\n"
-                "¿Quieres agregar más correos del equipo? Envíalos separados por coma o espacio.\n"
-                "Escribe *no* o *ninguno* si no quieres agregar más.",
+                f"📧 Gmail channel selected.\n\n"
+                f"Your email (*{flow['cognitoEmail']}*) is already included as a participant.\n\n"
+                "Would you like to add more team emails? Send them separated by commas or spaces.\n"
+                "Type *no* or *none* if you don't want to add any more.",
                 flow
             )
         else:
-            # Solo WhatsApp
+            # WhatsApp only
             flow['step'] = STEP_AWAITING_PHONES
             return (
-                "📱 Canal WhatsApp seleccionado.\n\n"
-                "Envíame los números del equipo en formato internacional (ej: +34600111222), separados por coma o espacio.\n"
-                "Escribe *no* o *ninguno* si no quieres agregar más.",
+                "📱 WhatsApp channel selected.\n\n"
+                "Send me the team's numbers in international format (e.g.: +34600111222), separated by commas or spaces.\n"
+                "Type *no* or *none* if you don't want to add any more.",
                 flow
             )
 
-    # === Estado: esperando correos adicionales ===
+    # === State: awaiting additional emails ===
     if step == STEP_AWAITING_EMAILS:
-        if msg_lower in ['no', 'ninguno', 'siguiente', 'pasar', 'salta', 'skip']:
+        if msg_lower in ['no', 'none', 'next', 'skip', 'ninguno', 'siguiente', 'pasar', 'salta']:
             extra_emails = []
         else:
             extra_emails = parse_emails(msg)
             if not extra_emails:
                 return (
-                    "❌ No detecté correos válidos. Envíalos así: *ana@empresa.com, marco@empresa.com*\n"
-                    "O escribe *no* para saltar este paso.",
+                    "❌ I didn't detect valid emails. Send them like this: *ana@company.com, marco@company.com*\n"
+                    "Or type *no* to skip this step.",
                     flow
                 )
-        # Combinar con el del usuario
+        # Combine with the user's email
         flow['data']['emails'] = list(set(flow['data']['emails'] + extra_emails))
 
-        # Si hay WhatsApp también, pedir teléfonos
+        # If WhatsApp is also selected, ask for phone numbers
         if 'WhatsApp' in flow['data']['channels']:
             flow['step'] = STEP_AWAITING_PHONES
             return (
-                f"✅ {len(flow['data']['emails'])} correo(s) registrados.\n\n"
-                "Ahora envíame los números WhatsApp del equipo (formato +34600111222).\n"
-                "Escribe *no* si no quieres agregar.",
+                f"✅ {len(flow['data']['emails'])} email(s) registered.\n\n"
+                "Now send me the team's WhatsApp numbers (format +34600111222).\n"
+                "Type *no* if you don't want to add any.",
                 flow
             )
-        # Si solo era Gmail, pasar a confirmación
+        # If only Gmail, move on to confirmation
         flow['step'] = STEP_CONFIRMING
         return (build_summary(flow), flow)
 
-    # === Estado: esperando teléfonos adicionales ===
+    # === State: awaiting additional phone numbers ===
     if step == STEP_AWAITING_PHONES:
-        if msg_lower in ['no', 'ninguno', 'siguiente', 'pasar', 'salta', 'skip']:
+        if msg_lower in ['no', 'none', 'next', 'skip', 'ninguno', 'siguiente', 'pasar', 'salta']:
             phones = []
         else:
             phones = parse_phones(msg)
             if not phones:
                 return (
-                    "❌ No detecté números válidos. Usa formato internacional como *+34600111222*.\n"
-                    "O escribe *no* para saltar.",
+                    "❌ I didn't detect valid numbers. Use international format like *+34600111222*.\n"
+                    "Or type *no* to skip.",
                     flow
                 )
-        # Auto-agregar el número del propio usuario
+        # Auto-add the user's own phone number
         if phone_number and phone_number not in phones:
             phones.append(phone_number if phone_number.startswith('+') else '+' + phone_number)
         flow['data']['phones'] = list(set(phones))
         flow['step'] = STEP_CONFIRMING
         return (build_summary(flow), flow)
 
-    # === Estado: confirmando ===
+    # === State: confirming ===
     if step == STEP_CONFIRMING:
-        if msg_lower in ['si', 'sí', 'yes', 'ok', 'dale', 'crear', 'confirmar', '1']:
-            # Crear el proyecto
+        if msg_lower in ['yes', 'y', 'ok', 'confirm', 'create', 'go', '1', 'si', 'sí', 'dale', 'crear', 'confirmar']:
+            # Create the project
             try:
                 participants = []
                 for email in flow['data']['emails']:
-                    nombre = email.split('@')[0]
+                    name = email.split('@')[0]
                     if email == flow['cognitoEmail']:
-                        nombre = flow['cognitoName']
+                        name = flow['cognitoName']
                     participants.append({
-                        'nombre': nombre,
+                        'name': name,
                         'email': email,
-                        'telefono': '',
-                        'rol': 'Participante'
+                        'phone': '',
+                        'role': 'Participant'
                     })
                 for phone in flow['data']['phones']:
                     participants.append({
-                        'nombre': phone,
+                        'name': phone,
                         'email': '',
-                        'telefono': phone,
-                        'rol': 'Contacto WhatsApp'
+                        'phone': phone,
+                        'role': 'WhatsApp contact'
                     })
 
                 result = create_project_full(
                     user_id=flow['cognitoUserId'],
                     name=flow['data']['name'],
                     description=flow['data']['description'],
-                    project_type='Otro',
+                    project_type='Other',
                     channels=flow['data']['channels'],
                     participants=participants
                 )
 
-                # Auto-vincular el número al usuario Cognito si la función está disponible
+                # Auto-link the phone number to the Cognito user if the function is available
                 linked_msg = ""
                 if auto_link_phone_func:
                     try:
@@ -381,9 +398,9 @@ def handle_wizard(
                             flow['cognitoName']
                         )
                         if linked:
-                            linked_msg = "\n🔗 Tu número quedó vinculado a la cuenta para futuras conversaciones."
+                            linked_msg = "\n🔗 Your number is now linked to the account for future conversations."
                     except Exception as e:
-                        print(f"[Wizard] Error vinculando número: {e}")
+                        print(f"[Wizard] Error linking phone number: {e}")
 
                 ig = result.get('insightsGenerated', {})
                 count = ig.get('count', 0) if ig.get('generated') else 0
@@ -393,55 +410,55 @@ def handle_wizard(
                 decisions_count = len(analysis.get('decisions') or [])
 
                 response = (
-                    f"✅ *Proyecto creado*: {flow['data']['name']}\n\n"
+                    f"✅ *Project created*: {flow['data']['name']}\n\n"
                 )
                 if count > 0:
                     response += (
-                        f"🤖 IA generó {count} insights:\n"
-                        f"  • {tasks_count} tareas detectadas\n"
-                        f"  • {risks_count} riesgos identificados\n"
-                        f"  • {decisions_count} decisiones clave\n\n"
+                        f"🤖 AI generated {count} insights:\n"
+                        f"  • {tasks_count} tasks detected\n"
+                        f"  • {risks_count} risks identified\n"
+                        f"  • {decisions_count} key decisions\n\n"
                     )
                 response += (
-                    f"📊 Revisa todo en https://www.oneboxmanager.com"
+                    f"📊 See everything at https://www.oneboxmanager.com"
                     f"{linked_msg}"
                 )
 
                 return (response, reset_flow())
             except Exception as e:
-                print(f"[Wizard] Error creando proyecto: {e}")
+                print(f"[Wizard] Error creating project: {e}")
                 import traceback; traceback.print_exc()
                 return (
-                    f"❌ Hubo un error creando el proyecto: {str(e)[:100]}\n\n"
-                    "Por favor intenta de nuevo más tarde o crea el proyecto desde la web.",
+                    f"❌ There was an error creating the project: {str(e)[:100]}\n\n"
+                    "Please try again later or create the project from the web.",
                     reset_flow()
                 )
-        elif msg_lower in ['no', 'cancelar', 'cancela']:
-            return ("✋ Cancelado. No se creó el proyecto.", reset_flow())
+        elif msg_lower in ['no', 'cancel', 'cancelar', 'cancela']:
+            return ("✋ Cancelled. The project was not created.", reset_flow())
         else:
             return (
-                f"🤔 No entendí. Responde *sí* para crear el proyecto o *no* para cancelar.\n\n"
+                f"🤔 I didn't get that. Reply *yes* to create the project or *no* to cancel.\n\n"
                 + build_summary(flow),
                 flow
             )
 
-    # Si llegamos aquí, no manejamos el estado
+    # If we got here, we don't handle this state
     return (None, None)
 
 
 def build_summary(flow: dict) -> str:
-    """Construye el mensaje de resumen previo a la confirmación."""
+    """Builds the summary message shown before confirmation."""
     data = flow['data']
-    lines = ["📝 *Resumen antes de crear:*\n"]
-    lines.append(f"📋 *Nombre:* {data['name']}")
+    lines = ["📝 *Summary before creating:*\n"]
+    lines.append(f"📋 *Name:* {data['name']}")
     desc = data['description']
     if len(desc) > 150:
         desc = desc[:150] + "..."
-    lines.append(f"📄 *Descripción:* {desc}")
-    lines.append(f"📡 *Canales:* {', '.join(data['channels'])}")
+    lines.append(f"📄 *Description:* {desc}")
+    lines.append(f"📡 *Channels:* {', '.join(data['channels'])}")
     if data['emails']:
-        lines.append(f"📧 *Correos:* {len(data['emails'])} ({', '.join(data['emails'][:3])}{'...' if len(data['emails']) > 3 else ''})")
+        lines.append(f"📧 *Emails:* {len(data['emails'])} ({', '.join(data['emails'][:3])}{'...' if len(data['emails']) > 3 else ''})")
     if data['phones']:
-        lines.append(f"📱 *Teléfonos:* {len(data['phones'])} ({', '.join(data['phones'][:3])}{'...' if len(data['phones']) > 3 else ''})")
-    lines.append("\n¿Confirmar? Responde *sí* o *no*.")
+        lines.append(f"📱 *Phones:* {len(data['phones'])} ({', '.join(data['phones'][:3])}{'...' if len(data['phones']) > 3 else ''})")
+    lines.append("\nConfirm? Reply *yes* or *no*.")
     return "\n".join(lines)

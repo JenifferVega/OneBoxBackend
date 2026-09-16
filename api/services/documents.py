@@ -1,5 +1,5 @@
-"""Lógica interna de documentos y texto: análisis con IA, drafts y creación
-de proyectos a partir de documentos/texto pegado."""
+"""Documents and text internal logic: AI analysis, drafts and project
+creation from documents/pasted text."""
 import uuid
 from datetime import datetime
 
@@ -15,11 +15,11 @@ def save_attachment_record(project_id: str, user_id: str, file_name: str,
                            source: str = "web",
                            uploaded_by: str = "",
                            uploaded_by_email: str = "") -> dict:
-    """Guarda metadata del adjunto en DynamoDB.
-    user_id: SIEMPRE el sub del owner del proyecto (para consistencia con
-             el resto de items asociados al proyecto).
-    uploaded_by / uploaded_by_email: quién subió el archivo (puede ser
-             owner o invitado). Para trazabilidad."""
+    """Save attachment metadata in DynamoDB.
+    user_id: ALWAYS the project owner's sub (for consistency with the rest
+             of the items associated with the project).
+    uploaded_by / uploaded_by_email: who uploaded the file (may be owner or
+             invited user). For traceability."""
     now = datetime.utcnow().isoformat()
     attachment_id = f"{now}#{uuid.uuid4().hex[:8]}"
     item = {
@@ -45,21 +45,21 @@ def save_attachment_record(project_id: str, user_id: str, file_name: str,
 
 
 def analyze_text_preview(uid: str, text: str, source: str) -> dict:
-    """Analiza un texto pegado SIN crear proyecto.
-    Usa solo el planner del agente (sin executor): cero escrituras en DynamoDB,
-    cero dry-run. Devuelve draftId + sugerencia con participantes y tareas asignadas."""
+    """Analyze pasted text WITHOUT creating a project.
+    Uses only the agent's planner (no executor): zero DynamoDB writes,
+    no dry-run. Returns draftId + suggestion with participants and assigned tasks."""
     from agent.document_parser import upload_to_s3
     from agent.graph.llm_factory import create_llm
     from agent.graph.nodes.planner.node import planner_node
 
     text = (text or '').strip()
     if len(text) < 30:
-        raise HTTPException(status_code=400, detail="El texto es muy corto. Pega al menos una conversación o un párrafo.")
+        raise HTTPException(status_code=400, detail="Text is too short. Paste at least a conversation or a paragraph.")
 
-    # Invocar solo el planner (sin executor, sin DynamoDB)
+    # Invoke only the planner (no executor, no DynamoDB)
     planner_llm = create_llm("planner")
     planner_state = {
-        "user_message": f"Crea un proyecto a partir de esta conversación o texto:\n\n{text}",
+        "user_message": f"Create a project from this conversation or text:\n\n{text}",
         "resolved_message": None,
         "history": [],
         "plan": [],
@@ -81,31 +81,31 @@ def analyze_text_preview(uid: str, text: str, source: str) -> dict:
             planner_result = planner_node(planner_state, planner_llm)
             break
         except Exception as e:
-            print(f"[analyze_text_preview] Planner intento {attempt + 1}/3 falló: {e}")
+            print(f"[analyze_text_preview] Planner attempt {attempt + 1}/3 failed: {e}")
     if planner_result is None:
-        raise HTTPException(status_code=500, detail="No se pudo analizar el texto. Intenta de nuevo.")
+        raise HTTPException(status_code=500, detail="Could not analyze the text. Try again.")
 
-    # Extraer datos del plan
-    project_name, project_type, description = "", "Otro", ""
+    # Extract data from the plan
+    project_name, project_type, description = "", "Other", ""
     detected_participants, tasks = [], []
 
     plan = (planner_result or {}).get("plan") or []
     for step in plan:
         tool = step.get("tool", "")
         params = step.get("params", {})
-        if tool == "crear_proyecto":
+        if tool == "create_project":
             project_name = params.get("name", "")
-            project_type = params.get("type", "Otro")
+            project_type = params.get("type", "Other")
             description = params.get("description", "")
             for p in (params.get("participants") or []):
                 if isinstance(p, dict):
                     detected_participants.append({
-                        "name":  p.get("nombre", ""),
-                        "role":  p.get("rol", ""),
+                        "name":  p.get("name", ""),
+                        "role":  p.get("role", ""),
                         "email": p.get("email", ""),
-                        "phone": p.get("telefono", ""),
+                        "phone": p.get("phone", ""),
                     })
-        elif tool == "crear_tarea":
+        elif tool == "create_task":
             task_text = params.get("text", "")
             if task_text and isinstance(task_text, str):
                 tasks.append({
@@ -116,11 +116,11 @@ def analyze_text_preview(uid: str, text: str, source: str) -> dict:
                     "status":      params.get("status", "pending"),
                 })
 
-    # Guardar como draft .txt en S3 + DynamoDB
+    # Save as .txt draft in S3 + DynamoDB
     draft_id = uuid.uuid4().hex
     source = source or 'paste'
     now = datetime.utcnow().isoformat()
-    file_name = f"texto-pegado-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
+    file_name = f"pasted-text-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
     text_bytes = text.encode('utf-8')
     try:
         s3_key = upload_to_s3(text_bytes, f"_drafts/{uid}", file_name, 'text/plain')
@@ -139,7 +139,7 @@ def analyze_text_preview(uid: str, text: str, source: str) -> dict:
             'createdAt': now,
         })
     except Exception as e:
-        print(f"[analyze_text_preview] Error guardando draft: {e}")
+        print(f"[analyze_text_preview] Error saving draft: {e}")
 
     return {
         "draftId": draft_id,
@@ -158,20 +158,20 @@ def analyze_text_preview(uid: str, text: str, source: str) -> dict:
 
 
 def analyze_text_insights_dryrun(uid: str, text: str) -> dict:
-    """DRY-RUN de generación de insights: corre el LLM real sobre el TEXTO COMPLETO
-    pero NO escribe nada en DynamoDB (ni proyecto, ni insights, ni tareas).
-    Sirve para verificar la calidad/profundidad de la IA sin crear datos.
-    Devuelve la salida cruda del análisis (summary, tipo real, perfil, tareas, etc.)."""
+    """DRY-RUN of insight generation: runs the real LLM on the FULL text but
+    does NOT write anything to DynamoDB (no project, insights or tasks).
+    Useful to verify AI quality/depth without creating data.
+    Returns the raw analysis output (summary, real type, profile, tasks, etc.)."""
     text = (text or '').strip()
     if len(text) < 30:
-        raise HTTPException(status_code=400, detail="El texto es muy corto. Pega al menos una conversación o un párrafo.")
+        raise HTTPException(status_code=400, detail="Text is too short. Paste at least a conversation or a paragraph.")
 
     from agent.project_helpers import generate_insights_for_project
     result = generate_insights_for_project(
         user_id=uid,
         project_id="_dryrun",
         project_name="(dry-run)",
-        project_type="Otro",
+        project_type="Other",
         description="",
         participants_count=0,
         analysis_text=text,
@@ -188,9 +188,9 @@ def analyze_text_insights_dryrun(uid: str, text: str) -> dict:
 
 
 def analyze_document_preview(uid: str, file_bytes: bytes, file_name: str, content_type: str) -> dict:
-    """Analiza un documento (extrae texto + sugiere metadata) SIN crear el proyecto.
-    Usa el planner del agente para obtener participantes con roles y tareas asignadas.
-    Devuelve un draft_id que se usará después en /api/projects/from-document-draft."""
+    """Analyze a document (extract text + suggest metadata) WITHOUT creating the project.
+    Uses the agent's planner to obtain participants with roles and assigned tasks.
+    Returns a draft_id later used in /api/projects/from-document-draft."""
     from agent.document_parser import extract_text, upload_to_s3, validate_file
     from agent.graph.llm_factory import create_llm
     from agent.graph.nodes.planner.node import planner_node
@@ -201,12 +201,12 @@ def analyze_document_preview(uid: str, file_bytes: bytes, file_name: str, conten
 
     text = extract_text(file_bytes, ext)
     if not text or len(text.strip()) < 20:
-        raise HTTPException(status_code=400, detail="No se pudo extraer texto del documento o es muy breve.")
+        raise HTTPException(status_code=400, detail="Could not extract text from the document or it is too brief.")
 
-    # Invocar solo el planner (sin executor, sin DynamoDB)
+    # Invoke only the planner (no executor, no DynamoDB)
     planner_llm = create_llm("planner")
     planner_state = {
-        "user_message": f"Crea un proyecto a partir de este documento:\n\n{text[:50000]}",
+        "user_message": f"Create a project from this document:\n\n{text[:50000]}",
         "resolved_message": None,
         "history": [],
         "plan": [],
@@ -229,30 +229,30 @@ def analyze_document_preview(uid: str, file_bytes: bytes, file_name: str, conten
             planner_result = planner_node(planner_state, planner_llm)
             break
         except Exception as e:
-            print(f"[analyze_document_preview] Planner intento {attempt + 1}/3 falló: {e}")
+            print(f"[analyze_document_preview] Planner attempt {attempt + 1}/3 failed: {e}")
     if planner_result is None:
-        raise HTTPException(status_code=500, detail="No se pudo analizar el documento. Intenta de nuevo.")
+        raise HTTPException(status_code=500, detail="Could not analyze the document. Try again.")
 
-    # Extraer datos del plan
-    project_name, project_type, description = "", "Otro", ""
+    # Extract data from the plan
+    project_name, project_type, description = "", "Other", ""
     detected_participants, tasks = [], []
 
     for step in (planner_result.get("plan") or []):
         tool = step.get("tool", "")
         params = step.get("params", {})
-        if tool == "crear_proyecto":
+        if tool == "create_project":
             project_name = params.get("name", "")
-            project_type = params.get("type", "Otro")
+            project_type = params.get("type", "Other")
             description = params.get("description", "")
             for p in (params.get("participants") or []):
                 if isinstance(p, dict):
                     detected_participants.append({
-                        "name":  p.get("nombre", ""),
-                        "role":  p.get("rol", ""),
+                        "name":  p.get("name", ""),
+                        "role":  p.get("role", ""),
                         "email": p.get("email", ""),
-                        "phone": p.get("telefono", ""),
+                        "phone": p.get("phone", ""),
                     })
-        elif tool == "crear_tarea":
+        elif tool == "create_task":
             task_text = params.get("text", "")
             if task_text and isinstance(task_text, str):
                 tasks.append({
@@ -263,7 +263,7 @@ def analyze_document_preview(uid: str, file_bytes: bytes, file_name: str, conten
                     "status":      params.get("status", "pending"),
                 })
 
-    # Subir el archivo a un "draft" en S3 para confirmación posterior
+    # Upload the file to a "draft" area in S3 for later confirmation
     draft_id = uuid.uuid4().hex
     s3_key = upload_to_s3(file_bytes, f"_drafts/{uid}", file_name or f'doc.{ext}', content_type or '')
 
@@ -299,84 +299,84 @@ def analyze_document_preview(uid: str, file_bytes: bytes, file_name: str, conten
 
 
 def create_project_from_draft(uid: str, req) -> dict:
-    """Crea el proyecto definitivo a partir de un draft analizado previamente.
-    Mueve el archivo del draft a la carpeta del proyecto y registra el adjunto."""
+    """Create the final project from a previously analyzed draft.
+    Moves the file from the draft folder to the project folder and records the attachment."""
     from agent.document_parser import S3_ATTACHMENTS_BUCKET, get_s3_client
     from agent.project_helpers import create_project_full
 
-    # Recuperar el draft
+    # Retrieve the draft
     draft = attachments_table.get_item(
         Key={'projectId': f'_draft#{uid}', 'attachmentId': req.draftId}
     ).get('Item')
     if not draft:
-        raise HTTPException(status_code=404, detail="Borrador no encontrado o expirado")
+        raise HTTPException(status_code=404, detail="Draft not found or expired")
 
-    # Validaciones mínimas
+    # Minimum validations
     name = (req.name or '').strip()
     if not name:
-        raise HTTPException(status_code=400, detail="El nombre del proyecto es requerido")
+        raise HTTPException(status_code=400, detail="Project name is required")
     if not req.channels or len(req.channels) == 0:
-        raise HTTPException(status_code=400, detail="Selecciona al menos un canal")
+        raise HTTPException(status_code=400, detail="Select at least one channel")
 
-    # Construir participantes
+    # Build participants
     participants = []
     seen_emails = set()
     seen_phones = set()
 
-    # 1. Participantes detectados por IA (preservan el nombre original: Kevin, Mateo...)
+    # 1. AI-detected participants (preserve the original name: Kevin, Mateo...)
     for p in (req.detectedParticipants or []):
         if not isinstance(p, dict):
             continue
         pname = (p.get('name') or '').strip()[:80]
         pemail = (p.get('email') or '').strip().lower()
         pphone_raw = (p.get('phone') or '').strip()
-        prole = (p.get('role') or 'Participante').strip()[:80]
+        prole = (p.get('role') or 'Participant').strip()[:80]
         pphone = ''
         if pphone_raw:
             pphone = pphone_raw if pphone_raw.startswith('+') else '+' + pphone_raw.replace(' ', '').replace('-', '')
-        # Solo agregar si tiene nombre y al menos un canal de contacto (o solo nombre como referencia)
+        # Only add if there is a name and at least one contact channel (or just a name as reference)
         if pname or pemail or pphone:
             participants.append({
-                'nombre': pname or (pemail.split('@')[0] if pemail else pphone),
+                'name': pname or (pemail.split('@')[0] if pemail else pphone),
                 'email': pemail if '@' in pemail else '',
-                'telefono': pphone,
-                'rol': prole or 'Participante'
+                'phone': pphone,
+                'role': prole or 'Participant'
             })
             if pemail and '@' in pemail:
                 seen_emails.add(pemail)
             if pphone:
                 seen_phones.add(pphone)
 
-    # 2. Emails sueltos agregados manualmente (que NO vengan de detectados)
+    # 2. Loose emails added manually (not coming from detected list)
     for email in (req.emails or []):
         e = (email or '').strip().lower()
         if e and '@' in e and e not in seen_emails:
             participants.append({
-                'nombre': e.split('@')[0],
+                'name': e.split('@')[0],
                 'email': e,
-                'telefono': '',
-                'rol': 'Contacto Email'
+                'phone': '',
+                'role': 'Email Contact'
             })
             seen_emails.add(e)
 
-    # 3. Teléfonos sueltos agregados manualmente
+    # 3. Loose phones added manually
     for phone in (req.phones or []):
         pclean = (phone or '').strip()
         if pclean:
             formatted = pclean if pclean.startswith('+') else '+' + pclean
             if formatted not in seen_phones:
                 participants.append({
-                    'nombre': formatted,
+                    'name': formatted,
                     'email': '',
-                    'telefono': formatted,
-                    'rol': 'Contacto WhatsApp'
+                    'phone': formatted,
+                    'role': 'WhatsApp Contact'
                 })
                 seen_phones.add(formatted)
 
-    # Recuperar el TEXTO ORIGINAL COMPLETO del draft para el análisis de insights,
-    # así el análisis profundo ve el material real y no la descripción corta.
-    # Prioridad: sourceText del request (si el frontend lo reenvía) → texto del
-    # draft guardado en S3 por analyze_text_preview → (fallback) la descripción.
+    # Retrieve the FULL ORIGINAL TEXT of the draft for the insights analysis,
+    # so the deep analysis sees the real material and not the short description.
+    # Priority: sourceText from the request (if the frontend forwards it) → the
+    # draft text saved in S3 by analyze_text_preview → (fallback) the description.
     full_text = (req.sourceText or '').strip()
     if not full_text and req.draftId:
         try:
@@ -389,14 +389,14 @@ def create_project_from_draft(uid: str, req) -> dict:
                 obj = get_s3_client().get_object(Bucket=S3_ATTACHMENTS_BUCKET, Key=s3_key)
                 full_text = obj['Body'].read().decode('utf-8', errors='replace')
         except Exception as e:
-            print(f"[from_draft] No se pudo recuperar el texto completo del draft {req.draftId}: {e}")
+            print(f"[from_draft] Could not retrieve full text of draft {req.draftId}: {e}")
 
-    # Crear el proyecto con la info revisada por el usuario.
+    # Create the project with the info reviewed by the user.
     result = create_project_full(
         user_id=uid,
         name=name,
         description=req.description or '',
-        project_type=req.type or 'Otro',
+        project_type=req.type or 'Other',
         channels=req.channels,
         participants=participants,
         timing=req.timing or '',
@@ -405,11 +405,11 @@ def create_project_from_draft(uid: str, req) -> dict:
     )
     project_id = result['projectId']
 
-    # Mover el archivo del draft a la carpeta del proyecto definitivo
+    # Move the draft file to the final project folder
     try:
         s3 = get_s3_client()
         old_key = draft['s3Key']
-        # Nuevo key con la estructura normal de proyecto
+        # New key with the normal project structure
         new_key = old_key.replace(f'projects/_drafts/{uid}', f'projects/{project_id}/{datetime.utcnow().strftime("%Y%m%d")}')
         s3.copy_object(
             Bucket=S3_ATTACHMENTS_BUCKET,
@@ -419,11 +419,11 @@ def create_project_from_draft(uid: str, req) -> dict:
         )
         s3.delete_object(Bucket=S3_ATTACHMENTS_BUCKET, Key=old_key)
 
-        # Registrar el adjunto definitivo
+        # Record the final attachment
         save_attachment_record(
             project_id=project_id,
             user_id=uid,
-            file_name=draft.get('fileName', 'documento'),
+            file_name=draft.get('fileName', 'document'),
             file_size=int(draft.get('fileSize', 0)),
             content_type=draft.get('contentType', ''),
             ext=draft.get('extension', ''),
@@ -432,22 +432,22 @@ def create_project_from_draft(uid: str, req) -> dict:
             source='web'
         )
 
-        # Borrar el registro del draft
+        # Delete the draft record
         attachments_table.delete_item(
             Key={'projectId': f'_draft#{uid}', 'attachmentId': req.draftId}
         )
     except Exception as e:
-        print(f"[from_draft] Error moviendo draft: {e}")
+        print(f"[from_draft] Error moving draft: {e}")
         import traceback; traceback.print_exc()
-        # No fallar la creación si el move falla
+        # Don't fail creation if the move fails
 
     return result
 
 
 def create_project_from_document(uid: str, file_bytes: bytes, file_name: str,
                                  content_type: str, name: str, channels: str) -> dict:
-    """Crea un proyecto a partir de un documento. La IA infiere nombre, tipo
-    y descripción si no se proveen. El documento queda anexado al proyecto."""
+    """Create a project from a document. The AI infers name, type
+    and description if not provided. The document is attached to the project."""
     from agent.document_parser import (
         analyze_document_for_project, extract_text, upload_to_s3, validate_file
     )
@@ -457,30 +457,30 @@ def create_project_from_document(uid: str, file_bytes: bytes, file_name: str,
     if not valid:
         raise HTTPException(status_code=400, detail=error)
 
-    # Extraer texto
-    print(f"[from_document] Extrayendo texto de {file_name} ({len(file_bytes)} bytes, ext={ext})")
+    # Extract text
+    print(f"[from_document] Extracting text from {file_name} ({len(file_bytes)} bytes, ext={ext})")
     text = extract_text(file_bytes, ext)
     if not text or len(text.strip()) < 20:
-        raise HTTPException(status_code=400, detail="No se pudo extraer texto del documento o es demasiado breve.")
-    print(f"[from_document] Texto extraído: {len(text)} caracteres")
+        raise HTTPException(status_code=400, detail="Could not extract text from the document or it is too brief.")
+    print(f"[from_document] Extracted text: {len(text)} characters")
 
-    # Analizar con IA si no se dio nombre/tipo
+    # Analyze with AI if no name/type was provided
     analysis = analyze_document_for_project(text, fallback_name=name or '')
     project_name = (name or analysis['name']).strip()[:80]
     project_type = analysis['type']
     description = analysis['description']
     if analysis.get('extractedNotes'):
-        description += "\n\nNotas: " + analysis['extractedNotes']
+        description += "\n\nNotes: " + analysis['extractedNotes']
 
-    # Parsear canales
+    # Parse channels
     channel_list = []
     if channels:
         channel_list = [c.strip() for c in channels.split(',') if c.strip()]
     if not channel_list:
         channel_list = ['Gmail']
 
-    # Crear proyecto + insights. Pasamos el TEXTO COMPLETO del documento para que
-    # el análisis de insights vea el material real y no solo la descripción corta.
+    # Create project + insights. We pass the FULL document text so the insights
+    # analysis sees the real material and not just the short description.
     result = create_project_full(
         user_id=uid,
         name=project_name,
@@ -492,10 +492,10 @@ def create_project_from_document(uid: str, file_bytes: bytes, file_name: str,
     )
     project_id = result['projectId']
 
-    # Subir archivo a S3
+    # Upload file to S3
     s3_key = upload_to_s3(file_bytes, project_id, file_name or f'doc.{ext}', content_type or '')
 
-    # Registrar adjunto en DynamoDB
+    # Record attachment in DynamoDB
     att = save_attachment_record(
         project_id=project_id,
         user_id=uid,
@@ -518,18 +518,18 @@ def create_project_from_document(uid: str, file_bytes: bytes, file_name: str,
 
 
 def create_project_from_text(uid: str, text: str, name: str, channels, source: str) -> dict:
-    """Crea un proyecto desde un texto pegado delegando al agente completo.
-    Misma profundidad que el chat: participantes reales, tareas con assigned_to y fechas."""
+    """Create a project from pasted text by delegating to the full agent.
+    Same depth as the chat: real participants, tasks with assigned_to and dates."""
     from agent.graph import run_agent
     from agent.tools import clear_current_user, set_current_user
 
     text = (text or '').strip()
     if len(text) < 30:
-        raise HTTPException(status_code=400, detail="El texto es muy corto. Pega al menos una conversación completa o un párrafo descriptivo.")
+        raise HTTPException(status_code=400, detail="Text is too short. Paste at least a complete conversation or a descriptive paragraph.")
 
-    message = f"Crea un proyecto a partir de esta conversación o texto:\n\n{text}"
+    message = f"Create a project from this conversation or text:\n\n{text}"
     if name:
-        message = f"Crea un proyecto llamado '{name}' a partir de esta conversación o texto:\n\n{text}"
+        message = f"Create a project called '{name}' from this conversation or text:\n\n{text}"
 
     set_current_user(uid)
     try:
@@ -537,7 +537,7 @@ def create_project_from_text(uid: str, text: str, name: str, channels, source: s
     finally:
         clear_current_user()
 
-    # Extraer projectId real de los resultados del agente
+    # Extract real projectId from the agent results
     project_id = None
     project_name = name or ""
     for step_result in (agent_result.get("results") or {}).values():
@@ -546,11 +546,11 @@ def create_project_from_text(uid: str, text: str, name: str, channels, source: s
             project_name = step_result.get("name", project_name)
             break
 
-    # Guardar el texto como adjunto .txt en el proyecto creado
+    # Save the text as a .txt attachment in the created project
     if project_id:
         try:
             from agent.document_parser import upload_to_s3
-            fname = f"texto-pegado-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
+            fname = f"pasted-text-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
             s3_key = upload_to_s3(text.encode('utf-8'), project_id, fname, 'text/plain')
             save_attachment_record(
                 project_id=project_id,
@@ -564,7 +564,7 @@ def create_project_from_text(uid: str, text: str, name: str, channels, source: s
                 source=source or 'paste'
             )
         except Exception as e:
-            print(f"[from_text] Error guardando adjunto: {e}")
+            print(f"[from_text] Error saving attachment: {e}")
 
     return {
         "success": True,
@@ -577,12 +577,12 @@ def create_project_from_text(uid: str, text: str, name: str, channels, source: s
 
 def analyze_text_for_project(uid: str, project_id: str, text: str, source: str,
                               user_email: str = "") -> dict:
-    """Analiza un texto pegado dentro de un proyecto existente.
-    Genera nuevos insights (tareas, riesgos, decisiones) sin crear un proyecto nuevo.
+    """Analyze pasted text within an existing project.
+    Generates updated insights (tasks, risks, decisions) without creating a new project.
 
-    Permite tanto al owner como a los invitados con acceso al proyecto pegar
-    texto y generar insights. Antes solo el owner podía, lo cual era inconsistente
-    con upload_attachment (que sí permite invitados).
+    Allows both the owner and invited users with access to the project to
+    paste text and generate insights. Previously only the owner could, which
+    was inconsistent with upload_attachment (which does allow invited users).
     """
     from agent.document_parser import upload_to_s3
     from agent.project_helpers import generate_insights_for_project
@@ -590,21 +590,21 @@ def analyze_text_for_project(uid: str, project_id: str, text: str, source: str,
 
     has, _is_owner, existing = has_project_access(uid, user_email, project_id)
     if not existing:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        raise HTTPException(status_code=404, detail="Project not found")
     if not has:
-        raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
+        raise HTTPException(status_code=403, detail="No access to this project")
 
-    # Los insights y el adjunto se guardan asociados al owner (no al invitado
-    # que pegó el texto) para que la trazabilidad funcione con el filtro
-    # por projectId en /api/projects.
+    # Insights and the attachment are saved under the owner (not the invited
+    # user who pasted the text) so that traceability works with the filter by
+    # projectId in /api/projects.
     owner_uid = existing.get('userId', uid)
 
     text = (text or '').strip()
     if len(text) < 30:
-        raise HTTPException(status_code=400, detail="El texto es muy corto.")
+        raise HTTPException(status_code=400, detail="Text is too short.")
 
-    # Guardar el texto como "adjunto" tipo .txt
-    fname = f"texto-pegado-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
+    # Save the text as a .txt "attachment"
+    fname = f"pasted-text-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
     try:
         s3_key = upload_to_s3(text.encode('utf-8'), project_id, fname, 'text/plain')
         save_attachment_record(
@@ -619,32 +619,32 @@ def analyze_text_for_project(uid: str, project_id: str, text: str, source: str,
             source=source or 'paste'
         )
     except Exception as e:
-        print(f"[analyze_text] Error guardando texto: {e}")
+        print(f"[analyze_text] Error saving text: {e}")
 
-    # Generar insights con la IA — los insights van asociados al owner para que
-    # aparezcan en la vista del owner Y de los invitados (el filtro por
-    # projectId en /api/projects los muestra a todos los que tienen acceso).
+    # Generate insights with the AI — the insights are associated with the
+    # owner so they appear in the owner's view AND the invited users' view
+    # (the projectId filter in /api/projects shows them to everyone with access).
     insights_result = generate_insights_for_project(
         user_id=owner_uid,
         project_id=project_id,
-        project_name=existing.get('name', 'Proyecto'),
-        project_type=existing.get('type', 'Otro'),
+        project_name=existing.get('name', 'Project'),
+        project_type=existing.get('type', 'Other'),
         description=text[:5000],
         participants=existing.get('participants', []),
     )
 
-    # Notificación in-app (queda en el feed del owner)
+    # In-app notification (kept in the owner's feed)
     if insights_result.get('generated') and insights_result.get('count', 0) > 0:
         try:
             notifications_table.put_item(Item={
                 'userId': owner_uid,
                 'notificationId': f"{datetime.utcnow().isoformat()}#{uuid.uuid4().hex[:8]}",
                 'projectId': project_id,
-                'projectName': existing.get('name', 'Proyecto'),
+                'projectName': existing.get('name', 'Project'),
                 'type': 'text_analyzed',
-                'title': f'Texto analizado: {insights_result["count"]} insights',
-                'mensaje': f'La IA analizó el texto pegado y generó {insights_result["count"]} insights nuevos.',
-                'canal': 'system',
+                'title': f'Text analyzed: {insights_result["count"]} insights',
+                'message': f'The AI analyzed the pasted text and generated {insights_result["count"]} updated insights.',
+                'channel': 'system',
                 'status': 'unread',
                 'createdAt': datetime.utcnow().isoformat(),
             })

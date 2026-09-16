@@ -1,22 +1,30 @@
-"""Resolución de referencias from_step en parámetros (portado del agente anterior).
+"""Resolution of from_step references in parameters (ported from the previous agent).
 
-Formatos soportados:
+Supported formats:
   {"from_step": N}
-      → pasa el resultado completo del paso N.
-  {"from_step": N, "path": "campo.subcampo"}
-      → extrae un valor específico usando dot-notation.
-      Ejemplos:
-        "path": "projectId"              → resultado["projectId"]
-        "path": "projects.0.projectId"  → resultado["projects"][0]["projectId"]
-        "path": "contactos.0.telefono"  → resultado["contactos"][0]["telefono"]
+      → pass the full result of step N.
+  {"from_step": N, "path": "field.subfield"}
+      → extract a specific value using dot-notation.
+      Examples:
+        "path": "projectId"              → result["projectId"]
+        "path": "projects.0.projectId"  → result["projects"][0]["projectId"]
+        "path": "contacts.0.phone"  → result["contacts"][0]["phone"]
   {"from_step": N, "match": {"key": "name", "value": "Alpha"}, "extract": "projectId"}
-      → en una lista de objetos, encuentra el que tenga key==value y extrae el campo.
-      Útil para listar_proyectos cuando se sabe el nombre del proyecto de antemano.
+      → in a list of objects, find the one where key==value and extract the field.
+      Useful for list_projects when the project name is known in advance.
+
+FAILED EXTRACTION RESOLVES TO None, NEVER TO THE WHOLE RESULT.
+
+Substituting the full step result when a field was missing used to look
+forgiving, but it fed a JSON object into parameters that expect a string. The
+tool then failed with "project_id is a JSON object", which says nothing about
+the real problem -- that the field the plan asked for was not in the result.
+None reaches the parameter validator, which names the field and the step.
 """
 
 
 def _get_path(obj, path: str):
-    """Extrae un valor de obj usando dot-notation. Soporta índices numéricos."""
+    """Extract a value from obj using dot-notation. Supports numeric indices."""
     parts = path.split(".")
     current = obj
     for part in parts:
@@ -35,11 +43,11 @@ def _get_path(obj, path: str):
 
 
 def _match_and_extract(obj, key: str, value: str, extract: str):
-    """En una lista de objetos, encuentra el que tenga obj[key]==value y devuelve obj[extract]."""
+    """In a list of objects, find the one where obj[key]==value and return obj[extract]."""
     if isinstance(obj, list):
         items = obj
     elif isinstance(obj, dict):
-        # Intenta encontrar la primera lista en el dict (ej: {"projects": [...], "count": N})
+        # Try to find the first list in the dict (e.g. {"projects": [...], "count": N})
         items = next((v for v in obj.values() if isinstance(v, list)), [])
     else:
         return None
@@ -47,14 +55,15 @@ def _match_and_extract(obj, key: str, value: str, extract: str):
     for item in items:
         if isinstance(item, dict) and str(item.get(key, "")).lower() == str(value).lower():
             return item.get(extract)
-    # Si no encontró match exacto, devuelve el primero disponible
-    if items and isinstance(items[0], dict):
-        return items[0].get(extract)
+    # No match. We used to fall back to items[0] here, which is how a task
+    # could silently land in whatever project happened to be listed first.
+    # A wrong id is far worse than a missing one: return None and let the
+    # parameter validator report it.
     return None
 
 
 def resolve_params(params: dict, results: dict) -> dict:
-    """Resuelve referencias from_step en los parámetros."""
+    """Resolve from_step references in the parameters."""
     if not params:
         return {}
 
@@ -72,7 +81,7 @@ def resolve_params(params: dict, results: dict) -> dict:
                 resolved[key] = value
                 continue
 
-            # Caso 1: extracción por match (busca por nombre/campo y extrae otro campo)
+            # Case 1: extract by match (find by name/field and extract another field)
             if "match" in value and "extract" in value:
                 match_cfg = value["match"]
                 extracted = _match_and_extract(
@@ -81,33 +90,32 @@ def resolve_params(params: dict, results: dict) -> dict:
                     match_cfg.get("value", ""),
                     value["extract"],
                 )
-                resolved[key] = extracted if extracted is not None else step_result
+                resolved[key] = extracted
 
-            # Caso 2: extracción por path (dot-notation)
+            # Case 2: extract by path (dot-notation)
             elif "path" in value:
                 extracted = _get_path(step_result, value["path"])
-                resolved[key] = extracted if extracted is not None else step_result
+                resolved[key] = extracted
 
-            # Caso 3: extract directo — saca un campo del resultado sin match
-            # Ej: {"from_step": 1, "extract": "projectId"} → step_result["projectId"]
+            # Case 3: direct extract — pull a field from the result without a match
+            # E.g. {"from_step": 1, "extract": "projectId"} → step_result["projectId"]
             elif "extract" in value:
                 field = value["extract"]
                 if isinstance(step_result, dict):
-                    extracted = step_result.get(field)
-                    resolved[key] = extracted if extracted is not None else step_result
+                    resolved[key] = step_result.get(field)
                 else:
                     resolved[key] = step_result
 
-            # Caso 4: resultado completo
+            # Case 4: full result
             else:
                 resolved[key] = step_result
 
         else:
             resolved[key] = value
 
-    # Post-proceso: auto-extraer IDs conocidos cuando el LLM olvidó usar extract/path.
-    # Si project_id / email_id / task_id siguen siendo dicts con el campo ID conocido,
-    # extraer el valor escalar automáticamente para no pasarle un dict al tool real.
+    # Post-processing: auto-extract known IDs when the LLM forgot to use extract/path.
+    # If project_id / email_id / task_id are still dicts with the known ID field,
+    # extract the scalar value automatically so we don't pass a dict to the actual tool.
     _AUTO_EXTRACT = {
         "project_id":  "projectId",
         "email_id":    "email_id",

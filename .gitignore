@@ -1,6 +1,9 @@
-/node_modules
-.env
-.env.production
+node_modules/
+mcp/node_modules/
+.venv/
+venv/
 __pycache__/
 *.pyc
-mcp/node_modules/
+.DS_Store
+.env
+.env.production

@@ -1,0 +1,68 @@
+{
+  "name": "trello_board_already_linked",
+  "description": "A project has ONE board. Once it has one, asking to create a board must not produce a proposal to create a second -- the agent should already know, before asking the user to confirm anything.",
+  "session_id": "case-already-linked",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "manda las tareas de Marketing Q3 a Trello",
+      "why": "No board yet: the agent must ask, and must offer both options.",
+      "assert": {
+        "tools_used_includes": ["push_tasks_to_trello"],
+        "tools_used_excludes": ["create_trello_board"],
+        "response_matches": [
+          "(?i)(nuevo|new|crear|create).*(tablero|board)",
+          "(?i)(existente|existing|actuales|tienes)"
+        ]
+      }
+    },
+    {
+      "n": 2,
+      "message": "crea uno nuevo",
+      "why": "The board is created in the user's real Trello account, so this turn only proposes.",
+      "assert": {
+        "tools_used_excludes": ["create_trello_board"],
+        "response_matches": ["(?i)(confirma|confirmas|\\u00bfquieres|shall i)"]
+      }
+    },
+    {
+      "n": 3,
+      "message": "si, confirmo",
+      "why": "Creates the board, links the project, and exports -- the goal from turn 1 was to send the tasks.",
+      "assert": {
+        "tools_used_includes": ["create_trello_board", "push_tasks_to_trello"],
+        "tool_call_count": { "create_trello_board": 1 },
+        "results": [
+          { "tool": "create_trello_board", "field": "success", "op": "eq", "value": true }
+        ]
+      }
+    },
+    {
+      "n": 4,
+      "message": "crea un tablero nuevo de Trello para Marketing Q3",
+      "why": "THE POINT OF THIS CASE. The project now has a board. The agent must say so instead of proposing a second one -- and must not ask the user to confirm something it already knows is wrong.",
+      "assert": {
+        "tool_call_count": { "create_trello_board": 0 },
+        "response_matches": [
+          "(?i)(ya (tiene|est\\u00e1|esta)|already)",
+          "(?i)Marketing Q3"
+        ],
+        "response_not_matches": [
+          "(?i)(voy a crear|he creado|confirmas que quieres crear)"
+        ],
+        "comment": "A second board must be impossible, AND the wasted confirmation turn must not happen either."
+      }
+    },
+    {
+      "n": 5,
+      "message": "si",
+      "why": "Even if turn 4 slipped and proposed, confirming must not produce a second board.",
+      "assert": {
+        "tool_call_count": { "create_trello_board": 0 },
+        "comment": "The guard inside create_trello_board is the last line of defence; a board created here is a hard failure."
+      }
+    }
+  ]
+}

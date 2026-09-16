@@ -1,4 +1,4 @@
-"""Endpoints programados (EventBridge cron): sync de Gmail y notificaciones SLA."""
+"""Scheduled endpoints (EventBridge cron): Gmail sync and SLA notifications."""
 from fastapi import APIRouter, Header, HTTPException
 
 from api.deps import require_uid
@@ -11,9 +11,9 @@ router = APIRouter()
 @router.post("/api/scheduled/gmail-sync")
 async def scheduled_gmail_sync(x_user_id: str = Header(default="")):
     """
-    Sincroniza Gmail, trae correos nuevos y los analiza con IA.
-    Crea proyectos, tareas e insights automáticamente.
-    Usa el refresh token del usuario almacenado en DynamoDB.
+    Sync Gmail, fetch updated emails and analyze them with AI.
+    Creates projects, tasks and insights automatically.
+    Uses the user's refresh token stored in DynamoDB.
     """
     uid = require_uid(x_user_id)
     try:
@@ -27,14 +27,14 @@ async def scheduled_gmail_sync(x_user_id: str = Header(default="")):
 @router.post("/api/scheduled/notifications")
 async def scheduled_notifications():
     """
-    Endpoint para notificaciones automáticas.
-    Revisa SLA (tareas bloqueadas/vencidas) y envía WhatsApp a los responsables.
-    Diseñado para ser invocado por EventBridge cron cada mañana.
+    Endpoint for automatic notifications.
+    Reviews SLA (blocked/overdue tasks) and sends WhatsApp to those responsible.
+    Designed to be invoked by an EventBridge cron every morning.
     """
     try:
         return notifications_service.send_scheduled_notifications()
     except Exception as e:
-        print(f"[Scheduled] Error en notificaciones: {e}")
+        print(f"[Scheduled] Error in notifications: {e}")
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -42,14 +42,14 @@ async def scheduled_notifications():
 @router.post("/api/scheduled/dispatch-pending")
 async def dispatch_pending_notifications():
     """
-    Dispatcher de notificaciones programadas por el usuario desde el chat.
-    Envía notificaciones con status='pending' cuyo scheduledAt ya pasó,
-    y notificaciones recurrentes si hoy es uno de sus días configurados.
-    Diseñado para ser invocado por EventBridge cada hora.
+    Dispatcher for notifications scheduled by the user from the chat.
+    Sends notifications with status='pending' whose scheduledAt has passed,
+    and recurring notifications if today is one of their configured days.
+    Designed to be invoked by EventBridge every hour.
     """
     try:
         return notifications_service.dispatch_pending_notifications()
     except Exception as e:
-        print(f"[Scheduled] Error en dispatch-pending: {e}")
+        print(f"[Scheduled] Error in dispatch-pending: {e}")
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

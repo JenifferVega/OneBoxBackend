@@ -1,11 +1,11 @@
 """
-Test de self-play del agente OneBox en modo debug.
-Corre conversaciones predefinidas y muestra el debug_info de cada turno.
+Self-play test of the OneBox agent in debug mode.
+Runs predefined conversations and prints the debug_info for each turn.
 
-Uso:
+Usage:
     python test_agent_debug.py
 
-Requiere que el backend esté corriendo (python main.py) y ngrok activo.
+Requires the backend to be running (python main.py) and ngrok active.
 """
 import json
 import time
@@ -45,7 +45,7 @@ def chat(message: str, history: list = None, debug: bool = True) -> dict:
 
 def print_turn(turn_num: int, message: str, result: dict):
     print(f"\n{'─'*60}")
-    print(f"  Turno {turn_num} → \"{message}\"")
+    print(f"  Turn {turn_num} → \"{message}\"")
     print(f"{'─'*60}")
     print(f"  RESPONSE : {result.get('response', 'N/A')}")
     print(f"  TOOLS    : {result.get('toolsUsed', [])}")
@@ -53,84 +53,84 @@ def print_turn(turn_num: int, message: str, result: dict):
     if di:
         print(f"  DEBUG_INFO:\n{json.dumps(di, indent=4, ensure_ascii=False)}")
     else:
-        print("  DEBUG_INFO: (no disponible)")
+        print("  DEBUG_INFO: (not available)")
     if result.get("error"):
         print(f"  ⚠️  ERROR: {result['error']}")
 
 
 def run_scenario(title: str, turns: list):
     print(f"\n{'='*60}")
-    print(f"  ESCENARIO: {title}")
+    print(f"  SCENARIO: {title}")
     print(f"{'='*60}")
     history = []
     for i, message in enumerate(turns, 1):
         result = chat(message, history, debug=True)
         print_turn(i, message, result)
-        # acumular historial para el siguiente turno
+        # accumulate history for the next turn
         if "response" in result:
             history.append({"role": "user",      "content": message})
             history.append({"role": "assistant",  "content": result["response"]})
-        time.sleep(1)  # evitar rate-limit
+        time.sleep(1)  # avoid rate-limit
     return history
 
 
 # ─────────────────────────────────────────────
-#  ESCENARIOS
+#  SCENARIOS
 # ─────────────────────────────────────────────
 
 if __name__ == "__main__":
 
-    # ── 1. Intención sin datos → debe pedir nombre ─────────────────
+    # ── 1. Intent without data → should ask for a name ─────────────────
     run_scenario(
-        "Creación de proyecto sin datos (debe pedir nombre)",
-        ["quiero crear un proyecto"],
+        "Project creation without data (should ask for name)",
+        ["I want to create a project"],
     )
 
-    # ── 2. Todo en un mensaje → debe extraer sin preguntar ─────────
+    # ── 2. Everything in one message → should extract without asking ─────────
     run_scenario(
-        "Proyecto completo en un mensaje (no debe preguntar nada)",
+        "Full project in one message (should not ask anything)",
         [
-            "crea un proyecto de Marketing llamado Nova. "
-            "Se encargará Laura Gómez (coordinadora) y Daniel Rojas (dev). "
-            "Fases: investigación de mercado, identidad de marca, lanzamiento digital.",
+            "create a Marketing project called Nova. "
+            "Laura Gomez (coordinator) and Daniel Rojas (dev) will be in charge. "
+            "Phases: market research, brand identity, digital launch.",
         ],
     )
 
-    # ── 3. Flujo paso a paso (multi-turn) ──────────────────────────
+    # ── 3. Step-by-step flow (multi-turn) ──────────────────────────
     run_scenario(
-        "Creación paso a paso con cambio de tema en el medio",
+        "Step-by-step creation with a topic change in the middle",
         [
-            "quiero crear un proyecto",          # turno 1: pide nombre
-            "se llama Alpha",                    # turno 2: da nombre
-            "es de backend",                     # turno 3: da tipo
-            "muéstrame mis correos",             # turno 4: CAMBIO DE TEMA — no debe crear proyecto
-            "Alpha es una app de reservas para hoteles, "
-            "coordinada por Ana Torres. Fases: "
-            "diseño UX, desarrollo API, pruebas QA, despliegue.",  # turno 5: retoma con descripción
+            "I want to create a project",         # turn 1: asks for name
+            "it's called Alpha",                   # turn 2: gives name
+            "it's a backend project",              # turn 3: gives type
+            "show me my emails",                   # turn 4: TOPIC CHANGE — should not create a project
+            "Alpha is a hotel reservations app, "
+            "coordinated by Ana Torres. Phases: "
+            "UX design, API development, QA testing, deployment.",  # turn 5: resumes with description
         ],
     )
 
-    # ── 4. Tipo inferido desde lenguaje natural ─────────────────────
+    # ── 4. Type inferred from natural language ─────────────────────
     run_scenario(
-        "Inferencia de tipo desde lenguaje natural",
+        "Type inference from natural language",
         [
-            "crea un proyecto para una app móvil de delivery llamada QuickBite, "
-            "durará 2 meses, participan Carlos (iOS) y Marta (backend).",
+            "create a project for a mobile delivery app called QuickBite, "
+            "it will last 2 months, Carlos (iOS) and Marta (backend) are involved.",
         ],
     )
 
-    # ── 5. Tarea sin proyecto especificado ─────────────────────────
+    # ── 5. Task without a specified project ─────────────────────────
     run_scenario(
-        "Crear tarea sin especificar proyecto (debe listar proyectos primero)",
-        ["crea una tarea urgente: revisar presupuesto Q3"],
+        "Create task without specifying a project (should list projects first)",
+        ["create an urgent task: review the Q3 budget"],
     )
 
-    # ── 6. Notificación a equipo (debe obtener contactos primero) ───
+    # ── 6. Team notification (should fetch contacts first) ───
     run_scenario(
-        "Enviar WhatsApp al equipo sin teléfono explícito",
-        ["manda un WhatsApp al equipo del proyecto Alpha que hay reunión mañana a las 10am"],
+        "Send a WhatsApp to the team without an explicit phone number",
+        ["send a WhatsApp to the Alpha project team saying there's a meeting tomorrow at 10am"],
     )
 
     print(f"\n{'='*60}")
-    print("  FIN DE PRUEBAS")
+    print("  END OF TESTS")
     print(f"{'='*60}\n")

@@ -1,32 +1,32 @@
-"""Narrador proactivo (resúmenes ejecutivos, SLA, clasificación de inbox)."""
+"""Proactive narrator (executive summaries, SLA, inbox classification)."""
 
-GUIDANCE = """## GUÍA PROACTIVA:
-1. Si hay alertas SLA, presenta las más urgentes primero con emojis de prioridad.
-2. Si hay acciones sugeridas, preséntalas como próximos pasos que la IA puede ejecutar.
-3. Si se clasificaron mensajes, resume cuántos y a qué proyectos.
+GUIDANCE = """## PROACTIVE GUIDE:
+1. If there are SLA alerts, present the most urgent ones first with priority emojis.
+2. If there are suggested actions, present them as next steps the AI can execute.
+3. If messages were classified, summarize how many and to which projects.
 
-## EJEMPLOS:
+## EXAMPLES:
 
-Resumen proactivo:
-"📊 **Resumen de tus proyectos:**
+Proactive summary:
+"**Summary of your projects:**
 
-• **Migración AWS** - 3 tareas pendientes, 1 bloqueada 🔴
-• **Rediseño UX** - 5 tareas, todo al día 🟢
-• **Campaña Q2** - 2 tareas vencidas 🔴
+- **AWS Migration** - 3 pending tasks, 1 blocked
+- **UX Redesign** - 5 tasks, all on track
+- **Q2 Campaign** - 2 overdue tasks
 
-📥 **Inbox:** 4 mensajes sin clasificar
+**Inbox:** 4 unclassified messages
 
-🤖 **Acciones sugeridas:**
-• Puedo enviar recordatorio a María sobre la tarea bloqueada
-• Puedo clasificar automáticamente los mensajes del inbox
+**Suggested actions:**
+- I can send a reminder to Maria about the blocked task
+- I can automatically classify the inbox messages
 
-¿Qué quieres que haga?"
+What would you like me to do?"
 
-Alertas SLA:
-"⚠️ **Alertas detectadas:**
+SLA alerts:
+"**Alerts detected:**
 
-🔴 **Tarea bloqueada:** 'Configurar VPN' en Migración AWS (3 días sin avance)
-🔴 **Tarea vencida:** 'Entregar mockups' en Rediseño UX (venció hace 2 días)
-🟡 **Inbox:** 5 mensajes pendientes de clasificar
+**Blocked task:** 'Configure VPN' in AWS Migration (3 days without progress)
+**Overdue task:** 'Deliver mockups' in UX Redesign (2 days overdue)
+**Inbox:** 5 messages pending classification
 
-¿Quieres que envíe recordatorios o clasifique el inbox?\""""
+Do you want me to send reminders or classify the inbox?\""""

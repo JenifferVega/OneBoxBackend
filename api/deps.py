@@ -1,7 +1,7 @@
-"""Recursos compartidos de la API: tablas DynamoDB propias y helpers de auth/scan.
+"""Shared API resources: API-owned DynamoDB tables and auth/scan helpers.
 
-Las tablas del agente (projects, tasks, insights, etc.) viven en agent.tools;
-aquí solo se definen las tablas que usa exclusivamente la capa HTTP.
+The agent's tables (projects, tasks, insights, etc.) live in agent.tools;
+here we only define the tables used exclusively by the HTTP layer.
 """
 import os
 
@@ -17,19 +17,20 @@ sessions_table = dynamodb.Table('onebox-whatsapp-sessions')
 
 
 def require_uid(uid_value: str) -> str:
-    """Devuelve el userId del request o lanza 401 si falta.
-    NUNCA cae en un USER_ID por defecto: ese fallback filtraba datos de una
-    cuenta real a cualquiera que llamara sin identificarse (fuga entre usuarios)."""
+    """Return the request's userId or raise 401 if missing.
+    NEVER falls back to a default USER_ID: that fallback leaked one real
+    account's data to anyone calling without authentication (cross-user leak)."""
     if not uid_value:
-        raise HTTPException(status_code=401, detail="x-user-id requerido")
+        raise HTTPException(status_code=401, detail="x-user-id required")
     return uid_value
 
 
 def scan_all_pages(table, **scan_kwargs):
-    """Realiza un Scan paginado completo en una tabla DynamoDB.
-    Necesario porque scan() devuelve máximo 1 MB de items y aplica el FilterExpression
-    DESPUÉS de leer; sin paginar, items que coinciden con el filtro pueden quedar
-    invisibles si están en páginas posteriores. Devuelve la lista completa de Items."""
+    """Perform a fully paginated Scan on a DynamoDB table.
+    Required because scan() returns at most 1 MB of items and applies the
+    FilterExpression AFTER reading; without pagination, items matching the
+    filter can remain invisible if they live in later pages. Returns the
+    full list of Items."""
     items = []
     last_key = None
     while True:

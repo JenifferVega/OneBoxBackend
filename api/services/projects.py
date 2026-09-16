@@ -1,5 +1,5 @@
-"""Lógica interna de proyectos: listado enriquecido, detalle, creación,
-participantes, invitaciones y borrado en cascada."""
+"""Projects internal logic: enriched listing, detail, creation,
+participants, invitations and cascade deletion."""
 import os
 import uuid
 from datetime import datetime
@@ -25,10 +25,68 @@ TEAM_COLORS = [
 ]
 
 
-def iniciales(nombre: str) -> str:
-    if not nombre:
+def initials(name: str) -> str:
+    if not name:
         return "?"
-    return ''.join([w[0].upper() for w in nombre.split() if w])[:2]
+    return ''.join([w[0].upper() for w in name.split() if w])[:2]
+
+
+# ── Participants: one shape, whatever the writer called the fields ──────────
+# Participants are written by an LLM (create_project extracts them from the
+# user's text), by the project wizard and by invite_user, and NOTHING enforced
+# a shape. In a Spanish conversation the model emits {nombre, rol, telefono}
+# instead of {name, role, phone}, and it was stored verbatim.
+#
+# Reading then did:  p.get('name', str(p))
+# so a missing key fell back to THE WHOLE DICT, and the UI printed
+# {'nombre': 'Kevin', 'rol': 'Desarrollador'} where a name should be. A
+# default is meant to be a sane value, not the raw object it failed to read.
+#
+# Aliases are applied on READ as well as on write, so projects already stored
+# with Spanish keys display correctly without a migration.
+_PARTICIPANT_ALIASES = {
+    'name':  ('name', 'nombre', 'nombre_completo', 'fullName', 'full_name',
+              'displayName'),
+    'role':  ('role', 'rol', 'cargo', 'puesto', 'role_inferred', 'roleInferred'),
+    'email': ('email', 'correo', 'correo_electronico', 'mail', 'e_mail'),
+    'phone': ('phone', 'telefono', 'teléfono', 'celular', 'movil', 'móvil',
+              'phoneNumber', 'phone_number', 'whatsapp'),
+}
+
+
+def normalize_participant(p) -> dict:
+    """A participant as {name, role, email, phone}, from any of the spellings
+    seen in stored data. Unknown keys are dropped, never rendered."""
+    if not isinstance(p, dict):
+        # A bare string is a name -- that shape exists in older projects.
+        text = str(p).strip() if p is not None else ''
+        return {'name': text, 'role': '', 'email': '', 'phone': ''}
+
+    lower = {str(k).lower(): v for k, v in p.items()}
+    out = {}
+    for field, keys in _PARTICIPANT_ALIASES.items():
+        value = ''
+        for k in keys:
+            v = lower.get(k.lower())
+            if isinstance(v, str) and v.strip():
+                value = v.strip()
+                break
+        out[field] = value
+    return out
+
+
+def normalize_participants(items) -> list:
+    """Normalize a list, dropping entries with nothing identifying in them.
+
+    An entry with no name, email or phone cannot be shown, messaged or matched
+    to a task -- keeping it only puts a blank row on the screen.
+    """
+    out = []
+    for p in (items or []):
+        n = normalize_participant(p)
+        if n['name'] or n['email'] or n['phone']:
+            out.append(n)
+    return out
 
 
 def channel_icon(name: str) -> str:
@@ -38,18 +96,19 @@ def channel_icon(name: str) -> str:
 
 
 def list_projects(uid: str, user_email: str) -> list:
-    """Lista todos los proyectos con datos enriquecidos (task counts, insights, etc.)."""
-    # Log de diagnóstico: sin email, el auto-accept de invitaciones NO dispara
-    # (query al GSI email-index requiere el email exacto). Si vemos requests con
-    # user_email vacío, el frontend no está mandando `x-user-email` — típico
-    # bug de sesiones viejas donde el email nunca llegó al localStorage.
+    """List all projects with enriched data (task counts, insights, etc.)."""
+    # Diagnostic log: without email, the invitation auto-accept does NOT fire
+    # (querying the email-index GSI requires the exact email). If we see
+    # requests with an empty user_email, the frontend is not sending
+    # `x-user-email` — typical bug from old sessions where the email never
+    # made it into localStorage.
     print(f"[list_projects] uid={uid[:8]}... email={'<empty>' if not user_email else user_email}")
-    # Fallback: si el header x-user-email vino vacío (bug de frontend / sesión
-    # antigua / cache), resolvemos el email desde Cognito usando el sub. Sin
-    # esto, los invitados quedan varados sin ver sus proyectos vinculados.
-    # El sub es un UUID de Cognito, así que admin_get_user por Username=sub
-    # devuelve el UserAttributes.email autoritativo. Fallo silencioso: si
-    # Cognito falla o el user no existe, seguimos con email vacío como antes.
+    # Fallback: if the x-user-email header came empty (frontend bug / old
+    # session / cache), resolve the email from Cognito using the sub. Without
+    # this, invited users are stranded and never see their linked projects.
+    # The sub is a Cognito UUID, so admin_get_user by Username=sub returns
+    # the authoritative UserAttributes.email. Silent failure: if Cognito
+    # fails or the user does not exist, continue with an empty email as before.
     if not user_email and uid:
         try:
             pool_id = os.environ.get('COGNITO_USER_POOL_ID', 'us-east-1_b76prubhx')
@@ -59,20 +118,20 @@ def list_projects(uid: str, user_email: str) -> list:
                 if a.get('Name') == 'email':
                     user_email = (a.get('Value', '') or '').strip().lower()
                     break
-            print(f"[list_projects] fallback lookup Cognito → email={user_email or '<not-found>'}")
+            print(f"[list_projects] fallback Cognito lookup → email={user_email or '<not-found>'}")
         except Exception as e:
-            print(f"[list_projects] Cognito fallback lookup falló: {e}")
-    # IMPORTANTE: usamos scan_all_pages para evitar perder items por paginación.
-    # DynamoDB Scan tiene límite de 1MB por página y aplica el filtro DESPUÉS de leer.
+            print(f"[list_projects] Cognito fallback lookup failed: {e}")
+    # IMPORTANT: we use scan_all_pages to avoid losing items to pagination.
+    # DynamoDB Scan has a 1MB per-page limit and applies the filter AFTER reading.
     own_projects = scan_all_pages(
         projects_table,
         FilterExpression=Attr('userId').eq(uid)
     )
     own_ids = {p['projectId'] for p in own_projects}
 
-    # Proyectos compartidos: solo si el email del usuario aparece EXACTAMENTE
-    # como participante. Quitamos el match por nombre (muy permisivo y peligroso
-    # — podía mostrar proyectos de otros usuarios por coincidencias casuales).
+    # Shared projects: only if the user's email appears EXACTLY as a
+    # participant. We removed name matching (too permissive and dangerous
+    # — it could show other users' projects on casual name collisions).
     shared_projects = []
     if user_email:
         all_proj_items = scan_all_pages(projects_table)
@@ -82,14 +141,14 @@ def list_projects(uid: str, user_email: str) -> list:
             participants = p.get('participants', [])
             for part in participants:
                 part_email = (part.get('email', '') or '').strip().lower()
-                # Solo match por EMAIL EXACTO. Nada más.
+                # Only match by EXACT EMAIL. Nothing else.
                 if part_email and part_email == user_email:
                     p['_shared'] = True
                     shared_projects.append(p)
                     break
 
-    # Proyectos por INVITACIÓN: si el usuario tiene invitaciones pendientes
-    # con su email, las marcamos como aceptadas y añadimos los proyectos.
+    # INVITATION projects: if the user has pending invitations for their
+    # email, mark them accepted and add the projects.
     invited_projects = []
     if user_email:
         try:
@@ -105,7 +164,7 @@ def list_projects(uid: str, user_email: str) -> list:
                 pid = inv.get('projectId')
                 if not pid or pid in seen_proj_ids:
                     continue
-                # Auto-aceptar si está pendiente
+                # Auto-accept if pending
                 if inv.get('status') == 'pending':
                     try:
                         invitations_table.update_item(
@@ -115,13 +174,13 @@ def list_projects(uid: str, user_email: str) -> list:
                             ExpressionAttributeValues={':s': 'accepted', ':a': inv_now, ':b': uid},
                         )
                     except Exception as e:
-                        print(f"[list_projects] No se pudo auto-aceptar invitación {inv.get('invitationId')}: {e}")
-                # Cargar el proyecto y añadirlo
+                        print(f"[list_projects] Could not auto-accept invitation {inv.get('invitationId')}: {e}")
+                # Load the project and add it
                 proj_item = projects_table.get_item(Key={'projectId': pid}).get('Item')
                 if proj_item:
                     proj_item['_invited'] = True
-                    # Auto-añadir al participants[] del proyecto si todavía no figura
-                    # (idempotente: si ya está por email, no duplicamos)
+                    # Auto-add to the project's participants[] if not already
+                    # present (idempotent: if already there by email, do not duplicate)
                     try:
                         current_parts = proj_item.get('participants', []) or []
                         inv_email_norm = (inv.get('email', '') or '').strip().lower()
@@ -130,13 +189,13 @@ def list_projects(uid: str, user_email: str) -> list:
                             for p in current_parts if isinstance(p, dict)
                         )
                         if inv_email_norm and not already_in:
-                            # Nombre = parte local del email (kotomivega@gmail.com → kotomivega)
+                            # Name = local part of the email (kotomivega@gmail.com → kotomivega)
                             derived_name = inv_email_norm.split('@')[0] or inv_email_norm
                             new_part = {
-                                'nombre': derived_name,
+                                'name': derived_name,
                                 'email': inv_email_norm,
-                                'telefono': '',
-                                'rol': 'Invitado',
+                                'phone': '',
+                                'role': 'Invited',
                             }
                             updated_parts = current_parts + [new_part]
                             projects_table.update_item(
@@ -145,28 +204,28 @@ def list_projects(uid: str, user_email: str) -> list:
                                 ExpressionAttributeValues={':p': updated_parts},
                             )
                             proj_item['participants'] = updated_parts
-                            print(f"[list_projects] Invitado {inv_email_norm} añadido a participants de {pid}")
+                            print(f"[list_projects] Invited user {inv_email_norm} added to participants of {pid}")
                     except Exception as e:
-                        print(f"[list_projects] No se pudo añadir invitado a participants de {pid}: {e}")
+                        print(f"[list_projects] Could not add invited user to participants of {pid}: {e}")
                     invited_projects.append(proj_item)
                     seen_proj_ids.add(pid)
         except Exception as e:
-            print(f"[list_projects] Error consultando invitaciones: {e}")
+            print(f"[list_projects] Error querying invitations: {e}")
 
     projects = own_projects + shared_projects + invited_projects
 
-    # FIX (#23): el filtro previo Attr('userId').eq(uid) ocultaba las
-    # tareas e insights de proyectos donde el usuario es shared o invited.
-    # Las tareas/insights persistidos llevan userId = owner del proyecto
-    # (no del usuario que las consulta), así un invitado nunca matcheaba y
-    # veía los proyectos correctos pero vacíos de tareas/insights.
+    # FIX (#23): the previous filter Attr('userId').eq(uid) hid tasks and
+    # insights for projects where the user is shared or invited.
+    # Persisted tasks/insights carry userId = project owner (not the
+    # querying user), so an invited user never matched and saw the correct
+    # projects but empty of tasks/insights.
     #
-    # Solución: scan completo y filtro client-side por projectId ∈ proyectos
-    # accesibles. La autorización ya se hizo arriba (own + shared + invited):
-    # ese set define exactamente qué puede ver, y aplicarlo aquí garantiza
-    # que NUNCA caigan tareas de proyectos sin acceso.
-    # Coste: mismo scan completo que antes; DynamoDB aplicaba el filtro
-    # POST-scan internamente, así que el cambio no es más lento en práctica.
+    # Solution: full scan and client-side filter by projectId ∈ accessible
+    # projects. Authorization already ran above (own + shared + invited):
+    # that set defines exactly what they can see, and applying it here
+    # guarantees NO tasks from inaccessible projects sneak through.
+    # Cost: same full scan as before; DynamoDB was applying the filter
+    # POST-scan internally, so in practice this change is not slower.
     accessible_pids = {p['projectId'] for p in projects}
 
     all_tasks_raw = scan_all_pages(tasks_table)
@@ -185,7 +244,7 @@ def list_projects(uid: str, user_email: str) -> list:
     for proj in projects:
         pid = proj['projectId']
 
-        # Tareas de este proyecto
+        # Tasks for this project
         proj_tasks = [t for t in all_tasks if t.get('projectId') == pid]
         done = len([t for t in proj_tasks if t.get('status') == 'done'])
         pending = len([t for t in proj_tasks if t.get('status') == 'pending'])
@@ -193,27 +252,27 @@ def list_projects(uid: str, user_email: str) -> list:
         total = len(proj_tasks)
 
         # =====================================================
-        # CÁLCULO DE % DE AVANCE CON LÓGICA DE BLOQUEOS CRÍTICOS
+        # PROGRESS % CALCULATION WITH CRITICAL BLOCKING LOGIC
         # =====================================================
-        # Bloqueos críticos que fuerzan progress=0:
-        #   - Sin participantes en el proyecto
-        #   - Más bloqueos que tareas hechas (proyecto atascado)
-        # Si hay bloqueos pero también progreso, el % se penaliza.
-        # Si todo está OK, cálculo normal.
+        # Critical blockers that force progress=0:
+        #   - No participants on the project
+        #   - More blockers than done tasks (project stuck)
+        # If there are blockers but also progress, the % is penalized.
+        # If everything is OK, normal calculation.
         participants_list = proj.get('participants', [])
         no_participants = len(participants_list) == 0
-        project_stuck = blocked > 0 and blocked >= done  # más bloqueos que avance real
+        project_stuck = blocked > 0 and blocked >= done  # more blockers than actual progress
         progress_blocked_reason = ''
 
         if total == 0:
             progress = 0
         elif no_participants and total > 0:
             progress = 0
-            progress_blocked_reason = 'Sin participantes asignados'
+            progress_blocked_reason = 'No participants assigned'
         elif project_stuck:
-            # Proyecto atascado: calculamos avance pero lo penalizamos a la mitad
+            # Project stuck: compute progress but penalize it by half
             progress = max(0, round((done / total) * 100 * 0.5))
-            progress_blocked_reason = f'{blocked} tarea(s) bloqueada(s) frenan el avance'
+            progress_blocked_reason = f'{blocked} blocked task(s) are stopping progress'
         else:
             progress = round((done / total) * 100)
 
@@ -221,40 +280,37 @@ def list_projects(uid: str, user_email: str) -> list:
 
         overdue = [t for t in proj_tasks
                    if t.get('status') == 'pending' and t.get('dueDate', '') and t.get('dueDate', '') < today]
-        # Lógica SLA mejorada: considerar también la falta de participantes
+        # Improved SLA logic: also consider lack of participants
         if no_participants and total > 0:
-            sla = 'sla_vencido'  # Crítico: tareas pero sin equipo
+            sla = 'sla_overdue'  # Critical: tasks but no team
         elif blocked >= 2 or len(overdue) >= 2:
-            sla = 'sla_vencido'
+            sla = 'sla_overdue'
         elif blocked > 0 or len(overdue) > 0:
-            sla = 'en_riesgo'
+            sla = 'at_risk'
         else:
             sla = 'on_track'
 
         participants = proj.get('participants', [])
         team = []
-        for i, p in enumerate(participants):
-            nombre = p.get('nombre', str(p)) if isinstance(p, dict) else str(p)
-            rol = p.get('rol', 'Miembro') if isinstance(p, dict) else 'Miembro'
-            email = p.get('email', '') if isinstance(p, dict) else ''
-            telefono = p.get('telefono', '') if isinstance(p, dict) else ''
-            tareas_count = len([t for t in proj_tasks if t.get('assignedTo', '') == nombre])
+        for i, p in enumerate(normalize_participants(participants)):
+            name = p['name']
+            task_count = len([t for t in proj_tasks if t.get('assignedTo', '') == name])
             team.append({
-                'nombre': nombre,
-                'iniciales': iniciales(nombre),
-                'rol': rol,
-                'email': email,
-                'telefono': telefono,
+                'name': name or p['email'] or p['phone'],
+                'initials': initials(name),
+                'role': p['role'] or 'Member',
+                'email': p['email'],
+                'phone': p['phone'],
                 'color': TEAM_COLORS[i % len(TEAM_COLORS)],
-                'tareas': tareas_count,
+                'tasks': task_count,
             })
 
         raw_channels = proj.get('channels', [])
         channels = []
         for ch in raw_channels:
-            ch_name = ch if isinstance(ch, str) else ch.get('nombre', '')
+            ch_name = ch if isinstance(ch, str) else ch.get('name', '')
             channels.append({
-                'nombre': ch_name,
+                'name': ch_name,
                 'icon': channel_icon(ch_name),
                 'lastActivity': '',
                 'unread': 0,
@@ -285,22 +341,22 @@ def list_projects(uid: str, user_email: str) -> list:
 
         tasks_list = []
         for t in proj_tasks:
-            assigned = t.get('assignedTo', '') or 'Sin asignar'
-            # El ESTADO de la tarea es un campo propio (status), NO un tag.
-            # No lo metemos en tags para evitar la redundancia "Pendiente: Completada"
-            # (el frontend ya pinta el estado como badge a partir de status).
-            # tags solo lleva etiquetas reales: recordatorio, vencida.
+            assigned = t.get('assignedTo', '') or 'Unassigned'
+            # The task STATUS is its own field (status), NOT a tag.
+            # We do not put it in tags to avoid the "Pending: Completed"
+            # redundancy (the frontend already paints the state as a badge
+            # from status). tags only carries real labels: reminder, overdue.
             is_overdue = bool(
                 t.get('dueDate', '') and t.get('dueDate', '') < today
                 and t.get('status') == 'pending'
             )
             tags = []
             if t.get('type') == 'reminder':
-                tags.append('Recordatorio')
+                tags.append('Reminder')
             if is_overdue:
-                tags.append('Vencida')
+                tags.append('Overdue')
 
-            # Contar subtareas hijas de esta task (si las tiene)
+            # Count child subtasks of this task (if any)
             children = [c for c in proj_tasks if c.get('parentTaskId', '') == t.get('taskId', '')]
             children_done = len([c for c in children if c.get('status') == 'done'])
             tasks_list.append({
@@ -316,18 +372,18 @@ def list_projects(uid: str, user_email: str) -> list:
                 'subtasksCount': len(children),
                 'subtasksDone': children_done,
                 'assignedTo': {
-                    'nombre': assigned,
-                    'iniciales': iniciales(assigned),
+                    'name': assigned,
+                    'initials': initials(assigned),
                     'color': 'from-violet-500 to-indigo-600',
                 },
                 'tags': tags,
             })
 
-        # ¿El usuario logueado es el dueño de este proyecto?
-        # Sirve para que el frontend oculte acciones owner-only
-        # (eliminar, invitar, añadir/quitar participantes) a invitados.
+        # Is the logged-in user the owner of this project?
+        # Used so the frontend can hide owner-only actions
+        # (delete, invite, add/remove participants) from invited users.
         is_owner = proj.get('userId') == uid
-        # Si NO es owner, ¿cómo entró? (sharedByEmail o invited)
+        # If NOT owner, how did they get in? (sharedByEmail or invited)
         role = 'owner' if is_owner else ('invitedByEmail' if proj.get('_shared') else ('invitedByLink' if proj.get('_invited') else 'collaborator'))
 
         enriched.append({
@@ -337,45 +393,45 @@ def list_projects(uid: str, user_email: str) -> list:
             'description': proj.get('description', ''),
             'status': proj.get('status', 'active'),
             'sla': sla,
-            'type': proj.get('type', 'Otro'),
+            'type': proj.get('type', 'Other'),
             'deliveryDate': proj.get('deliveryDate', ''),
             'timing': proj.get('timing', ''),
             'daysLeft': 0,
             'progress': progress,
             'progressBlockedReason': progress_blocked_reason,
-            'hechas': done,
-            'pendientes': pending,
-            'bloqueadas': blocked,
-            'mensajesIA': len(proj_insights),
+            'done': done,
+            'pending': pending,
+            'blocked': blocked,
+            'aiMessages': len(proj_insights),
             'lastAction': last_action,
             'team': team,
             'channels': channels,
-            'etiquetas': [],
+            'labels': [],
             'slaMetrics': {
-                'respuestaCliente': '-',
-                'tareasResponsable': 0,
-                'respuestaPartner': '-',
-                'tareasBlockeadas24h': blocked,
+                'clientResponse': '-',
+                'unassignedTasks': 0,
+                'partnerResponse': '-',
+                'tasksBlocked24h': blocked,
             },
             'startDate': proj.get('createdAt', '')[:10],
             'tasks': tasks_list,
             'aiActions': ai_actions,
             'notifications': [],
-            # === Permisos para el frontend ===
+            # === Permissions for the frontend ===
             'isOwner': is_owner,
             'role': role,
         })
 
-    # Ordenar: activos primero, luego por nombre
+    # Order: active first, then by name
     enriched.sort(key=lambda p: (0 if p['status'] == 'active' else 1, p['name']))
     return enriched
 
 
 def get_project_detail(uid: str, project_id: str) -> dict:
-    """Obtiene un proyecto específico con todos sus datos."""
+    """Get a specific project with all its data."""
     proj_result = projects_table.get_item(Key={'projectId': project_id})
     if 'Item' not in proj_result:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        raise HTTPException(status_code=404, detail="Project not found")
     proj = proj_result['Item']
 
     tasks_result = tasks_table.scan(
@@ -417,8 +473,8 @@ def get_project_detail(uid: str, project_id: str) -> dict:
 
 def create_project(uid: str, name: str, description: str, project_type: str,
                    channels, participants, timing: str, delivery_date: str) -> dict:
-    """Crea un nuevo proyecto con análisis IA, notificaciones e insights.
-    Usa la función compartida `create_project_full` (también usada por el flujo de WhatsApp)."""
+    """Create a new project with AI analysis, notifications and insights.
+    Uses the shared `create_project_full` function (also used by the WhatsApp flow)."""
     from agent.project_helpers import create_project_full
     return create_project_full(
         user_id=uid,
@@ -426,37 +482,40 @@ def create_project(uid: str, name: str, description: str, project_type: str,
         description=description,
         project_type=project_type,
         channels=channels,
-        participants=participants,
+        # Normalized at the WRITE boundary too, not only on read: the catalog
+        # documents {name, email, role, phone} but nothing enforced it, and
+        # what the model happens to emit became the stored schema.
+        participants=normalize_participants(participants),
         timing=timing or '',
         delivery_date=delivery_date or ''
     )
 
 
 def update_project(uid: str, project_id: str, updates: dict) -> dict:
-    """Edita campos permitidos de un proyecto. Solo el owner puede editar.
+    """Edit allowed fields on a project. Only the owner can edit.
 
-    Campos válidos: name, description, type, status, deliveryDate, timing.
-    Todo lo demás se ignora (silenciosamente, sin raise) para no romper al
-    frontend si evoluciona el schema.
+    Valid fields: name, description, type, status, deliveryDate, timing.
+    Anything else is ignored (silently, without raising) so we do not break
+    the frontend if the schema evolves.
     """
     ALLOWED = {'name', 'description', 'type', 'status', 'deliveryDate', 'timing'}
     filtered = {k: v for k, v in (updates or {}).items() if k in ALLOWED}
     if not filtered:
-        raise HTTPException(status_code=400, detail="No hay campos válidos para actualizar")
+        raise HTTPException(status_code=400, detail="No valid fields to update")
 
-    # Validar status contra el set permitido (evita meter basura en DDB).
+    # Validate status against the allowed set (avoid junk in DDB).
     if 'status' in filtered and filtered['status'] not in ('active', 'paused', 'finished'):
-        raise HTTPException(status_code=400, detail=f"status inválido: {filtered['status']}")
+        raise HTTPException(status_code=400, detail=f"invalid status: {filtered['status']}")
 
-    # Verificar propiedad + existencia antes de intentar el update
+    # Check ownership + existence before trying the update
     proj = projects_table.get_item(Key={'projectId': project_id}).get('Item')
     if not proj:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        raise HTTPException(status_code=404, detail="Project not found")
     if proj.get('userId') != uid:
-        raise HTTPException(status_code=403, detail="Solo el dueño puede editar este proyecto")
+        raise HTTPException(status_code=403, detail="Only the owner can edit this project")
 
-    # Construir UpdateExpression dinámicamente. Usamos ExpressionAttributeNames
-    # porque `name`, `status`, `type` son palabras reservadas en DDB.
+    # Build UpdateExpression dynamically. Use ExpressionAttributeNames because
+    # `name`, `status`, `type` are reserved words in DDB.
     set_parts = []
     ean = {}
     eav = {}
@@ -476,11 +535,11 @@ def update_project(uid: str, project_id: str, updates: dict) -> dict:
 
 
 def update_participants(uid: str, project_id: str, participants: list) -> dict:
-    """Actualiza los participantes de un proyecto (incluye teléfonos)."""
+    """Update a project's participants (includes phones)."""
     projects_table.update_item(
         Key={'projectId': project_id},
         UpdateExpression="SET participants = :p",
-        ExpressionAttributeValues={':p': participants},
+        ExpressionAttributeValues={':p': normalize_participants(participants)},
         ConditionExpression=Attr('userId').eq(uid)
     )
     return {"success": True, "projectId": project_id}
@@ -488,57 +547,57 @@ def update_participants(uid: str, project_id: str, participants: list) -> dict:
 
 def invite_user(uid: str, project_id: str, email: str = '', phone: str = '',
                 name: str = '', role: str = '', send_notification: bool = True) -> dict:
-    """Añade una persona al equipo del proyecto. Acepta email y/o teléfono.
+    """Add a person to the project team. Accepts email and/or phone.
 
-    - Si viene email + send_notification=True: crea usuario en Cognito (le manda
-      email con contraseña temporal) y guarda invitación pendiente.
-    - Si viene teléfono + send_notification=True: manda mensaje de WhatsApp via
-      Twilio avisando que fue añadido al proyecto.
-    - En todos los casos: registra el contacto en participants[] del proyecto.
-    - Si send_notification=False: solo registra el contacto, sin notificar.
+    - If email + send_notification=True: creates a user in Cognito (sends
+      email with temporary password) and stores a pending invitation.
+    - If phone + send_notification=True: sends a WhatsApp message via
+      Twilio notifying that they were added to the project.
+    - In every case: records the contact in the project's participants[].
+    - If send_notification=False: only records the contact, without notifying.
 
-    Reglas: requiere al menos email O teléfono. Si solo viene teléfono, NO crea
-    cuenta en Cognito (no podríamos autenticar a alguien solo con número).
+    Rules: requires at least email OR phone. If only a phone is provided, does
+    NOT create a Cognito account (we cannot authenticate someone with just a number).
     """
-    from agent.tools import enviar_notificacion, set_current_user, _normalize_e164
+    from agent.tools import send_notification, set_current_user, _normalize_e164
 
     email = (email or '').strip().lower()
     phone_raw = (phone or '').strip()
     name = (name or '').strip()
-    role = (role or 'Invitado').strip()
+    role = (role or 'Invited').strip()
     send_notification = send_notification if send_notification is not None else True
 
-    # Validar al menos un canal
+    # Require at least one channel
     if not email and not phone_raw:
-        raise HTTPException(status_code=400, detail="Se requiere email o teléfono")
+        raise HTTPException(status_code=400, detail="Email or phone required")
     if email and '@' not in email:
-        raise HTTPException(status_code=400, detail="Email inválido")
+        raise HTTPException(status_code=400, detail="Invalid email")
 
-    # Validar teléfono si viene
+    # Validate phone if provided
     phone = ''
     if phone_raw:
         phone = _normalize_e164(phone_raw) or ''
         if not phone:
-            raise HTTPException(status_code=400, detail=f"Teléfono inválido: '{phone_raw}'. Usa formato E.164 (+34600000000)")
+            raise HTTPException(status_code=400, detail=f"Invalid phone: '{phone_raw}'. Use E.164 format (+34600000000)")
 
-    # Verificar que el proyecto pertenece al usuario
+    # Check that the project belongs to the user
     proj = projects_table.get_item(Key={'projectId': project_id}).get('Item')
     if not proj:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        raise HTTPException(status_code=404, detail="Project not found")
     if proj.get('userId') != uid:
-        raise HTTPException(status_code=403, detail="No tienes permiso sobre este proyecto")
+        raise HTTPException(status_code=403, detail="You do not have permission on this project")
 
-    # 1) AÑADIR/ACTUALIZAR EN participants[] DEL PROYECTO
+    # 1) ADD/UPDATE THE PROJECT'S participants[]
     # ────────────────────────────────────────────────────
-    # Match por email si viene, sino por teléfono. Si ya existe, actualizamos.
-    # Si no, lo añadimos.
+    # Match by email if provided, otherwise by phone. If it already exists, update.
+    # If not, add it.
     current_parts = proj.get('participants', []) or []
     existing_idx = None
     for i, p in enumerate(current_parts):
         if not isinstance(p, dict):
             continue
         p_email = (p.get('email', '') or '').strip().lower()
-        p_phone = (p.get('telefono', '') or '').strip()
+        p_phone = (p.get('phone', '') or '').strip()
         if email and p_email == email:
             existing_idx = i
             break
@@ -547,13 +606,13 @@ def invite_user(uid: str, project_id: str, email: str = '', phone: str = '',
             break
     derived_name = name or (email.split('@')[0] if email else phone)
     new_part = {
-        'nombre': derived_name,
+        'name': derived_name,
         'email': email,
-        'telefono': phone,
-        'rol': role,
+        'phone': phone,
+        'role': role,
     }
     if existing_idx is not None:
-        # Merge: no sobreescribir campos llenos con vacíos
+        # Merge: do not overwrite non-empty fields with empty ones
         current = current_parts[existing_idx]
         for k, v in new_part.items():
             if v:
@@ -568,57 +627,57 @@ def invite_user(uid: str, project_id: str, email: str = '', phone: str = '',
             ExpressionAttributeValues={':p': current_parts},
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error guardando participante: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error saving participant: {str(e)}")
 
-    # Si NO hay que notificar, terminamos acá (solo se registró el contacto)
+    # If we should NOT notify, we finish here (only the contact was recorded)
     if not send_notification:
         return {
             "success": True,
             "saved": True,
             "notified": False,
-            "message": "Contacto añadido al proyecto sin notificación.",
+            "message": "Contact added to the project without notification.",
         }
 
-    # 2) ENVÍO DE NOTIFICACIONES (email y/o WhatsApp)
+    # 2) SEND NOTIFICATIONS (email and/or WhatsApp)
     # ───────────────────────────────────────────────
     notify_email_result = None
     notify_whatsapp_result = None
 
-    # 2a) Email: crea usuario en Cognito (si no existe) y guarda invitación
+    # 2a) Email: create user in Cognito (if not present) and store the invitation
     if email:
         notify_email_result = _invite_by_email(
             email=email, uid=uid, project_id=project_id,
             project_name=proj.get('name', ''),
         )
 
-    # 2b) WhatsApp: solo notificación, NO crea cuenta.
-    # El mensaje cambia según si también se envió un email:
-    #  - Con email: le decimos que revise su correo para el link de acceso.
-    #  - Sin email: solo aviso de notificación; sin email no puede entrar a la web.
+    # 2b) WhatsApp: notification only, does NOT create an account.
+    # The message changes depending on whether an email was also sent:
+    #  - With email: tell them to check their email for the access link.
+    #  - Without email: just an FYI notification; without email they cannot enter the web.
     if phone:
-        # Necesitamos contexto de usuario para que la tool registre la notif
+        # We need a user context so the tool can record the notif
         set_current_user(uid, "")
-        project_name = proj.get('name', 'tu proyecto')
+        project_name = proj.get('name', 'your project')
         email_was_sent = bool(
             email
             and notify_email_result
             and notify_email_result.get('success') is not False
         )
         if email_was_sent:
-            mensaje = (
-                f"Hola {derived_name}, te añadieron al proyecto *{project_name}* en OneBox. "
-                f"Te enviamos un correo a {email} con el enlace para registrarte y acceder a la plataforma. "
-                f"Después de entrar te avisaremos por aquí de tareas bloqueadas y novedades importantes."
+            message = (
+                f"Hi {derived_name}, you were added to the *{project_name}* project on OneBox. "
+                f"We sent an email to {email} with a link to sign up and access the platform. "
+                f"Once you're in we'll keep you posted here about blocked tasks and important updates."
             )
         else:
-            mensaje = (
-                f"Hola {derived_name}, te añadieron al proyecto *{project_name}* en OneBox. "
-                f"Te avisaremos por aquí de tareas bloqueadas y novedades importantes del proyecto."
+            message = (
+                f"Hi {derived_name}, you were added to the *{project_name}* project on OneBox. "
+                f"We'll notify you here about blocked tasks and important project updates."
             )
-        notify_whatsapp_result = enviar_notificacion(
-            destinatario=phone,
-            mensaje=mensaje,
-            canal='whatsapp',
+        notify_whatsapp_result = send_notification(
+            recipient=phone,
+            message=message,
+            channel='whatsapp',
             project_id=project_id,
             project_name=project_name,
         )
@@ -633,29 +692,29 @@ def invite_user(uid: str, project_id: str, email: str = '', phone: str = '',
 
 
 def _invite_by_email(email: str, uid: str, project_id: str, project_name: str) -> dict:
-    """Helper: lógica de invitación por email (Cognito silencioso + email custom via SES).
+    """Helper: email invitation logic (silent Cognito + custom email via SES).
 
-    Diseño:
-      - Cognito se usa SOLO para pre-crear la identidad (así el trigger
-        pre-signup puede auto-vincular cuando la persona se loguee por Google).
-        NO se envía el correo con contraseña temporal — la mayoría de los
-        invitados entran por Google y esa contraseña les confunde.
-      - El único correo que recibe la persona es uno custom via SES con el
-        link para "Entrar con Google" a la app.
+    Design:
+      - Cognito is used ONLY to pre-create the identity (so the pre-signup
+        trigger can auto-link when the person logs in via Google).
+        The email with the temporary password is NOT sent — most invited
+        users enter via Google and that password confuses them.
+      - The only email the person receives is a custom one via SES with
+        the link to "Sign in with Google" into the app.
 
-    Devuelve dict en vez de raise para que el endpoint pueda combinar email +
-    WhatsApp en una sola respuesta.
+    Returns a dict instead of raising so the endpoint can combine email +
+    WhatsApp in a single response.
     """
-    from agent.tools import enviar_notificacion, set_current_user
+    from agent.tools import send_notification, set_current_user
 
     cognito_client = boto3.client('cognito-idp', region_name='us-east-1')
     pool_id = os.environ.get('COGNITO_USER_POOL_ID', 'us-east-1_b76prubhx')
     cognito_user_existed = False
     user_status = None
     try:
-        # SUPPRESS: crea el user en Cognito pero NO manda ningún correo.
-        # Sin esto, Cognito le manda la contraseña temporal a todos aunque la
-        # gente vaya a entrar por Google.
+        # SUPPRESS: creates the user in Cognito but sends NO email.
+        # Without this, Cognito sends the temporary password to everyone even
+        # if they will sign in via Google.
         cognito_client.admin_create_user(
             UserPoolId=pool_id,
             Username=email,
@@ -671,11 +730,11 @@ def _invite_by_email(email: str, uid: str, project_id: str, project_name: str) -
             u = cognito_client.admin_get_user(UserPoolId=pool_id, Username=email)
             user_status = u.get('UserStatus')
         except Exception as inner:
-            print(f"[invite] admin_get_user falló para {email}: {inner}")
+            print(f"[invite] admin_get_user failed for {email}: {inner}")
     except Exception as e:
         return {"success": False, "error": f"Cognito error: {str(e)}"}
 
-    # Guardar invitación (pendiente). Si ya estaba aceptada, no duplicamos.
+    # Save the invitation (pending). If already accepted, do not duplicate.
     now = datetime.utcnow().isoformat()
     invitation_id = str(uuid.uuid4())
     try:
@@ -691,38 +750,38 @@ def _invite_by_email(email: str, uid: str, project_id: str, project_name: str) -
     except Exception as e:
         return {"success": False, "error": f"DynamoDB error: {str(e)}"}
 
-    # Enviar email custom con el link — mismo tono personal para todos los
-    # casos (nuevo, existente, Google, etc.). Al hacer login, el endpoint
-    # /api/projects auto-acepta la invitación por email.
-    share_url = f"https://www.oneboxmanager.com/?proyecto={project_id}"
-    mensaje = (
-        f"Hola,\n\n"
-        f"Te añadieron al proyecto \"{project_name}\" en OneBox.\n\n"
-        f"Para entrar iniciá sesión con Google (o con tu correo si ya tenías cuenta) "
-        f"desde este enlace:\n{share_url}\n\n"
-        f"Cuando entres, el proyecto aparece automáticamente en tu lista.\n\n"
+    # Send the custom email with the link — same personal tone for every
+    # case (new, existing, Google, etc.). On login, the /api/projects
+    # endpoint auto-accepts the invitation by email.
+    share_url = f"https://www.oneboxmanager.com/?project={project_id}"
+    message = (
+        f"Hi,\n\n"
+        f"You were added to the \"{project_name}\" project on OneBox.\n\n"
+        f"To get in, sign in with Google (or with your email if you already had an account) "
+        f"from this link:\n{share_url}\n\n"
+        f"Once you're in, the project shows up automatically in your list.\n\n"
         f"— OneBox"
     )
     try:
-        # enviar_notificacion registra la notif en la tabla y llama a SES.
-        # Requiere que el user actual esté seteado (para logs multi-tenant).
+        # send_notification records the notif in the table and calls SES.
+        # Requires the current user to be set (for multi-tenant logs).
         set_current_user(uid, "")
-        enviar_notificacion(
-            email, mensaje, canal='email',
+        send_notification(
+            email, message, channel='email',
             project_id=project_id, project_name=project_name,
         )
-        print(f"[invite] email custom enviado a {email} para {project_id}")
+        print(f"[invite] custom email sent to {email} for {project_id}")
     except Exception as e:
-        print(f"[invite] fallo al enviar email custom a {email}: {e}")
+        print(f"[invite] failed to send custom email to {email}: {e}")
 
     if not cognito_user_existed:
-        msg = "Invitación enviada. La persona recibirá un correo con el enlace para entrar."
+        msg = "Invitation sent. The person will receive an email with the link to enter."
     elif user_status == 'FORCE_CHANGE_PASSWORD':
-        msg = "La persona ya tenía cuenta pendiente. Le reenviamos el enlace."
+        msg = "The person already had a pending account. We resent the link."
     elif user_status == 'CONFIRMED':
-        msg = "La persona ya tiene cuenta activa. Le enviamos el enlace del proyecto."
+        msg = "The person already has an active account. We sent them the project link."
     else:
-        msg = "La persona ya está registrada. Le enviamos el enlace del proyecto."
+        msg = "The person is already registered. We sent them the project link."
 
     return {
         "success": True,
@@ -732,39 +791,39 @@ def _invite_by_email(email: str, uid: str, project_id: str, project_name: str) -
         "emailResent": False,
         "userStatus": user_status,
         "message": msg,
-        # share_url: link directo al proyecto. El backend siempre manda su
-        # propio email con este link, pero el frontend lo devuelve por si el
-        # owner quiere copiarlo y compartirlo por otro canal.
+        # share_url: direct link to the project. The backend always sends its
+        # own email with this link, but the frontend returns it in case the
+        # owner wants to copy it and share via another channel.
         "share_url": share_url,
         "needs_manual_share": False,
     }
 
 
 def remove_participant(uid: str, project_id: str, email: str = '', phone: str = '', name: str = '') -> dict:
-    """Elimina un participante del equipo del proyecto.
+    """Remove a participant from the project team.
 
-    Comportamiento (decisiones del producto):
-      1. Lo saca de participants[] del proyecto.
-      2. Vacía assignedTo de TODAS las tareas del proyecto asignadas a esa
-         persona → quedan como 'Sin asignar' (no se borran).
-      3. Si existía invitación en onebox-invitations por su email para este
-         proyecto, la borra → pierde el acceso si era invitada.
-      4. NO envía notificación al eliminado.
+    Behavior (product decisions):
+      1. Takes them out of the project's participants[].
+      2. Clears assignedTo on ALL project tasks assigned to that person
+         → they become 'Unassigned' (they are not deleted).
+      3. If there was an invitation in onebox-invitations for their email
+         on this project, delete it → they lose access if they were invited.
+      4. Does NOT send a notification to the removed person.
 
-    Solo el owner del proyecto puede eliminar participantes (RBAC).
+    Only the project owner can remove participants (RBAC).
     """
     proj = projects_table.get_item(Key={'projectId': project_id}).get('Item')
     if not proj:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        raise HTTPException(status_code=404, detail="Project not found")
     if proj.get('userId') != uid:
-        raise HTTPException(status_code=403, detail="Solo el dueño puede eliminar participantes")
+        raise HTTPException(status_code=403, detail="Only the owner can remove participants")
 
-    # Buscar al participante por email > phone > name
+    # Look up the participant by email > phone > name
     target_email = (email or '').strip().lower()
     target_phone = (phone or '').strip()
     target_name = (name or '').strip()
     if not (target_email or target_phone or target_name):
-        raise HTTPException(status_code=400, detail="Indica email, phone o name del participante a eliminar")
+        raise HTTPException(status_code=400, detail="Provide email, phone or name of the participant to remove")
 
     parts = proj.get('participants', []) or []
     target_idx = None
@@ -772,8 +831,8 @@ def remove_participant(uid: str, project_id: str, email: str = '', phone: str = 
         if not isinstance(p, dict):
             continue
         p_email = (p.get('email', '') or '').strip().lower()
-        p_phone = (p.get('telefono', '') or '').strip()
-        p_name = (p.get('nombre', '') or '').strip()
+        p_phone = (p.get('phone', '') or '').strip()
+        p_name = (p.get('name', '') or '').strip()
         if target_email and p_email == target_email:
             target_idx = i
             break
@@ -785,9 +844,9 @@ def remove_participant(uid: str, project_id: str, email: str = '', phone: str = 
             break
 
     if target_idx is None:
-        raise HTTPException(status_code=404, detail="Participante no encontrado")
+        raise HTTPException(status_code=404, detail="Participant not found")
 
-    # 1) Quitar de participants[]
+    # 1) Remove from participants[]
     removed = parts.pop(target_idx)
     try:
         projects_table.update_item(
@@ -796,11 +855,11 @@ def remove_participant(uid: str, project_id: str, email: str = '', phone: str = 
             ExpressionAttributeValues={':p': parts},
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error actualizando proyecto: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error updating project: {str(e)}")
 
-    # 2) Vaciar assignedTo de sus tareas en este proyecto
+    # 2) Clear assignedTo on their tasks in this project
     tasks_orphaned = 0
-    removed_name = (removed.get('nombre', '') or '').strip()
+    removed_name = (removed.get('name', '') or '').strip()
     if removed_name:
         try:
             tres = tasks_table.scan(
@@ -814,9 +873,9 @@ def remove_participant(uid: str, project_id: str, email: str = '', phone: str = 
                 )
                 tasks_orphaned += 1
         except Exception as e:
-            print(f"[remove_participant] error vaciando assignedTo de tareas: {e}")
+            print(f"[remove_participant] error clearing assignedTo on tasks: {e}")
 
-    # 3) Borrar invitaciones del removido para este proyecto (pierde acceso)
+    # 3) Delete the removed user's invitations for this project (loses access)
     invitations_revoked = 0
     removed_email = (removed.get('email', '') or '').strip().lower()
     if removed_email:
@@ -830,14 +889,14 @@ def remove_participant(uid: str, project_id: str, email: str = '', phone: str = 
                     invitations_table.delete_item(Key={'invitationId': inv['invitationId']})
                     invitations_revoked += 1
         except Exception as e:
-            print(f"[remove_participant] error borrando invitaciones: {e}")
+            print(f"[remove_participant] error deleting invitations: {e}")
 
     return {
         "success": True,
         "removed": {
-            "nombre": removed.get('nombre', ''),
+            "name": removed.get('name', ''),
             "email": removed_email,
-            "telefono": removed.get('telefono', ''),
+            "phone": removed.get('phone', ''),
         },
         "tasksOrphaned": tasks_orphaned,
         "invitationsRevoked": invitations_revoked,
@@ -845,21 +904,21 @@ def remove_participant(uid: str, project_id: str, email: str = '', phone: str = 
 
 
 def delete_project(uid: str, project_id: str) -> dict:
-    """Elimina un proyecto y sus datos relacionados (insights, notificaciones, tareas)."""
-    # Verificar que el proyecto pertenece al usuario
+    """Delete a project and its related data (insights, notifications, tasks)."""
+    # Check that the project belongs to the user
     existing = projects_table.get_item(Key={'projectId': project_id}).get('Item')
     if not existing:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        raise HTTPException(status_code=404, detail="Project not found")
     if existing.get('userId') != uid:
-        raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este proyecto")
+        raise HTTPException(status_code=403, detail="You do not have permission to delete this project")
 
-    project_name = existing.get('name', 'Proyecto')
+    project_name = existing.get('name', 'Project')
 
-    # Eliminar el proyecto
+    # Delete the project
     projects_table.delete_item(Key={'projectId': project_id})
-    print(f"[delete_project] Proyecto {project_id} eliminado")
+    print(f"[delete_project] Project {project_id} deleted")
 
-    # Eliminar insights asociados
+    # Delete associated insights
     try:
         insights_to_delete = insights_table.scan(
             FilterExpression=Attr('userId').eq(uid) & Attr('projectId').eq(project_id),
@@ -867,11 +926,11 @@ def delete_project(uid: str, project_id: str) -> dict:
         ).get('Items', [])
         for ins in insights_to_delete:
             insights_table.delete_item(Key={'userId': ins['userId'], 'insightId': ins['insightId']})
-        print(f"[delete_project] {len(insights_to_delete)} insights eliminados")
+        print(f"[delete_project] {len(insights_to_delete)} insights deleted")
     except Exception as e:
-        print(f"[delete_project] Error borrando insights: {e}")
+        print(f"[delete_project] Error deleting insights: {e}")
 
-    # Eliminar notificaciones asociadas
+    # Delete associated notifications
     try:
         notifs_to_delete = notifications_table.query(
             KeyConditionExpression=Key('userId').eq(uid),
@@ -880,11 +939,11 @@ def delete_project(uid: str, project_id: str) -> dict:
         ).get('Items', [])
         for n in notifs_to_delete:
             notifications_table.delete_item(Key={'userId': n['userId'], 'notificationId': n['notificationId']})
-        print(f"[delete_project] {len(notifs_to_delete)} notificaciones eliminadas")
+        print(f"[delete_project] {len(notifs_to_delete)} notifications deleted")
     except Exception as e:
-        print(f"[delete_project] Error borrando notificaciones: {e}")
+        print(f"[delete_project] Error deleting notifications: {e}")
 
-    # Eliminar tareas asociadas
+    # Delete associated tasks
     try:
         tasks_to_delete = tasks_table.query(
             KeyConditionExpression=Key('projectId').eq(project_id),
@@ -892,8 +951,8 @@ def delete_project(uid: str, project_id: str) -> dict:
         ).get('Items', [])
         for t in tasks_to_delete:
             tasks_table.delete_item(Key={'projectId': t['projectId'], 'taskId': t['taskId']})
-        print(f"[delete_project] {len(tasks_to_delete)} tareas eliminadas")
+        print(f"[delete_project] {len(tasks_to_delete)} tasks deleted")
     except Exception as e:
-        print(f"[delete_project] Error borrando tareas: {e}")
+        print(f"[delete_project] Error deleting tasks: {e}")
 
     return {"success": True, "projectId": project_id, "name": project_name}

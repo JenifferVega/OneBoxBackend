@@ -1,4 +1,4 @@
-"""Lógica interna de teléfonos vinculados (WhatsApp ↔ usuario Cognito)."""
+"""Linked phones internal logic (WhatsApp ↔ Cognito user)."""
 from datetime import datetime
 
 from boto3.dynamodb.conditions import Attr
@@ -7,7 +7,7 @@ from api.deps import user_phones_table
 
 
 def link_phone(uid: str, phone_number: str, email: str, name: str) -> dict:
-    """Vincula un número de WhatsApp con el usuario autenticado."""
+    """Link a WhatsApp number to the authenticated user."""
     phone = phone_number.strip()
     if not phone.startswith('+'):
         phone = '+' + phone
@@ -23,7 +23,7 @@ def link_phone(uid: str, phone_number: str, email: str, name: str) -> dict:
 
 
 def get_user_phone(uid: str) -> dict:
-    """Obtiene el teléfono vinculado del usuario."""
+    """Get the user's linked phone."""
     result = user_phones_table.scan(
         FilterExpression=Attr('userId').eq(uid)
     )
@@ -34,7 +34,7 @@ def get_user_phone(uid: str) -> dict:
 
 
 def get_user_phones(uid: str) -> dict:
-    """Obtiene todos los teléfonos de WhatsApp vinculados del usuario."""
+    """Get all of the user's linked WhatsApp phones."""
     result = user_phones_table.scan(
         FilterExpression=Attr('userId').eq(uid)
     )
@@ -52,7 +52,7 @@ def get_user_phones(uid: str) -> dict:
 
 
 def unlink_phone(uid: str) -> dict:
-    """Desvincula el teléfono del usuario."""
+    """Unlink the user's phone."""
     result = user_phones_table.scan(
         FilterExpression=Attr('userId').eq(uid)
     )
@@ -62,9 +62,9 @@ def unlink_phone(uid: str) -> dict:
 
 
 def lookup_user_by_phone(phone_number: str) -> dict:
-    """Busca qué usuario tiene este número vinculado."""
+    """Look up which user has this number linked."""
     try:
-        # Normalizar
+        # Normalize
         phone = phone_number.strip()
         if not phone.startswith('+'):
             phone = '+' + phone
@@ -83,12 +83,12 @@ def lookup_user_by_phone(phone_number: str) -> dict:
 
 
 def auto_link_phone(phone: str, user_id: str, email: str, name: str) -> bool:
-    """Vincula un número de WhatsApp a un usuario Cognito (si no estaba vinculado)."""
+    """Link a WhatsApp number to a Cognito user (if it was not already linked)."""
     try:
         phone_clean = phone if phone.startswith('+') else '+' + phone
         existing = user_phones_table.get_item(Key={'phoneNumber': phone_clean}).get('Item')
         if existing:
-            return False  # Ya estaba vinculado
+            return False  # Already linked
         user_phones_table.put_item(Item={
             'phoneNumber': phone_clean,
             'userId': user_id,

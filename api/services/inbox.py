@@ -1,5 +1,5 @@
-"""Lógica interna del inbox: conversaciones sin asignar, asignación a proyectos,
-conversaciones por proyecto y notificaciones enviadas."""
+"""Inbox internal logic: unassigned conversations, project assignment,
+per-project conversations and sent notifications."""
 from typing import Optional
 
 from boto3.dynamodb.conditions import Attr, Key
@@ -11,7 +11,7 @@ from api.services.access import has_project_access
 
 
 def get_inbox(uid: str) -> list:
-    """Lista conversaciones sin asignar del inbox."""
+    """List unassigned inbox conversations."""
     items = scan_all_pages(
         conversations_table,
         FilterExpression=Attr('projectId').eq('unassigned') & Attr('userId').eq(uid)
@@ -24,12 +24,12 @@ def get_inbox(uid: str) -> list:
 
 
 def assign_conversation(conversation_id: str, project_id: str) -> dict:
-    """Asigna una conversación del inbox a un proyecto."""
+    """Assign an inbox conversation to a project."""
     result = conversations_table.get_item(
         Key={'projectId': 'unassigned', 'conversationId': conversation_id}
     )
     if 'Item' not in result:
-        raise HTTPException(status_code=404, detail="Conversación no encontrada")
+        raise HTTPException(status_code=404, detail="Conversation not found")
 
     item = result['Item']
     item['projectId'] = project_id
@@ -44,10 +44,10 @@ def assign_conversation(conversation_id: str, project_id: str) -> dict:
 
 
 def get_project_conversations(uid: str, user_email: str, project_id: str) -> list:
-    """Lista conversaciones de un proyecto. Owner Y invitados con acceso."""
+    """List a project's conversations. Owner AND invited users with access."""
     has, _is_owner, _proj = has_project_access(uid, user_email, project_id)
     if not has:
-        raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
+        raise HTTPException(status_code=403, detail="No access to this project")
     result = conversations_table.query(
         KeyConditionExpression=Key('projectId').eq(project_id)
     )
@@ -63,7 +63,7 @@ def get_project_conversations(uid: str, user_email: str, project_id: str) -> lis
 
 
 def list_notifications(uid: str, project_id: Optional[str] = None) -> list:
-    """Lista notificaciones enviadas."""
+    """List sent notifications."""
     filter_expr = Attr('userId').eq(uid)
     if project_id:
         filter_expr = filter_expr & Attr('projectId').eq(project_id)

@@ -1,5 +1,5 @@
-"""Lógica interna del canal WhatsApp/Twilio: sesiones por número, respuestas
-salientes y procesamiento del webhook entrante (wizard, media y agente IA)."""
+"""WhatsApp/Twilio channel internal logic: per-number sessions, outbound replies
+and inbound webhook processing (wizard, media and AI agent)."""
 import os
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs
@@ -15,7 +15,7 @@ MAX_HISTORY = 10
 
 
 def send_whatsapp_reply(to_number: str, message: str):
-    """Envía respuesta por WhatsApp usando Twilio API."""
+    """Send a WhatsApp reply using the Twilio API."""
     try:
         from twilio.rest import Client
         sid = os.environ.get('TWILIO_ACCOUNT_SID', '')
@@ -23,9 +23,9 @@ def send_whatsapp_reply(to_number: str, message: str):
         wa_number = os.environ.get('TWILIO_WHATSAPP_NUMBER', 'whatsapp:+14155238886')
         client = Client(sid, token)
         client.messages.create(body=message, from_=wa_number, to=to_number)
-        print(f"[Webhook] Respuesta enviada a {to_number}")
+        print(f"[Webhook] Reply sent to {to_number}")
     except Exception as e:
-        print(f"[Webhook] Error enviando respuesta: {e}")
+        print(f"[Webhook] Error sending reply: {e}")
 
 
 def get_session(phone_number: str) -> dict:
@@ -89,15 +89,15 @@ def build_context(session, new_message):
     active = session.get('activeProjectId', '')
     name = session.get('activeProjectName', '')
     if active:
-        parts.append(f"[CONTEXTO: El usuario está hablando sobre el proyecto '{name}' (ID: {active}). "
-                     f"Si el mensaje se refiere a este proyecto, úsalo. Si habla de algo nuevo, crea uno nuevo.]")
+        parts.append(f"[CONTEXT: the user is talking about project '{name}' (ID: {active}). "
+                     f"If the message refers to this project, use it. If they are talking about something new, create a new one.]")
     parts.append(new_message)
     return "\n".join(parts)
 
 
 def extract_project(response_text, tools_used):
     import re
-    if any(t in tools_used for t in ['crear_proyecto', 'listar_proyectos', 'obtener_contactos_proyecto']):
+    if any(t in tools_used for t in ['create_project', 'list_projects', 'get_project_contacts']):
         id_match = re.search(r'proj-[a-f0-9]+', response_text)
         name_match = re.search(r'\*\*(.+?)\*\*', response_text)
         return (id_match.group(0) if id_match else '', name_match.group(1) if name_match else '')
@@ -105,7 +105,7 @@ def extract_project(response_text, tools_used):
 
 
 def handle_twilio_webhook(body_raw: str) -> dict:
-    """Procesa un mensaje entrante de Twilio (WhatsApp/SMS): wizard, media o agente IA."""
+    """Process an inbound Twilio message (WhatsApp/SMS): wizard, media or AI agent."""
     import threading
     from agent.whatsapp_wizard import STEP_IDLE, get_flow_state, handle_wizard
 
@@ -116,18 +116,18 @@ def handle_twilio_webhook(body_raw: str) -> dict:
     message_sid = params.get('MessageSid', [''])[0]
     num_media = int(params.get('NumMedia', ['0'])[0])
 
-    canal = 'whatsapp' if from_number.startswith('whatsapp:') else 'sms'
+    channel = 'whatsapp' if from_number.startswith('whatsapp:') else 'sms'
     clean_number = from_number.replace('whatsapp:', '')
 
     if message_body.strip().lower().startswith('join'):
-        print(f"[Webhook] Mensaje de join sandbox de {clean_number}, ignorando")
+        print(f"[Webhook] sandbox join message from {clean_number}, ignoring")
         return {"status": "ok", "action": "join_ignored"}
 
-    # Buscar si el número ya está vinculado a un usuario
+    # Check whether the number is already linked to a user
     user_info = lookup_user_by_phone(clean_number)
 
     # =================================================================
-    # ¿Hay un archivo adjunto? Procesar directamente
+    # Is there a file attached? Process directly
     # =================================================================
     if num_media > 0:
         media_url = params.get('MediaUrl0', [''])[0]
@@ -135,15 +135,15 @@ def handle_twilio_webhook(body_raw: str) -> dict:
         if not user_info:
             send_whatsapp_reply(
                 from_number,
-                "📎 Recibí tu archivo, pero tu número no está vinculado a una cuenta de OneBox.\n\n"
-                "Para crear proyectos desde documentos, primero vincula tu número:\n"
-                "1️⃣ Inicia sesión en oneboxmanager.com\n"
-                "2️⃣ Ve a tu perfil → vincula tu número\n\n"
-                "O escribe *crear proyecto* para validarte por correo y crear uno desde cero."
+                "📎 I received your file, but your number is not linked to a OneBox account.\n\n"
+                "To create projects from documents, first link your number:\n"
+                "1️⃣ Sign in at oneboxmanager.com\n"
+                "2️⃣ Go to your profile → link your number\n\n"
+                "Or type *create project* to verify by email and create one from scratch."
             )
             return {"status": "ok", "action": "media_no_account"}
 
-        # Procesar el archivo en background para no bloquear el webhook
+        # Process the file in background so the webhook is not blocked
         def _process_media():
             try:
                 from agent.document_parser import (
@@ -156,7 +156,7 @@ def handle_twilio_webhook(body_raw: str) -> dict:
                 tok = os.environ.get('TWILIO_AUTH_TOKEN', '')
                 file_bytes, ct, fname = download_from_twilio(media_url, sid, tok)
                 if not file_bytes:
-                    send_whatsapp_reply(from_number, "⚠️ No pude descargar el archivo. Intenta de nuevo o súbelo desde la web.")
+                    send_whatsapp_reply(from_number, "⚠️ I could not download the file. Try again or upload it from the web.")
                     return
 
                 valid, ext, error = validate_file(file_bytes, fname, ct or media_ct)
@@ -166,15 +166,15 @@ def handle_twilio_webhook(body_raw: str) -> dict:
 
                 text = extract_text(file_bytes, ext)
                 if not text or len(text.strip()) < 30:
-                    send_whatsapp_reply(from_number, "⚠️ No pude extraer suficiente texto del archivo. Asegúrate de que no esté escaneado o protegido.")
+                    send_whatsapp_reply(from_number, "⚠️ I could not extract enough text from the file. Make sure it is not scanned or protected.")
                     return
 
-                send_whatsapp_reply(from_number, f"📄 Documento recibido ({len(file_bytes)//1024} KB).\n🤖 Analizando con IA...")
+                send_whatsapp_reply(from_number, f"📄 Document received ({len(file_bytes)//1024} KB).\n🤖 Analyzing with AI...")
 
                 analysis = analyze_document_for_project(text)
                 description = analysis['description']
                 if analysis.get('extractedNotes'):
-                    description += "\n\nNotas: " + analysis['extractedNotes']
+                    description += "\n\nNotes: " + analysis['extractedNotes']
 
                 result = create_project_full(
                     user_id=user_info['userId'],
@@ -183,10 +183,10 @@ def handle_twilio_webhook(body_raw: str) -> dict:
                     project_type=analysis['type'],
                     channels=['Gmail', 'WhatsApp'],
                     participants=[{
-                        'nombre': user_info.get('name', ''),
+                        'name': user_info.get('name', ''),
                         'email': user_info.get('email', ''),
-                        'telefono': clean_number,
-                        'rol': 'Creador'
+                        'phone': clean_number,
+                        'role': 'Creator'
                     }]
                 )
                 project_id = result['projectId']
@@ -207,53 +207,53 @@ def handle_twilio_webhook(body_raw: str) -> dict:
                 ig = result.get('insightsGenerated', {})
                 count = ig.get('count', 0) if ig.get('generated') else 0
                 msg = (
-                    f"✅ *Proyecto creado: {analysis['name']}*\n"
-                    f"📁 Tipo: {analysis['type']}\n\n"
+                    f"✅ *Project created: {analysis['name']}*\n"
+                    f"📁 Type: {analysis['type']}\n\n"
                 )
                 if count > 0:
                     an = ig.get('analysis', {}) or {}
                     msg += (
-                        f"🤖 La IA generó {count} insights:\n"
-                        f"  • {len(an.get('tasks') or [])} tareas\n"
-                        f"  • {len(an.get('risks') or [])} riesgos\n"
-                        f"  • {len(an.get('decisions') or [])} decisiones\n\n"
+                        f"🤖 The AI generated {count} insights:\n"
+                        f"  • {len(an.get('tasks') or [])} tasks\n"
+                        f"  • {len(an.get('risks') or [])} risks\n"
+                        f"  • {len(an.get('decisions') or [])} decisions\n\n"
                     )
-                msg += f"📎 Documento adjuntado al proyecto.\n📊 Revisa todo en https://www.oneboxmanager.com"
+                msg += f"📎 Document attached to the project.\n📊 Review everything at https://www.oneboxmanager.com"
                 send_whatsapp_reply(from_number, msg)
             except Exception as e:
                 print(f"[Webhook media] Error: {e}")
                 import traceback; traceback.print_exc()
-                send_whatsapp_reply(from_number, f"⚠️ Error procesando el documento: {str(e)[:80]}")
+                send_whatsapp_reply(from_number, f"⚠️ Error processing the document: {str(e)[:80]}")
 
         threading.Thread(target=_process_media).start()
         return {"status": "ok", "action": "media_processing"}
 
-    # Cargar sesión del wizard (siempre, esté vinculado o no)
+    # Load the wizard session (always, whether linked or not)
     session = get_session(clean_number)
     flow = get_flow_state(session)
     in_wizard = flow.get('step', STEP_IDLE) != STEP_IDLE
 
-    # Si NO hay número vinculado Y NO está en wizard activo: invitar a wizard o registrarse
+    # If NO linked number AND NOT in an active wizard: invite to the wizard or to sign up
     if not user_info and not in_wizard:
-        print(f"[Webhook] Número {clean_number} no vinculado, ofreciendo wizard")
-        # Si el usuario quiere crear un proyecto, lanzamos el wizard (validará el email)
+        print(f"[Webhook] Number {clean_number} not linked, offering wizard")
+        # If the user wants to create a project, launch the wizard (it will verify the email)
         from agent.whatsapp_wizard import detect_intent
         intent = detect_intent(message_body)
 
         if intent in ('create_project', 'greeting', 'help'):
-            # Permitir entrar al wizard incluso sin vinculación previa
+            # Allow entering the wizard even without prior linking
             pass
         else:
             send_whatsapp_reply(
                 from_number,
-                "👋 ¡Hola! Soy *OneBox*.\n\n"
-                "Tu número aún no está vinculado a una cuenta. Pero puedo ayudarte a crear tu primer proyecto si tienes una cuenta de OneBox con tu correo.\n\n"
-                "Escribe *crear proyecto* para empezar, o *ayuda* para más opciones.\n\n"
-                "Si aún no tienes cuenta, regístrate primero en *oneboxmanager.com*."
+                "👋 Hi! I'm *OneBox*.\n\n"
+                "Your number is not linked to an account yet. But I can help you create your first project if you have a OneBox account with your email.\n\n"
+                "Type *create project* to get started, or *help* for more options.\n\n"
+                "If you don't have an account yet, sign up first at *oneboxmanager.com*."
             )
             return {"status": "ok", "action": "no_account_prompt"}
 
-    # Procesar el wizard si aplica (o pasar al agente si retorna None)
+    # Process the wizard if applicable (or hand off to the agent if it returns None)
     wizard_response, new_flow = handle_wizard(
         session=session,
         phone_number=clean_number,
@@ -262,7 +262,7 @@ def handle_twilio_webhook(body_raw: str) -> dict:
     )
 
     if wizard_response is not None:
-        # El wizard manejó el mensaje
+        # The wizard handled the message
         if new_flow is not None:
             try:
                 sessions_table.update_item(
@@ -274,23 +274,23 @@ def handle_twilio_webhook(body_raw: str) -> dict:
                     }
                 )
             except Exception as e:
-                print(f"[Webhook] Error actualizando flow: {e}")
+                print(f"[Webhook] Error updating flow: {e}")
         send_whatsapp_reply(from_number, wizard_response)
         return {"status": "ok", "action": "wizard_handled"}
 
-    # Si el wizard no manejó el mensaje y no hay usuario vinculado, no podemos continuar
+    # If the wizard did not handle the message and there is no linked user, we cannot continue
     if not user_info:
         send_whatsapp_reply(
             from_number,
-            "👋 Para usar el agente IA necesitas vincular tu número.\n\n"
-            "Escribe *crear proyecto* para crear uno con tu correo, o vincula tu número en *oneboxmanager.com*."
+            "👋 To use the AI agent you need to link your number.\n\n"
+            "Type *create project* to create one with your email, or link your number at *oneboxmanager.com*."
         )
         return {"status": "ok", "action": "unregistered_user"}
 
     resolved_user_id = user_info['userId']
     resolved_name = user_info.get('name', clean_number)
 
-    print(f"[Webhook] {canal} de {clean_number} (user: {resolved_name}): {message_body[:100]}")
+    print(f"[Webhook] {channel} from {clean_number} (user: {resolved_name}): {message_body[:100]}")
 
     now = datetime.utcnow().isoformat()
     try:
@@ -301,10 +301,10 @@ def handle_twilio_webhook(body_raw: str) -> dict:
                 'userId': resolved_user_id,
                 'from': clean_number,
                 'fromEmail': '',
-                'subject': f'Mensaje {canal.upper()} entrante',
+                'subject': f'Inbound {channel.upper()} message',
                 'body': message_body,
                 'date': now,
-                'channel': canal,
+                'channel': channel,
                 'twilioMessageSid': message_sid,
                 'hasAttachments': num_media > 0,
                 'status': 'unassigned',
@@ -319,10 +319,10 @@ def handle_twilio_webhook(body_raw: str) -> dict:
 
     def _process():
         try:
-            # Inyectar contexto de usuario al agente (multi-tenant seguro).
-            # Antes hacíamos `_tools.USER_ID = _resolved_uid` (mutar global)
-            # — race-condition: dos webhooks concurrentes se pisaban.
-            # set_current_user usa contextvars, aislado por task asyncio.
+            # Inject the user context into the agent (multi-tenant safe).
+            # Previously we did `_tools.USER_ID = _resolved_uid` (mutating a
+            # global) — race condition: two concurrent webhooks trampled each other.
+            # set_current_user uses contextvars, isolated per asyncio task.
             set_current_user(_resolved_uid, "")
 
             session = get_session(clean_number)
@@ -330,19 +330,19 @@ def handle_twilio_webhook(body_raw: str) -> dict:
             context_message = build_context(session, message_body)
 
             result = run_agent(context_message, history[-6:])
-            agent_response = result.get('response', 'No pude procesar tu mensaje.')
+            agent_response = result.get('response', 'I could not process your message.')
             tools_used = result.get('tools_used', [])
 
             if len(agent_response) > 1500:
-                agent_response = agent_response[:1500] + "\n\n_...mensaje truncado_"
+                agent_response = agent_response[:1500] + "\n\n_...message truncated_"
 
             project_id, project_name = extract_project(agent_response, tools_used)
             update_session(clean_number, message_body, agent_response, project_id, project_name)
             send_whatsapp_reply(from_number, agent_response)
         except Exception as e:
-            print(f"[Webhook] Error procesando: {e}")
+            print(f"[Webhook] Error processing: {e}")
             import traceback; traceback.print_exc()
-            send_whatsapp_reply(from_number, "⚠️ Hubo un error procesando tu mensaje. Intenta de nuevo.")
+            send_whatsapp_reply(from_number, "⚠️ There was an error processing your message. Try again.")
 
     thread = threading.Thread(target=_process)
     thread.start()

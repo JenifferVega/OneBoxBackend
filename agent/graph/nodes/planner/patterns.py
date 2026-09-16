@@ -1,18 +1,38 @@
-"""Fast-paths deterministas del planner (Tier 1, sin LLM).
+"""Deterministic planner fast-paths (Tier 1, no LLM).
 
-Cubren los casos de "CUÁNDO NO USAR HERRAMIENTAS" del prompt anterior con
-regex: saludos, ayuda/capacidades y agradecimientos. Todo lo demás pasa al LLM.
+Covers the "WHEN NOT TO USE TOOLS" cases from the previous prompt via
+regex: greetings, help/capabilities and thanks. Everything else goes to the LLM.
+
+The default responses are English; Spanish fallbacks are available when the
+user clearly writes in Spanish.
 """
 import re
 from typing import Optional
 
 from agent.graph.personality import (
     GREETING_RESPONSE, HELP_RESPONSE, THANKS_RESPONSE,
-    GREETING_RESPONSE_EN, HELP_RESPONSE_EN, THANKS_RESPONSE_EN,
+    GREETING_RESPONSE_ES, HELP_RESPONSE_ES, THANKS_RESPONSE_ES,
 )
 
-# Detectores de inglés (tokens que solo aparecen en inglés) para responder los
-# fast-paths en el idioma del usuario. Si no es claramente inglés, se asume español.
+# Spanish detectors (tokens that only appear in Spanish) so fast-paths can
+# reply in Spanish when the user clearly writes in Spanish. Default is English.
+_ES_GREETING_RE = re.compile(
+    r"^\s*(hola+|holi+|buenas|buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches|"
+    r"qu[eé]\s+tal|saludos)[\s!.,?¡¿]*$",
+    re.IGNORECASE,
+)
+_ES_HELP_RE = re.compile(
+    r"(qu[eé]\s+puedes\s+hacer|c[oó]mo\s+funcionas|para\s+qu[eé]\s+sirves|"
+    r"qui[eé]n\s+eres|^\s*ayuda[\s!.?]*$)",
+    re.IGNORECASE,
+)
+_ES_THANKS_RE = re.compile(
+    r"^\s*(muchas\s+gracias|gracias|perfecto|genial|listo|vale|de\s+acuerdo|"
+    r"excelente)[\s!.,🙂😊👍]*$",
+    re.IGNORECASE,
+)
+
+# English detectors (default language of the app).
 _EN_GREETING_RE = re.compile(
     r"^\s*(hello+|hi+|hey+|good\s+(morning|afternoon|evening)|greetings)[\s!.,?]*$",
     re.IGNORECASE,
@@ -23,49 +43,31 @@ _EN_HELP_RE = re.compile(
     re.IGNORECASE,
 )
 _EN_THANKS_RE = re.compile(
-    r"^\s*(thank\s+you|thank\s+u|thanks|great|perfect|awesome|got\s+it|okay)[\s!.,🙂😊👍]*$",
-    re.IGNORECASE,
-)
-
-_GREETING_RE = re.compile(
-    r"^\s*(hola+|holi+|buenas|buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches|"
-    r"hey|hello|hi|qu[eé]\s+tal|saludos)[\s!.,?¡¿]*$",
-    re.IGNORECASE,
-)
-
-_HELP_RE = re.compile(
-    r"(qu[eé]\s+puedes\s+hacer|c[oó]mo\s+funcionas|para\s+qu[eé]\s+sirves|"
-    r"qui[eé]n\s+eres|^\s*ayuda[\s!.?]*$|^\s*help[\s!.?]*$)",
-    re.IGNORECASE,
-)
-
-_THANKS_RE = re.compile(
-    r"^\s*(muchas\s+gracias|gracias|perfecto|genial|listo|ok+|vale|de\s+acuerdo|"
-    r"excelente)[\s!.,🙂😊👍]*$",
+    r"^\s*(thank\s+you|thank\s+u|thanks|great|perfect|awesome|got\s+it|okay|ok+)[\s!.,🙂😊👍]*$",
     re.IGNORECASE,
 )
 
 
 def match_fast_path(message: str) -> Optional[str]:
-    """Devuelve la respuesta predefinida si el mensaje es un fast-path; sino None.
+    """Return the predefined response if the message is a fast-path; otherwise None.
 
-    Responde en el idioma del usuario: si el saludo/agradecimiento/ayuda está en
-    inglés, devuelve la versión en inglés; en cualquier otro caso, la de español.
+    Replies in the user's language: if the greeting/thanks/help is clearly in
+    Spanish, returns the Spanish version; otherwise defaults to English.
     """
     msg = (message or "").strip()
     if not msg:
         return None
-    # Inglés primero (tokens específicos); si no coincide, se asume español.
+    # Spanish first (specific tokens); if none match, English is assumed.
+    if _ES_GREETING_RE.match(msg):
+        return GREETING_RESPONSE_ES
+    if _ES_HELP_RE.search(msg):
+        return HELP_RESPONSE_ES
+    if _ES_THANKS_RE.match(msg):
+        return THANKS_RESPONSE_ES
     if _EN_GREETING_RE.match(msg):
-        return GREETING_RESPONSE_EN
-    if _EN_HELP_RE.search(msg):
-        return HELP_RESPONSE_EN
-    if _EN_THANKS_RE.match(msg):
-        return THANKS_RESPONSE_EN
-    if _GREETING_RE.match(msg):
         return GREETING_RESPONSE
-    if _HELP_RE.search(msg):
+    if _EN_HELP_RE.search(msg):
         return HELP_RESPONSE
-    if _THANKS_RE.match(msg):
+    if _EN_THANKS_RE.match(msg):
         return THANKS_RESPONSE
     return None

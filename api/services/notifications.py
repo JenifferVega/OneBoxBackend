@@ -1,54 +1,54 @@
-"""Lógica interna de notificaciones programadas: revisión de pendientes
-y envío de resúmenes por WhatsApp Y email. Pensado para EventBridge cron diario.
+"""Internal logic for scheduled notifications: review pending items
+and send WhatsApp AND email summaries. Designed for a daily EventBridge cron.
 
-Diseño:
-  - Para cada proyecto con tareas pendientes, se construye UN resumen.
-  - Para cada participante:
-      · si tiene email   → enviar_notificacion(email, mensaje, canal='email')
-      · si tiene teléfono → enviar_notificacion(tel, mensaje, canal='whatsapp')
-  - enviar_notificacion ya hace el sandbox-check de SES y registra en la tabla
-    onebox-notifications. Si no hay canal en el participant, simplemente skip.
+Design:
+  - For each project with pending tasks, build ONE summary.
+  - For each participant:
+      · if they have an email   → send_notification(email, message, channel='email')
+      · if they have a phone    → send_notification(phone, message, channel='whatsapp')
+  - send_notification already handles the SES sandbox-check and records into
+    the onebox-notifications table. If the participant has no channel, we simply skip.
 
 dispatch_pending_notifications():
-  - Escanea onebox-notifications con status='pending'.
-  - Notificaciones one-time (scheduledAt <= ahora): envía y marca como 'sent'.
-  - Notificaciones recurrentes (isRecurring=True): verifica si hoy es uno de
-    los recurringDays; si sí, envía pero mantiene status='pending' (vuelve a
-    correr la próxima semana). EventBridge dispara este endpoint cada hora.
+  - Scans onebox-notifications for status='pending'.
+  - One-time notifications (scheduledAt <= now): sends and marks as 'sent'.
+  - Recurring notifications (isRecurring=True): checks whether today is one
+    of the recurringDays; if so, sends but keeps status='pending' (so it runs
+    again next week). EventBridge fires this endpoint every hour.
 """
 from boto3.dynamodb.conditions import Attr
 
 
 def send_scheduled_notifications() -> dict:
-    """Cron diario: arma resumen de tareas pendientes por proyecto y manda
-    a cada participante por email Y/O WhatsApp según los canales que tenga.
+    """Daily cron: builds a summary of pending tasks per project and sends it
+    to each participant via email AND/OR WhatsApp depending on the channels they have.
 
-    "Pendientes" = status pending, in_progress o blocked (todo lo que no esté
-    en done). Es la información que el usuario necesita ver de su equipo.
+    "Pending" = status pending, in_progress or blocked (anything not yet done).
+    This is the information the user needs to see about their team.
     """
     from agent.tools import (
-        enviar_notificacion, projects_table, tasks_table, set_current_user,
+        send_notification, projects_table, tasks_table, set_current_user,
         clear_current_user,
     )
 
-    # Escaneo único de proyectos y tareas — más eficiente que llamar
-    # obtener_contactos_proyecto por proyecto (que internamente vuelve a scan).
+    # Single scan of projects and tasks — more efficient than calling
+    # get_project_contacts per project (which internally scans again).
     try:
         proj_scan = projects_table.scan()
         all_projects = proj_scan.get('Items', [])
     except Exception as e:
-        return {"success": False, "error": f"scan proyectos: {e}"}
+        return {"success": False, "error": f"scan projects: {e}"}
 
     try:
-        # Solo tareas no completadas. status=done o completed → excluidas.
+        # Only non-completed tasks. status=done or completed → excluded.
         task_scan = tasks_table.scan(
             FilterExpression=Attr('status').ne('done') & Attr('status').ne('completed')
         )
         all_open_tasks = task_scan.get('Items', [])
     except Exception as e:
-        return {"success": False, "error": f"scan tareas: {e}"}
+        return {"success": False, "error": f"scan tasks: {e}"}
 
-    # Indexar tareas por projectId
+    # Index tasks by projectId
     tasks_by_pid: dict = {}
     for t in all_open_tasks:
         pid = t.get('projectId', '')
@@ -66,74 +66,75 @@ def send_scheduled_notifications() -> dict:
             continue
         proj_tasks = tasks_by_pid.get(pid, [])
         if not proj_tasks:
-            # Proyecto sin pendientes → nada que notificar
+            # Project without pending tasks → nothing to notify
             continue
 
-        project_name = proj.get('name', 'Proyecto')
+        project_name = proj.get('name', 'Project')
         owner_uid = proj.get('userId', '')
         if not owner_uid:
             continue
 
-        # Las tools del agente exigen contexto de usuario (multi-tenant).
-        # Establecemos al owner del proyecto: es quien "envía" desde el sistema.
+        # The agent's tools require a user context (multi-tenant).
+        # We set the project owner: they are who "sends" from the system.
         set_current_user(owner_uid, '')
         try:
             participants = proj.get('participants', []) or []
             if not participants:
                 continue
 
-            # FIX: solo notificar a participantes que tienen tareas ASIGNADAS
-            # a ellos. Antes mandaba a todos aunque las tareas estuvieran sin
-            # asignar → ruido en proyectos con tareas no asignadas.
+            # FIX: only notify participants that have tasks ASSIGNED to them.
+            # Previously we sent to everyone even if tasks were unassigned →
+            # noise on projects with unassigned tasks.
             #
-            # Match: task.assignedTo == participant.nombre (o email). Las tareas
-            # sin assignedTo no se cuentan para nadie y por ende nadie recibe
-            # email/WhatsApp por esas. El owner puede verlas entrando a la app.
+            # Match: task.assignedTo == participant.name (or email). Tasks
+            # without assignedTo are not counted for anyone, so no one gets
+            # email/WhatsApp for those. The owner can still see them by
+            # opening the app.
             project_processed_at_least_one = False
             for part in participants:
                 if not isinstance(part, dict):
                     continue
-                nombre = (part.get('nombre', '') or '').strip().lower()
+                name = (part.get('name', '') or '').strip().lower()
                 email = (part.get('email', '') or '').strip().lower()
-                tel = (part.get('telefono', '') or '').strip()
+                tel = (part.get('phone', '') or '').strip()
 
-                # Filtrar las tareas asignadas específicamente a este participante.
-                # Match por nombre O por email (cualquiera de los dos).
+                # Filter the tasks assigned specifically to this participant.
+                # Match by name OR by email (either works).
                 his_tasks = []
                 for t in proj_tasks:
                     assigned = (t.get('assignedTo', '') or '').strip().lower()
                     if not assigned:
                         continue
-                    if assigned == nombre or (email and assigned == email):
+                    if assigned == name or (email and assigned == email):
                         his_tasks.append(t)
 
                 if not his_tasks:
-                    # SKIP: este participante no tiene nada asignado en este
-                    # proyecto → no recibe nada. Decisión de producto.
+                    # SKIP: this participant has nothing assigned in this
+                    # project → they receive nothing. Product decision.
                     continue
 
-                # Contar por estado SOLO de sus tareas
+                # Count by status only from their own tasks
                 pending = [t for t in his_tasks if t.get('status') == 'pending']
                 in_progress = [t for t in his_tasks if t.get('status') == 'in_progress']
                 blocked = [t for t in his_tasks if t.get('status') == 'blocked']
 
-                # Mensaje personalizado para esta persona (incluye su nombre)
+                # Personalized message for this person (includes their name)
                 lines = [
-                    f"📋 *{project_name}* — Tus pendientes",
+                    f"📋 *{project_name}* — Your pending items",
                     "",
-                    f"Hola {part.get('nombre', '')}, tienes {len(his_tasks)} tarea(s) pendiente(s) en este proyecto.",
+                    f"Hi {part.get('name', '')}, you have {len(his_tasks)} pending task(s) in this project.",
                     "",
                 ]
                 if blocked:
-                    lines.append(f"🚫 Bloqueadas: {len(blocked)}")
+                    lines.append(f"🚫 Blocked: {len(blocked)}")
                 if in_progress:
-                    lines.append(f"🔄 En curso: {len(in_progress)}")
+                    lines.append(f"🔄 In progress: {len(in_progress)}")
                 if pending:
-                    lines.append(f"⏳ Por hacer: {len(pending)}")
+                    lines.append(f"⏳ To do: {len(pending)}")
                 lines.append("")
-                lines.append("📝 Detalle:")
+                lines.append("📝 Details:")
 
-                # Priorizar bloqueadas, después en curso, después pending.
+                # Prioritize blocked, then in progress, then pending.
                 preview = blocked + in_progress + pending
                 for t in preview[:10]:
                     status = t.get('status', '')
@@ -142,19 +143,19 @@ def send_scheduled_notifications() -> dict:
                     due = (t.get('dueDate', '') or '').strip()
                     line = f"  {icon} {text}"
                     if due:
-                        line += f" (vence {due})"
+                        line += f" (due {due})"
                     lines.append(line)
                 if len(preview) > 10:
-                    lines.append(f"  … y {len(preview) - 10} más")
+                    lines.append(f"  … and {len(preview) - 10} more")
                 lines.append("")
-                lines.append("Entra a OneBox para verlas: https://www.oneboxmanager.com")
-                mensaje = "\n".join(lines)
+                lines.append("Open OneBox to see them: https://www.oneboxmanager.com")
+                message = "\n".join(lines)
 
                 if email:
-                    res = enviar_notificacion(
-                        destinatario=email,
-                        mensaje=mensaje,
-                        canal='email',
+                    res = send_notification(
+                        recipient=email,
+                        message=message,
+                        channel='email',
                         project_id=pid,
                         project_name=project_name,
                     )
@@ -167,10 +168,10 @@ def send_scheduled_notifications() -> dict:
                         errors.append(f"email {email}: {res.get('error', '')[:120]}")
 
                 if tel:
-                    res = enviar_notificacion(
-                        destinatario=tel,
-                        mensaje=mensaje,
-                        canal='whatsapp',
+                    res = send_notification(
+                        recipient=tel,
+                        message=message,
+                        channel='whatsapp',
                         project_id=pid,
                         project_name=project_name,
                     )
@@ -189,28 +190,28 @@ def send_scheduled_notifications() -> dict:
         "success": True,
         "projects_processed": projects_processed,
         "notifications_sent": notifications_sent,
-        "notifications_skipped": notifications_skipped,  # email no verificado en SES sandbox
+        "notifications_skipped": notifications_skipped,  # unverified email in SES sandbox
         "errors": errors if errors else None,
     }
 
 
 def dispatch_pending_notifications() -> dict:
-    """Dispatcher de notificaciones programadas. Diseñado para correr cada hora
-    vía EventBridge → POST /api/scheduled/dispatch-pending.
+    """Dispatcher for scheduled notifications. Designed to run every hour
+    via EventBridge → POST /api/scheduled/dispatch-pending.
 
-    Lógica:
-    - Escanea onebox-notifications con status='pending'.
-    - One-time (scheduledAt presente, isRecurring ausente o False):
-        Si scheduledAt <= ahora UTC → envía y actualiza status='sent'.
-    - Recurrentes (isRecurring=True, recurringDays presente):
-        Si el día de hoy (UTC) está en recurringDays → envía.
-        Mantiene status='pending' para que vuelva a correr la próxima semana.
-        Registra la última ejecución en 'lastSentAt' para evitar doble envío
-        dentro de la misma ventana horaria.
+    Logic:
+    - Scans onebox-notifications for status='pending'.
+    - One-time (scheduledAt present, isRecurring absent or False):
+        If scheduledAt <= now UTC → sends and updates status='sent'.
+    - Recurring (isRecurring=True, recurringDays present):
+        If today (UTC) is in recurringDays → sends.
+        Keeps status='pending' so it runs again next week.
+        Records the last run in 'lastSentAt' to avoid double sends
+        within the same hourly window.
     """
     from datetime import datetime, timezone
     from agent.tools import (
-        enviar_notificacion, notifications_table, set_current_user, clear_current_user,
+        send_notification, notifications_table, set_current_user, clear_current_user,
     )
 
     now_dt = datetime.now(timezone.utc)
@@ -234,9 +235,9 @@ def dispatch_pending_notifications() -> dict:
         if not uid:
             continue
 
-        canal = notif.get('canal', '')
-        destinatario = notif.get('destinatario', '')
-        mensaje = notif.get('mensaje', '')
+        channel = notif.get('channel', '')
+        recipient = notif.get('recipient', '')
+        message = notif.get('message', '')
         project_id = notif.get('projectId', '')
         project_name = notif.get('projectName', '')
         notif_id = notif.get('notificationId', '')
@@ -247,20 +248,20 @@ def dispatch_pending_notifications() -> dict:
         should_send = False
 
         if is_recurring:
-            # Recurrente: verificar si hoy es uno de los días configurados.
+            # Recurring: check whether today is one of the configured days.
             if today_name not in (recurring_days or []):
                 skipped += 1
                 continue
-            # Evitar doble envío si ya se envió hoy (lastSentAt tiene fecha de hoy).
+            # Prevent double sends if it already ran today (lastSentAt matches today's date).
             last_sent = notif.get('lastSentAt', '')
             if last_sent and last_sent[:10] == now_dt.strftime('%Y-%m-%d'):
                 skipped += 1
                 continue
             should_send = True
         elif scheduled_at:
-            # One-time: enviar solo si scheduled_at <= ahora.
+            # One-time: only send if scheduled_at <= now.
             try:
-                # Normalizar a datetime aware
+                # Normalize to aware datetime
                 sat = scheduled_at.rstrip('Z')
                 sched_dt = datetime.fromisoformat(sat).replace(tzinfo=timezone.utc)
                 if sched_dt <= now_dt:
@@ -269,10 +270,10 @@ def dispatch_pending_notifications() -> dict:
                     skipped += 1
                     continue
             except ValueError:
-                errors.append(f"{notif_id}: scheduledAt inválido '{scheduled_at}'")
+                errors.append(f"{notif_id}: invalid scheduledAt '{scheduled_at}'")
                 continue
         else:
-            # Sin scheduledAt ni isRecurring → no debería estar en pending, skip.
+            # No scheduledAt and no isRecurring → should not be in pending, skip.
             skipped += 1
             continue
 
@@ -280,21 +281,21 @@ def dispatch_pending_notifications() -> dict:
             skipped += 1
             continue
 
-        # Enviar usando el contexto del usuario dueño de la notificación.
+        # Send using the context of the notification's owner user.
         set_current_user(uid, '')
         try:
-            res = enviar_notificacion(
-                destinatario=destinatario,
-                mensaje=mensaje,
-                canal=canal,
+            res = send_notification(
+                recipient=recipient,
+                message=message,
+                channel=channel,
                 project_id=project_id,
                 project_name=project_name,
-                # Sin scheduled_at ni recurring_days: envío inmediato.
+                # No scheduled_at or recurring_days: immediate send.
             )
             if res.get('success') or res.get('status') in ('sent', 'queued', 'test_simulated', 'skipped_unverified'):
                 sent += 1
                 if is_recurring:
-                    # Actualizar lastSentAt pero mantener status=pending.
+                    # Update lastSentAt but keep status=pending.
                     try:
                         notifications_table.update_item(
                             Key={'userId': uid, 'notificationId': notif_id},
@@ -304,7 +305,7 @@ def dispatch_pending_notifications() -> dict:
                     except Exception as ue:
                         errors.append(f"{notif_id}: update lastSentAt error: {ue}")
                 else:
-                    # One-time: marcar como sent.
+                    # One-time: mark as sent.
                     try:
                         notifications_table.update_item(
                             Key={'userId': uid, 'notificationId': notif_id},
@@ -315,7 +316,7 @@ def dispatch_pending_notifications() -> dict:
                     except Exception as ue:
                         errors.append(f"{notif_id}: update status error: {ue}")
             else:
-                errors.append(f"{notif_id} ({canal} → {destinatario}): {res.get('error', 'unknown')[:120]}")
+                errors.append(f"{notif_id} ({channel} → {recipient}): {res.get('error', 'unknown')[:120]}")
         except Exception as e:
             errors.append(f"{notif_id}: exception: {str(e)[:120]}")
         finally:

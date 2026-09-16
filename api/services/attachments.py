@@ -1,4 +1,4 @@
-"""Lógica interna de adjuntos: subida, listado, descarga y borrado."""
+"""Attachments internal logic: upload, list, download and delete."""
 import uuid
 from datetime import datetime
 
@@ -13,17 +13,17 @@ from api.services.documents import save_attachment_record
 
 def upload_attachment(uid: str, user_email: str, project_id: str,
                       file_bytes: bytes, file_name: str, content_type: str) -> dict:
-    """Adjunta un documento a un proyecto. Owner Y invitados con acceso pueden subir.
-    Se guarda uploadedBy (sub + email) para trazabilidad. El adjunto queda
-    asociado al userId del owner del proyecto."""
+    """Attach a document to a project. Owner AND invited users with access can upload.
+    Stores uploadedBy (sub + email) for traceability. The attachment is
+    associated with the project owner's userId."""
     from agent.document_parser import extract_text, upload_to_s3, validate_file
     from agent.project_helpers import generate_insights_for_project
 
     has, _is_owner, existing = has_project_access(uid, user_email, project_id)
     if not existing:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        raise HTTPException(status_code=404, detail="Project not found")
     if not has:
-        raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
+        raise HTTPException(status_code=403, detail="No access to this project")
     owner_uid = existing.get('userId', uid)
 
     valid, ext, error = validate_file(file_bytes, file_name or '', content_type or '')
@@ -31,12 +31,12 @@ def upload_attachment(uid: str, user_email: str, project_id: str,
         raise HTTPException(status_code=400, detail=error)
 
     text = extract_text(file_bytes, ext)
-    print(f"[attachment] {file_name}: {len(text)} caracteres extraídos")
+    print(f"[attachment] {file_name}: {len(text)} characters extracted")
 
-    # Subir a S3
+    # Upload to S3
     s3_key = upload_to_s3(file_bytes, project_id, file_name or f'doc.{ext}', content_type or '')
 
-    # Registrar adjunto (asociado al owner, con uploadedBy del que subió)
+    # Record attachment (associated with owner, uploadedBy set to actual uploader)
     att = save_attachment_record(
         project_id=project_id,
         user_id=owner_uid,
@@ -51,30 +51,30 @@ def upload_attachment(uid: str, user_email: str, project_id: str,
         uploaded_by_email=(user_email or '').strip().lower(),
     )
 
-    # Si hay texto suficiente, generar insights adicionales (siempre en nombre del owner)
+    # If there is enough text, generate additional insights (always on behalf of the owner)
     insights_result = {"generated": False, "reason": "no_text"}
     if text and len(text.strip()) >= 100:
         insights_result = generate_insights_for_project(
             user_id=owner_uid,
             project_id=project_id,
-            project_name=existing.get('name', 'Proyecto'),
-            project_type=existing.get('type', 'Otro'),
+            project_name=existing.get('name', 'Project'),
+            project_type=existing.get('type', 'Other'),
             description=text[:5000],
             participants=existing.get('participants', []),
         )
 
-        # Notificación in-app (queda en el feed del owner)
+        # In-app notification (kept in the owner's feed)
         if insights_result.get('generated') and insights_result.get('count', 0) > 0:
             try:
                 notifications_table.put_item(Item={
                     'userId': owner_uid,
                     'notificationId': f"{datetime.utcnow().isoformat()}#{uuid.uuid4().hex[:8]}",
                     'projectId': project_id,
-                    'projectName': existing.get('name', 'Proyecto'),
+                    'projectName': existing.get('name', 'Project'),
                     'type': 'document_analyzed',
-                    'title': f'Documento analizado: {file_name}',
-                    'mensaje': f'La IA generó {insights_result["count"]} nuevos insights desde "{file_name}"',
-                    'canal': 'system',
+                    'title': f'Document analyzed: {file_name}',
+                    'message': f'The AI generated {insights_result["count"]} updated insights from "{file_name}"',
+                    'channel': 'system',
                     'status': 'unread',
                     'createdAt': datetime.utcnow().isoformat(),
                 })
@@ -94,12 +94,12 @@ def upload_attachment(uid: str, user_email: str, project_id: str,
 
 
 def list_attachments(uid: str, user_email: str, project_id: str) -> list:
-    """Lista los adjuntos de un proyecto. Owner Y invitados con acceso."""
+    """List a project's attachments. Owner AND invited users with access."""
     has, _is_owner, existing = has_project_access(uid, user_email, project_id)
     if not existing:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        raise HTTPException(status_code=404, detail="Project not found")
     if not has:
-        raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
+        raise HTTPException(status_code=403, detail="No access to this project")
 
     result = attachments_table.query(
         KeyConditionExpression=Key('projectId').eq(project_id),
@@ -120,35 +120,35 @@ def list_attachments(uid: str, user_email: str, project_id: str) -> list:
 
 
 def get_download_url(uid: str, user_email: str, project_id: str, attachment_id: str) -> dict:
-    """Genera URL presignada de S3 para descargar el adjunto.
-    Owner Y invitados con acceso al proyecto pueden descargar."""
+    """Generate a presigned S3 URL to download the attachment.
+    Owner AND invited users with access to the project can download."""
     from agent.document_parser import generate_download_url
 
     item = attachments_table.get_item(
         Key={'projectId': project_id, 'attachmentId': attachment_id}
     ).get('Item')
     if not item:
-        raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+        raise HTTPException(status_code=404, detail="Attachment not found")
     has, _is_owner, _proj = has_project_access(uid, user_email, project_id)
     if not has:
-        raise HTTPException(status_code=403, detail="Sin acceso a este proyecto")
+        raise HTTPException(status_code=403, detail="No access to this project")
 
-    url = generate_download_url(item['s3Key'], item.get('fileName', 'documento'))
+    url = generate_download_url(item['s3Key'], item.get('fileName', 'document'))
     return {"url": url, "fileName": item.get('fileName'), "expiresIn": 600}
 
 
 def delete_attachment(uid: str, user_email: str, project_id: str, attachment_id: str) -> dict:
-    """Elimina un adjunto (S3 + registro DynamoDB). SOLO el owner del proyecto puede borrar."""
+    """Delete an attachment (S3 + DynamoDB record). ONLY the project owner can delete."""
     from agent.document_parser import delete_from_s3
 
     item = attachments_table.get_item(
         Key={'projectId': project_id, 'attachmentId': attachment_id}
     ).get('Item')
     if not item:
-        raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+        raise HTTPException(status_code=404, detail="Attachment not found")
     _has, is_owner, _proj = has_project_access(uid, user_email, project_id)
     if not is_owner:
-        raise HTTPException(status_code=403, detail="Solo el dueño del proyecto puede borrar adjuntos")
+        raise HTTPException(status_code=403, detail="Only the project owner can delete attachments")
 
     delete_from_s3(item.get('s3Key', ''))
     attachments_table.delete_item(Key={'projectId': project_id, 'attachmentId': attachment_id})

@@ -1,0 +1,83 @@
+{
+  "name": "trello_create_board_and_export",
+  "description": "Asking to EXPORT tasks must end with cards on the board. Creating the board is a means, not the goal: a turn that ends with an empty board has not done what was asked.",
+  "session_id": "case-trello-export",
+  "debug": true,
+  "reset_before": true,
+  "project": "Farmacia Haussman",
+  "turns": [
+    {
+      "n": 1,
+      "message": "manda las tareas de Farmacia Haussman a Trello",
+      "why": "The project has no board yet, so the agent must ASK -- and must offer both options, not just the boards that already exist.",
+      "assert": {
+        "tools_used_includes": ["push_tasks_to_trello"],
+        "tools_used_excludes": ["create_trello_board"],
+        "response_matches": [
+          "(?i)(tablero|board).*(nuevo|new|crear|create)",
+          "(?i)(existente|existing|actuales)"
+        ],
+        "comment_on_excludes": "Creating a board here would be the agent deciding something the user never asked for."
+      }
+    },
+    {
+      "n": 2,
+      "message": "Crea un nuevo tablero",
+      "why": "Picking an option is not consent to write. The board is created in the user's real Trello account, so this turn must only propose.",
+      "assert": {
+        "tools_used_excludes": ["create_trello_board", "push_tasks_to_trello"],
+        "response_matches": ["(?i)(confirma|confirmas|\\u00bfquieres|shall i|do you confirm)"]
+      }
+    },
+    {
+      "n": 3,
+      "message": "Si",
+      "why": "THE POINT OF THIS CASE. The goal from turn 1 was to export. Confirming the board must not lose it: the same turn has to create the board AND push the tasks. This assertion fails today -- the context resolver rewrites the confirmation as 'create a board' and the export is dropped.",
+      "assert": {
+        "tools_used_includes": ["create_trello_board", "push_tasks_to_trello"],
+        "tool_call_count": { "create_trello_board": 1 },
+        "results": [
+          {
+            "tool": "create_trello_board",
+            "field": "success",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "tool": "push_tasks_to_trello",
+            "field": "created_count",
+            "op": "gt",
+            "value": 0,
+            "why": "An empty board is the failure this case exists to catch."
+          }
+        ],
+        "response_matches": ["(?i)(tarea|task|tarjeta|card)"],
+        "comment_on_count": "More than one board means a replan re-ran the write."
+      }
+    },
+    {
+      "n": 4,
+      "message": "manda las tareas de Farmacia Haussman a Trello",
+      "why": "Re-exporting with nothing changed must touch nothing: the project is already linked, every task already has a card, and none of them moved.",
+      "assert": {
+        "tools_used_includes": ["push_tasks_to_trello"],
+        "tools_used_excludes": ["create_trello_board"],
+        "results": [
+          {
+            "tool": "push_tasks_to_trello",
+            "field": "created_count",
+            "op": "eq",
+            "value": 0
+          },
+          {
+            "tool": "push_tasks_to_trello",
+            "field": "skipped_count",
+            "op": "gt",
+            "value": 0,
+            "why": "Unchanged tasks are reported as unchanged, not created again."
+          }
+        ]
+      }
+    }
+  ]
+}

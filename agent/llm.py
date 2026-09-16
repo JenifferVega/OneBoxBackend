@@ -22,7 +22,7 @@ LLM_PROVIDER = os.environ.get(
 _bedrock_client = None
 
 def get_bedrock_client():
-    """Obtiene o crea el cliente de Bedrock."""
+    """Gets or creates the Bedrock client."""
     global _bedrock_client
     if _bedrock_client is None:
         import boto3
@@ -39,7 +39,7 @@ def _call_gemini(
     temperature: float,
     max_tokens: int
 ) -> str:
-    """Llama a Gemini via Google AI API."""
+    """Calls Gemini via the Google AI API."""
     contents = []
     for msg in messages:
         role = msg.get("role", "user")
@@ -86,7 +86,7 @@ def _call_anthropic(
     temperature: float,
     max_tokens: int
 ) -> str:
-    """Llama a Claude via API directa de Anthropic."""
+    """Calls Claude via the Anthropic API directly."""
     api_messages = []
     for msg in messages:
         role = msg.get("role", "user")
@@ -131,7 +131,7 @@ def _call_bedrock(
     temperature: float,
     max_tokens: int
 ) -> str:
-    """Llama a Claude via Bedrock Converse API."""
+    """Calls Claude via the Bedrock Converse API."""
     client = get_bedrock_client()
 
     response = client.converse(
@@ -162,8 +162,8 @@ def call_llm(
     max_tokens: int = 4096
 ) -> str:
     """
-    Llama a Claude via Anthropic API directa o Bedrock.
-    Usa ANTHROPIC_API_KEY si está configurada, sino usa Bedrock.
+    Calls Claude via the Anthropic API directly or Bedrock.
+    Uses ANTHROPIC_API_KEY if configured, otherwise falls back to Bedrock.
     """
     messages = []
 
@@ -184,29 +184,29 @@ def call_llm(
 
     try:
         if LLM_PROVIDER == "gemini":
-            print(f"[LLM] Usando Gemini ({GEMINI_MODEL})")
+            print(f"[LLM] Using Gemini ({GEMINI_MODEL})")
             return _call_gemini(system_prompt, messages, temperature, max_tokens)
         elif LLM_PROVIDER == "anthropic":
-            print(f"[LLM] Usando Anthropic API directa ({ANTHROPIC_MODEL})")
+            print(f"[LLM] Using Anthropic API directly ({ANTHROPIC_MODEL})")
             return _call_anthropic(system_prompt, messages, temperature, max_tokens)
         else:
-            print(f"[LLM] Usando Bedrock ({MODEL_ID})")
+            print(f"[LLM] Using Bedrock ({MODEL_ID})")
             return _call_bedrock(system_prompt, messages, temperature, max_tokens)
     except Exception as e:
-        print(f"[LLM] Error con {LLM_PROVIDER}: {str(e)}")
+        print(f"[LLM] Error with {LLM_PROVIDER}: {str(e)}")
         raise
 
 
 def extract_json_from_response(response: str) -> Optional[dict]:
     """
-    Extrae JSON de una respuesta del LLM.
-    El LLM puede devolver JSON puro o JSON dentro de texto.
-    
+    Extracts JSON from an LLM response.
+    The LLM may return raw JSON or JSON embedded in text.
+
     Args:
-        response: Respuesta del LLM
-    
+        response: LLM response
+
     Returns:
-        dict o None si no se puede parsear
+        dict, or None if it cannot be parsed
     """
     try:
         return json.loads(response)

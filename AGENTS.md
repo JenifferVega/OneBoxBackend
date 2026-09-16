@@ -1,163 +1,163 @@
-# OneBox Backend — Contexto para Codex
+# OneBox Backend — Context for Codex
 
-## ¿Qué es este proyecto?
+## What is this project?
 
-**OneBoxBackend** es un backend Python/FastAPI con un agente conversacional construido sobre LangGraph. El agente recibe mensajes de usuarios, planifica acciones usando herramientas (crear proyectos, tareas, enviar notificaciones, etc.) y responde en lenguaje natural.
+**OneBoxBackend** is a Python/FastAPI backend with a conversational agent built on LangGraph. The agent receives user messages, plans actions using tools (create projects, tasks, send notifications, etc.) and responds in natural language.
 
-**Proyecto separado — NO modificar:** `C:\Users\user\Desktop\AppDev\send\chatbot` es un proyecto distinto e independiente. Nunca toques archivos de esa carpeta.
+**Separate project — DO NOT modify:** `C:\Users\user\Desktop\AppDev\send\chatbot` is a distinct, independent project. Never touch files in that folder.
 
 ---
 
-## Arquitectura del agente
+## Agent architecture
 
 ```
-Usuario → context_resolver → planner → executor → validator → narrator → Respuesta
+User → context_resolver → planner → executor → validator → narrator → Response
 ```
 
-El flujo es un grafo LangGraph con estos nodos:
+The flow is a LangGraph graph with these nodes:
 
-| Nodo | Archivo | Rol |
+| Node | File | Role |
 |---|---|---|
-| context_resolver | `agent/graph/nodes/context_resolver/` | Detecta idioma, intención y contexto del historial |
-| planner | `agent/graph/nodes/planner/` | Decide qué herramientas ejecutar y en qué orden |
-| executor | `agent/graph/nodes/executor/` | Ejecuta el plan paso a paso (sin LLM) |
-| validator | `agent/graph/nodes/validator/` | Evalúa si los resultados son correctos |
-| narrator | `agent/graph/nodes/narrator/` | Genera la respuesta final en lenguaje natural |
+| context_resolver | `agent/graph/nodes/context_resolver/` | Detects language, intent and context from history |
+| planner | `agent/graph/nodes/planner/` | Decides which tools to run and in what order |
+| executor | `agent/graph/nodes/executor/` | Runs the plan step by step (no LLM) |
+| validator | `agent/graph/nodes/validator/` | Assesses whether the results are correct |
+| narrator | `agent/graph/nodes/narrator/` | Produces the final natural-language response |
 
 ---
 
-## Archivos de comportamiento conversacional
+## Conversational behavior files
 
-Estos son los únicos archivos que definen **cómo conversa el agente**. Son el objetivo del flujo de debug y ajuste:
+These are the only files that define **how the agent converses**. They are the target of the debug and tuning loop:
 
-| Archivo | Qué controla |
+| File | What it controls |
 |---|---|
-| `agent/graph/nodes/planner/catalog.py` | Reglas del planner: cuándo usar qué herramienta, ejemplos ❌/✅, patrones multi-paso |
-| `agent/graph/nodes/planner/prompts.py` | Prompt base del planner |
-| `agent/graph/nodes/narrator/prompts.py` | Cómo el narrator presenta los resultados al usuario |
-| `agent/graph/nodes/narrator/narrators/` | Narradores especializados por tipo de resultado |
-| `agent/graph/nodes/validator/prompts.py` | Criterios que usa el validator para aprobar o rechazar resultados |
+| `agent/graph/nodes/planner/catalog.py` | Planner rules: when to use which tool, ❌/✅ examples, multi-step patterns |
+| `agent/graph/nodes/planner/prompts.py` | Planner base prompt |
+| `agent/graph/nodes/narrator/prompts.py` | How the narrator presents results to the user |
+| `agent/graph/nodes/narrator/narrators/` | Specialized narrators per result type |
+| `agent/graph/nodes/validator/prompts.py` | Criteria the validator uses to approve or reject results |
 
 ---
 
-## Archivos de lógica de código (NO son objetivo del flujo conversacional)
+## Code-logic files (NOT the target of the conversational loop)
 
-Estos archivos son lógica de ejecución. Solo se modifican cuando hay un bug de código, no para ajustar comportamiento conversacional:
+These files are execution logic. They are only modified when there is a code bug, not to tune conversational behavior:
 
-| Archivo | Rol |
+| File | Role |
 |---|---|
-| `agent/graph/nodes/executor/resolve.py` | Resolución de referencias `from_step` entre pasos del plan |
-| `agent/graph/nodes/executor/validators.py` | Validaciones de parámetros antes de ejecutar herramientas |
-| `agent/graph/nodes/executor/node.py` | Orquestación del executor, soporte de `foreach` |
-| `agent/graph/builder.py` | Construcción del grafo LangGraph |
-| `agent/tools.py` | Implementación de las herramientas (DynamoDB, Twilio, etc.) |
+| `agent/graph/nodes/executor/resolve.py` | Resolution of `from_step` references between plan steps |
+| `agent/graph/nodes/executor/validators.py` | Parameter validation before running tools |
+| `agent/graph/nodes/executor/node.py` | Executor orchestration, `foreach` support |
+| `agent/graph/builder.py` | LangGraph graph construction |
+| `agent/tools.py` | Tool implementations (DynamoDB, Twilio, etc.) |
 
 ---
 
-## Flujo de debug y ajuste conversacional (vibe coding)
+## Debug and conversational tuning loop (vibe coding)
 
-Este es el proceso correcto para iterar sobre el comportamiento del agente:
+This is the correct process to iterate on the agent's behavior:
 
 ```
-1. Levantar el servidor:   uvicorn main:app --reload
-2. Usar el MCP onebox-chat para conversar turno a turno con el agente
-3. Al terminar la sesión: onebox_report() → ver análisis completo
-4. Discutir con el usuario qué problema se detectó y por qué ocurre
-5. El usuario aprueba el cambio propuesto
-6. Codex edita el archivo de comportamiento conversacional correspondiente
-7. Reiniciar el servidor y repetir desde el paso 2
+1. Start the server:   uvicorn main:app --reload
+2. Use the onebox-chat MCP to converse turn by turn with the agent
+3. When the session ends: onebox_report() → see full analysis
+4. Discuss with the user what problem was detected and why it happens
+5. The user approves the proposed change
+6. Codex edits the corresponding conversational behavior file
+7. Restart the server and repeat from step 2
 ```
 
-### Regla fundamental
+### Core rule
 
-**Codex no modifica archivos de comportamiento conversacional sin que el usuario apruebe explícitamente el cambio.**
+**Codex does not modify conversational behavior files without the user's explicit approval of the change.**
 
-El reporte muestra el problema. La discusión define la solución. El usuario aprueba. Codex edita.
-
----
-
-## Modo debug
-
-El agente tiene un modo debug activable con `debug=True` en el request:
-- Dry-run: no escribe en DynamoDB ni llama a Twilio
-- Retorna `debug_info` con el plan, iteraciones del planner, decisiones y resultados simulados
-- Los resultados simulados están en `executor/node.py` → `_DRY_RUN_RESULTS`
-
-El MCP en `mcp/server.py` siempre usa `debug=True`.
+The report shows the problem. The discussion defines the solution. The user approves. Codex edits.
 
 ---
 
-## Señales de problema en el debug
+## Debug mode
 
-Cuando el reporte muestra alguna de estas señales, hay algo que ajustar en los archivos de comportamiento:
+The agent has a debug mode you can enable with `debug=True` in the request:
+- Dry-run: does not write to DynamoDB or call Twilio
+- Returns `debug_info` with the plan, planner iterations, decisions and simulated results
+- The simulated results live in `executor/node.py` → `_DRY_RUN_RESULTS`
 
-| Señal | Causa probable | Archivo a revisar |
+The MCP in `mcp/server.py` always uses `debug=True`.
+
+---
+
+## Debug signals to watch for
+
+When the report shows one of these signals, something needs adjusting in the behavior files:
+
+| Signal | Likely cause | File to review |
 |---|---|---|
-| `iteration > 1` | La regla del planner no es suficientemente clara | `catalog.py` — agregar ejemplo ❌/✅ |
-| `_validation_error` en resultados | El planner generó un param inválido a pesar de la regla | `catalog.py` — reforzar la restricción |
-| Planner creó un proyecto innecesario | Falta regla explícita de cuándo NO crear | `catalog.py` — PROHIBIDO |
-| Narrator no menciona proyectos disponibles | El narrator no tiene guía para ese resultado | `narrator/narrators/` |
-| Validator rechaza resultado correcto | Criterio de validación demasiado estricto | `validator/prompts.py` |
+| `iteration > 1` | The planner rule isn't clear enough | `catalog.py` — add ❌/✅ example |
+| `_validation_error` in results | The planner produced an invalid param despite the rule | `catalog.py` — reinforce the constraint |
+| Planner created an unnecessary project | Missing explicit rule for when NOT to create | `catalog.py` — FORBIDDEN |
+| Narrator does not mention available projects | The narrator lacks guidance for that result | `narrator/narrators/` |
+| Validator rejects a correct result | Validation criterion is too strict | `validator/prompts.py` |
 
 ---
 
-## Convención de ejemplos en catalog.py
+## Example convention in catalog.py
 
-El patrón más efectivo para enseñarle al planner es el contraste explícito:
+The most effective pattern to teach the planner is explicit contrast:
 
 ```
-❌ INCORRECTO — descripción del caso prohibido:
-plan: [ ... el plan malo ... ]
-→ Por qué está mal.
+❌ INCORRECT — description of the forbidden case:
+plan: [ ... the bad plan ... ]
+→ Why it's wrong.
 
-✅ CORRECTO:
-plan: [ ... el plan correcto ... ]
+✅ CORRECT:
+plan: [ ... the correct plan ... ]
 ```
 
-Siempre que se agregue una nueva regla, incluir este contraste.
+Whenever a new rule is added, include this contrast.
 
 ---
 
-## Inicio de sesión de debug
+## Starting a debug session
 
-Cuando el usuario diga "vamos a probar el agente", "iniciemos debug", "quiero testear el flujo" o similar, seguir este protocolo sin esperar más instrucciones:
+When the user says "let's test the agent", "let's start debugging", "I want to test the flow" or similar, follow this protocol without waiting for further instructions:
 
-**Paso 1 — Verificar prerequisitos**
-Preguntar al usuario:
-- ¿Está corriendo el servidor? (`uvicorn main:app --reload`)
-- ¿Qué flujo quiere probar? (o proponer los escenarios conocidos)
+**Step 1 — Verify prerequisites**
+Ask the user:
+- Is the server running? (`uvicorn main:app --reload`)
+- Which flow do you want to test? (or propose the known scenarios)
 
-**Paso 2 — Limpiar sesión**
-Usar `onebox_reset()` antes de empezar para asegurar historial limpio.
+**Step 2 — Clean up the session**
+Use `onebox_reset()` before starting to ensure a clean history.
 
-**Paso 3 — Conducir la conversación turno a turno**
-Usar `onebox_chat(message, session_id)` para cada mensaje. Mostrar al usuario la respuesta del agente y el plan ejecutado. No enviar el siguiente turno automáticamente — esperar confirmación del usuario para continuar.
+**Step 3 — Drive the conversation turn by turn**
+Use `onebox_chat(message, session_id)` for each message. Show the user the agent's response and the plan that was executed. Do not send the next turn automatically — wait for the user's confirmation to continue.
 
-**Paso 4 — Generar el reporte**
-Al terminar (cuando el usuario lo indique o se agoten los turnos del escenario), ejecutar `onebox_report()` y leer el análisis completo.
+**Step 4 — Generate the report**
+When done (when the user says so or the scenario runs out of turns), run `onebox_report()` and read the full analysis.
 
-**Paso 5 — Diagnosticar**
-Identificar los problemas del reporte usando la tabla de señales. Explicar al usuario qué ocurrió y por qué, con referencia al archivo específico que lo causa.
+**Step 5 — Diagnose**
+Identify the problems in the report using the signals table. Explain to the user what happened and why, pointing to the specific file that causes it.
 
-**Paso 6 — Proponer el cambio**
-Proponer el cambio concreto al archivo de comportamiento conversacional: qué línea o sección cambiar, qué agregar, mostrando el antes/después. **Esperar aprobación explícita del usuario.**
+**Step 6 — Propose the change**
+Propose the concrete change to the conversational behavior file: which line or section to change, what to add, showing before/after. **Wait for the user's explicit approval.**
 
-**Paso 7 — Editar y repetir**
-Con aprobación, editar el archivo. Indicar al usuario que reinicie el servidor (`Ctrl+C` → `uvicorn main:app --reload`) y volver al Paso 2.
+**Step 7 — Edit and repeat**
+With approval, edit the file. Tell the user to restart the server (`Ctrl+C` → `uvicorn main:app --reload`) and go back to Step 2.
 
-### Regla de oro de este loop
-Solo se modifican los **archivos de comportamiento conversacional** (catalog.py, prompts, narrators). Nunca lógica de código sin un bug explícito. Nunca sin aprobación del usuario.
+### Golden rule of this loop
+Only **conversational behavior files** are modified (catalog.py, prompts, narrators). Never code logic without an explicit bug. Never without the user's approval.
 
 ---
 
-## Stack técnico
+## Tech stack
 
-- **Python 3.11+** con FastAPI y Uvicorn
-- **LangGraph** para el grafo de agente
-- **LangChain** para mensajes y LLM
-- **DynamoDB** como base de datos
-- **Twilio** para WhatsApp/SMS
-- **LLM:** configurable vía `agent/llm.py` (Bedrock / Anthropic / Gemini)
-- **MCP de debug:** `mcp/server.py` (requiere `pip install mcp httpx`)
+- **Python 3.11+** with FastAPI and Uvicorn
+- **LangGraph** for the agent graph
+- **LangChain** for messages and LLM
+- **DynamoDB** as the database
+- **Twilio** for WhatsApp/SMS
+- **LLM:** configurable via `agent/llm.py` (Bedrock / Anthropic / Gemini)
+- **Debug MCP:** `mcp/server.py` (requires `pip install mcp httpx`)
 
 ## Imported Claude Cowork project instructions

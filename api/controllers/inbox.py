@@ -1,4 +1,4 @@
-"""Endpoints del inbox, conversaciones por proyecto y notificaciones."""
+"""Inbox, per-project conversations and notifications endpoints."""
 from typing import Optional
 
 from fastapi import APIRouter, Header, HTTPException, Query
@@ -12,7 +12,7 @@ router = APIRouter()
 
 @router.get("/api/inbox")
 async def get_inbox(x_user_id: str = Header(default="")):
-    """Lista conversaciones sin asignar del inbox."""
+    """List unassigned inbox conversations."""
     uid = require_uid(x_user_id)
     try:
         return inbox_service.get_inbox(uid)
@@ -22,7 +22,7 @@ async def get_inbox(x_user_id: str = Header(default="")):
 
 @router.post("/api/inbox/{conversation_id}/assign")
 async def assign_to_project(conversation_id: str, req: AssignRequest):
-    """Asigna una conversación del inbox a un proyecto."""
+    """Assign an inbox conversation to a project."""
     try:
         return inbox_service.assign_conversation(conversation_id, req.projectId)
     except HTTPException:
@@ -33,7 +33,7 @@ async def assign_to_project(conversation_id: str, req: AssignRequest):
 
 @router.get("/api/projects/{project_id}/conversations")
 async def get_conversations(project_id: str, x_user_id: str = Header(default=""), x_user_email: str = Header(default="")):
-    """Lista conversaciones de un proyecto. Owner Y invitados con acceso."""
+    """List a project's conversations. Owner AND invited users with access."""
     uid = require_uid(x_user_id)
     try:
         return inbox_service.get_project_conversations(uid, x_user_email, project_id)
@@ -45,7 +45,7 @@ async def get_conversations(project_id: str, x_user_id: str = Header(default="")
 
 @router.get("/api/notifications")
 async def get_notifications(projectId: Optional[str] = Query(None), x_user_id: str = Header(default="")):
-    """Lista notificaciones enviadas."""
+    """List sent notifications."""
     uid = require_uid(x_user_id)
     try:
         return inbox_service.list_notifications(uid, projectId)

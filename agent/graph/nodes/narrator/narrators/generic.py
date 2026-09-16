@@ -1,7 +1,7 @@
-"""Narrador genérico (planes que mezclan dominios o herramientas no mapeadas)."""
+"""Generic narrator (plans that mix domains or unmapped tools)."""
 
-GUIDANCE = """## GUÍA GENERAL:
-1. Resume los resultados de forma clara y natural.
-2. Si se ejecutaron acciones (envíos, creaciones, clasificaciones), confirma qué se hizo.
-3. Si hay errores, explícalos de forma amigable.
-4. Si hay alertas, preséntalas por prioridad con emojis."""
+GUIDANCE = """## GENERAL GUIDE:
+1. Summarize the results clearly and naturally.
+2. If actions were executed (sends, creations, classifications), confirm what was done.
+3. If there are errors, explain them in a friendly way.
+4. If there are alerts, present them by priority with emojis."""

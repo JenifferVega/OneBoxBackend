@@ -1,17 +1,17 @@
-"""Schemas Pydantic de salida del planner (structured output)."""
+"""Pydantic output schemas for the planner (structured output)."""
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
 
 class PlanStep(BaseModel):
-    step: int = Field(description="Orden del paso, empezando en 1")
-    tool: str = Field(description="Nombre EXACTO de la herramienta del catálogo")
+    step: int = Field(description="Step order, starting at 1")
+    tool: str = Field(description="EXACT tool name from the catalog")
     params: dict = Field(
         default_factory=dict,
         description=(
-            "Parámetros de la herramienta. Un valor puede ser {'from_step': N} "
-            "para encadenar el resultado completo de un paso anterior."
+            "Tool parameters. A value may be {'from_step': N} "
+            "to chain the full result of a previous step."
         ),
     )
 
@@ -19,16 +19,16 @@ class PlanStep(BaseModel):
 class PlannerOutput(BaseModel):
     plan: List[PlanStep] = Field(
         default_factory=list,
-        description="Pasos a ejecutar, en orden. Vacío si no se necesitan herramientas.",
+        description="Steps to execute, in order. Empty if no tools are needed.",
     )
     direct_response: Optional[str] = Field(
         default=None,
         description=(
-            "Respuesta directa al usuario SOLO cuando no se necesitan herramientas "
-            "(saludo, ayuda, conversación casual, solicitud fuera de alcance)."
+            "Direct reply to the user ONLY when tools are not needed "
+            "(greeting, help, casual conversation, out-of-scope request)."
         ),
     )
     reasoning: Optional[str] = Field(
         default=None,
-        description="Razonamiento interno breve (no se muestra al usuario).",
+        description="Brief internal reasoning (not shown to the user).",
     )

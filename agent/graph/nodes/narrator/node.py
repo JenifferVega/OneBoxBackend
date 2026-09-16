@@ -1,9 +1,9 @@
-"""💬 NARRATOR: compone la respuesta final según la intención.
+"""NARRATOR: composes the final response based on the intent.
 
-Dispatcher por intención (patrón de la referencia):
-  - "conversation" → passthrough de direct_response, SIN LLM.
-  - emails / projects / notifications / proactive / generic → LLM con la guía
-    específica de la intención + personalidad compartida.
+Intent dispatcher (from the reference pattern):
+  - "conversation" → passthrough of direct_response, NO LLM.
+  - emails / projects / notifications / proactive / generic → LLM with the
+    intent-specific guidance + shared personality.
 """
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -15,12 +15,12 @@ from agent.graph.state import AgentState
 
 def narrator_node(state: AgentState, llm) -> dict:
     print("\n" + "=" * 60)
-    print("💬 NARRATOR")
+    print("NARRATOR")
     print("=" * 60)
 
     direct_response = state.get("direct_response") or ""
     if direct_response:
-        print("   → Usando respuesta directa del planner (sin LLM)")
+        print("   → Using the planner's direct response (no LLM)")
         update = {"response": direct_response, "status": "done"}
         if state.get("debug_mode"):
             update["debug_info"] = {
@@ -32,13 +32,13 @@ def narrator_node(state: AgentState, llm) -> dict:
     results = state.get("results", {})
     if not results:
         return {
-            "response": "No obtuve resultados. ¿Podrías reformular tu pregunta?",
+            "response": "I didn't get any results. Could you rephrase your question?",
             "status": "done",
         }
 
     intent = state.get("intent") or "generic"
     guidance = GUIDANCE_BY_INTENT.get(intent, GUIDANCE_BY_INTENT["generic"])
-    print(f"   Intención: {intent}")
+    print(f"   Intent: {intent}")
 
     user_message = state.get("resolved_message") or state.get("user_message", "")
     prompt = build_user_prompt(user_message, truncate_results(results), guidance)
@@ -50,13 +50,13 @@ def narrator_node(state: AgentState, llm) -> dict:
         ])
         response = result.content if hasattr(result, "content") else str(result)
     except Exception as e:
-        print(f"   ❌ Narrator falló: {e}")
+        print(f"   Narrator failed: {e}")
         response = (
-            "Ejecuté tu solicitud pero tuve un problema redactando el resumen. "
-            "Los datos se procesaron correctamente; inténtalo de nuevo para ver el detalle."
+            "I ran your request but had a problem writing the summary. "
+            "The data was processed correctly; try again to see the details."
         )
 
-    print(f"   Respuesta: {str(response)[:150]}...")
+    print(f"   Response: {str(response)[:150]}...")
     update = {"response": response, "status": "done"}
     if state.get("debug_mode"):
         update["debug_info"] = {

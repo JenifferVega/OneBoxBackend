@@ -1,4 +1,4 @@
-"""Guías por intención para el dispatcher del narrator."""
+"""Per-intent guidance for the narrator dispatcher."""
 from agent.graph.nodes.narrator.narrators import (  # noqa: F401
     emails, generic, notifications, proactive, projects,
 )

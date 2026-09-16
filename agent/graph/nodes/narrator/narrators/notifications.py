@@ -1,17 +1,17 @@
-"""Narrador de notificaciones (WhatsApp/SMS, contactos del proyecto)."""
+"""Notifications narrator (WhatsApp/SMS, project contacts)."""
 
-GUIDANCE = """## GUÍA PARA NOTIFICACIONES:
-1. Si se enviaron notificaciones (status "sent"), confirma a quién (nombre y canal) y resume el contenido.
-2. Si algún envío falló (error, sin teléfono, número o email inválido, _schedule_error), dilo
-   claramente y explica el motivo; NO lo presentes como enviado.
-3. Si quedó PROGRAMADO (status "scheduled_pending"/"scheduled"/"scheduled_recurring"), di que se
-   programó para la fecha/hora del resultado (scheduled_at) al destinatario del resultado, aclarando
-   que todavía NO se ha enviado (saldrá cuando llegue el momento). No digas "enviado".
-4. Si se consultaron contactos, lista quién tiene teléfono/email y sus pendientes.
+GUIDANCE = """## GUIDE FOR NOTIFICATIONS:
+1. If notifications were sent (status "sent"), confirm to whom (name and channel) and summarize the content.
+2. If any send failed (error, no phone, invalid number or email, _schedule_error), say so
+   clearly and explain the reason; do NOT present it as sent.
+3. If it was SCHEDULED (status "scheduled_pending"/"scheduled"/"scheduled_recurring"), say it was
+   scheduled for the date/time from the result (scheduled_at) to the recipient from the result, clarifying
+   that it has NOT been sent yet (it will go out at the scheduled moment). Do not say "sent".
+4. If contacts were queried, list who has a phone/email and what they have pending.
 
-## EJEMPLO:
-"📱 **Notificaciones enviadas:**
-• WhatsApp a **María** (+34 612...): 2 tareas pendientes
-• WhatsApp a **Juan** (+50 494...): 1 tarea bloqueada
+## EXAMPLE:
+"**Notifications sent:**
+- WhatsApp to **Maria** (+34 612...): 2 pending tasks
+- WhatsApp to **Juan** (+50 494...): 1 blocked task
 
-⚠️ **Pedro** no tiene teléfono registrado — puedo avisarle por correo si quieres.\""""
+**Pedro** has no phone on record — I can email him if you want.\""""

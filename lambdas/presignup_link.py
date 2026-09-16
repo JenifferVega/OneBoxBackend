@@ -1,24 +1,24 @@
 """
 Cognito Pre-SignUp trigger
 ==========================
-Evita cuentas duplicadas cuando un mismo email se registra por múltiples vías
-(Google OAuth, email+contraseña nativo, etc.).
+Prevents duplicate accounts when the same email is registered through multiple
+paths (Google OAuth, native email+password, etc.).
 
-Casos manejados:
-- PreSignUp_ExternalProvider (login con Google por primera vez):
-    1) Auto-confirma al usuario (el email ya fue verificado por Google).
-    2) Si ya existe un usuario NATIVO (COGNITO) con el mismo email, enlaza
-       la identidad externa al usuario nativo via AdminLinkProviderForUser.
-       A partir de ahí, login con Google y login nativo resuelven al MISMO
-       `sub` y por tanto a los MISMOS datos en nuestro backend.
+Cases handled:
+- PreSignUp_ExternalProvider (first-time Google login):
+    1) Auto-confirms the user (the email was already verified by Google).
+    2) If a NATIVE (COGNITO) user already exists with the same email, link
+       the external identity to the native user via AdminLinkProviderForUser.
+       From then on, Google login and native login resolve to the SAME
+       `sub` and therefore to the SAME data in our backend.
 
-- PreSignUp_SignUp (registro nativo con email+pwd):
-    Si ya existe un usuario EXTERNAL_PROVIDER (Google, etc.) con el mismo
-    email, RECHAZAMOS el signup. El usuario verá un mensaje pidiendo que
-    use el método con el que se registró originalmente (Google). Así
-    evitamos crear duplicados en este sentido también.
+- PreSignUp_SignUp (native email+pwd registration):
+    If an EXTERNAL_PROVIDER user (Google, etc.) already exists with the same
+    email, we REJECT the signup. The user will see a message asking them to
+    use the method they originally registered with (Google). This way we
+    also avoid creating duplicates in this direction.
 
-Permisos necesarios en el rol del Lambda:
+Permissions required on the Lambda role:
 - cognito-idp:ListUsers
 - cognito-idp:AdminLinkProviderForUser
 """
@@ -38,11 +38,11 @@ def lambda_handler(event, context):
     print(f"[PreSignUp] trigger={trigger} email={email} userName={new_username}")
 
     if trigger == "PreSignUp_ExternalProvider":
-        # 1) Auto-confirmar (Google ya verificó el email).
+        # 1) Auto-confirm (Google already verified the email).
         event["response"]["autoConfirmUser"] = True
         event["response"]["autoVerifyEmail"] = True
 
-        # 2) Enlazar a un usuario nativo existente con el mismo email (si lo hay).
+        # 2) Link to an existing native user with the same email (if any).
         if email and "_" in new_username:
             try:
                 resp = cognito.list_users(
@@ -51,11 +51,11 @@ def lambda_handler(event, context):
                     Limit=20,
                 )
                 for user in resp.get("Users", []):
-                    # Solo nos interesan los nativos (no otro EXTERNAL_PROVIDER).
+                    # We only care about native users (not another EXTERNAL_PROVIDER).
                     if user.get("UserStatus") == "EXTERNAL_PROVIDER":
                         continue
                     provider_name, provider_user_id = new_username.split("_", 1)
-                    print(f"[PreSignUp] Enlazando {provider_name}/{provider_user_id} -> nativo {user['Username']}")
+                    print(f"[PreSignUp] Linking {provider_name}/{provider_user_id} -> native {user['Username']}")
                     cognito.admin_link_provider_for_user(
                         UserPoolId=pool_id,
                         DestinationUser={
@@ -68,15 +68,15 @@ def lambda_handler(event, context):
                             "ProviderAttributeValue": provider_user_id,
                         },
                     )
-                    print("[PreSignUp] Enlace OK")
+                    print("[PreSignUp] Link OK")
                     break
             except Exception as e:
-                # No abortamos el signup; el usuario externo se crea aunque no se enlace.
-                print(f"[PreSignUp] Error enlazando: {e}")
+                # We do not abort the signup; the external user is created even if not linked.
+                print(f"[PreSignUp] Error linking: {e}")
 
     elif trigger == "PreSignUp_SignUp":
-        # Registro nativo (email + contraseña). Si ya existe un usuario externo
-        # (Google, etc.) con el mismo email, rechazamos para evitar duplicados.
+        # Native registration (email + password). If an external user (Google,
+        # etc.) with the same email already exists, we reject it to avoid duplicates.
         if email:
             existing_external = False
             try:
@@ -90,14 +90,14 @@ def lambda_handler(event, context):
                         existing_external = True
                         break
             except Exception as e:
-                # Si fallamos en la consulta, mejor permitir que bloquear.
-                print(f"[PreSignUp] No se pudo verificar existencia previa: {e}")
+                # If the query fails, better to allow than to block.
+                print(f"[PreSignUp] Could not verify prior existence: {e}")
 
             if existing_external:
-                print(f"[PreSignUp] Rechazando signup nativo: ya existe Google para {email}")
-                # Cognito devuelve este mensaje al cliente como UserLambdaValidationException
+                print(f"[PreSignUp] Rejecting native signup: Google account already exists for {email}")
+                # Cognito returns this message to the client as UserLambdaValidationException
                 raise Exception(
-                    "Esta cuenta ya existe con Google. Inicia sesión con Google."
+                    "This account already exists with Google. Please sign in with Google."
                 )
 
     return event

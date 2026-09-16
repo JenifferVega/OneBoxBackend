@@ -1,5 +1,5 @@
-"""Lógica interna de Gmail: OAuth, fetch de correos, sync con análisis IA,
-push notifications (Pub/Sub) y registro de watch."""
+"""Gmail internal logic: OAuth, email fetch, sync with AI analysis,
+push notifications (Pub/Sub) and watch registration."""
 import json
 import os
 from datetime import datetime
@@ -12,9 +12,9 @@ from api.deps import user_tokens_table
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-# NOTA: estas dos variables se referenciaban en el código original sin estar
-# definidas (NameError en runtime para /api/gmail/auth y /api/gmail/callback).
-# Ahora se leen de entorno; configúralas en el despliegue.
+# NOTE: these two variables were referenced in the original code without being
+# defined (NameError at runtime for /api/gmail/auth and /api/gmail/callback).
+# They are now read from the environment; configure them at deploy time.
 GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "")
 GOOGLE_SCOPES = os.getenv(
     "GOOGLE_SCOPES",
@@ -107,19 +107,24 @@ def fetch_gmail_emails(user_id: str, max_results: int = 20) -> list:
 
 
 def sync_gmail(uid: str) -> dict:
-    """Sincroniza Gmail, trae correos nuevos y los analiza con IA.
-    Crea proyectos, tareas e insights automáticamente.
-    Usa el refresh token del usuario almacenado en DynamoDB."""
+    """Sync Gmail, fetch updated emails and analyze them with AI.
+    Creates projects, tasks and insights automatically.
+    Uses the user's refresh token stored in DynamoDB."""
     from agent.tools import (
-        analizar_inbox, asignar_correo_a_proyecto, crear_insight,
-        crear_proyecto, crear_tarea, listar_proyectos
+        analyze_inbox, assign_email_to_project, create_insight,
+        create_project, create_task, list_projects
     )
 
     print(f"[Gmail Sync] Fetching emails for user {uid}...")
     gmail_emails = fetch_gmail_emails(uid, max_results=50)
     print(f"[Gmail Sync] {len(gmail_emails)} emails from Gmail")
 
+    # Spam-domain and spam-subject keyword lists.
+    # English keywords appear alongside Spanish ones so spam is filtered in
+    # both languages (default app locale is English, but the user may still
+    # have Spanish inboxes).
     SPAM_DOMAINS = [
+        # ── Spanish/LatAm brands and senders ──────────────────────────────
         'bancolombia', 'homecenter', 'airbnb', 'puppis', 'dermosalud',
         'rappi', 'uber', 'samsung', 'adidas', 'temu', 'farmatodo',
         'linkedin', 'coursera', 'platzi', 'craftsy', 'medu.mx',
@@ -127,7 +132,7 @@ def sync_gmail(uid: str) -> dict:
         'loyal.ink', 'design.com', 'harumiglobal', 'npmjs',
         'worldoffice', 'exito.com', 'sodimac', 'nequi',
         'noreply', 'no-reply', 'no-responder', 'mailer-daemon',
-        'notifications@', 'alertas@', 'notificaciones@',
+        'notifications@', 'alertas@',
         'news@', 'info@', 'express@', 'team@m.', 'informacion@',
         'alert@', 'editor@',
         'hello.platzi', 'hello.rappi', 'hello.design',
@@ -138,20 +143,45 @@ def sync_gmail(uid: str) -> dict:
         'amazon.com', 'apple.com', 'netflix', 'spotify',
         'mercadolibre', 'mercadopago', 'paypal', 'stripe',
         'cibergestion', 'pagares.bvc', 'jobalerts',
-        'correo.paiz', 'siman.com',
+        'email.paiz', 'siman.com',
+        # ── Common English/global senders ─────────────────────────────────
+        'donotreply', 'do-not-reply', 'no.reply',
+        'marketing@', 'newsletter@', 'promo@', 'promotions@',
+        'updates@', 'offers@', 'deals@', 'sales@', 'digest@',
+        'billing@', 'invoices@', 'receipts@', 'support@',
+        'ebay', 'walmart', 'target.com', 'bestbuy', 'kohls',
+        'macys', 'homedepot', 'costco', 'nike', 'adobe',
+        'microsoft', 'google.com', 'yahoo', 'aol.com',
+        'meta.com', 'facebookmail', 'instagram', 'twitter', 'x.com',
+        'medium.com', 'substack', 'quora', 'pinterest',
+        'doordash', 'grubhub', 'lyft', 'wayfair',
+        'chase.com', 'wellsfargo', 'bankofamerica', 'citi.com',
+        'venmo', 'zelle',
     ]
     SPAM_SUBJECT = [
-        'newsletter', 'unsubscribe', 'marketing', 'promocion', 'oferta',
-        'descuento', 'verify', 'verification', 'encuesta', 'survey',
-        'off en', '% off', 'envío gratis', 'tu opinión', 'alerta de seguridad',
-        'alertas y notificaciones', 'factura electr', 'pedido se ha entregado',
-        'cmr puntos', 'antipulgas', 'two-factor', '2fa',
+        # ── English keywords ──────────────────────────────────────────────
+        'newsletter', 'unsubscribe', 'marketing', 'promo', 'offer',
+        'discount', 'verify', 'verification', 'survey',
+        'off on', '% off', 'free shipping', 'your opinion',
+        'security alert', 'alerts and notifications', 'invoice',
+        'your order has been', 'reward points', 'flea',
+        'two-factor', '2fa', 'hiring', 'jobs', 'vacation',
+        'health plan', 'receipt', 'transaction', 'verification code',
+        'passport', 'purchase order', 'payment confirmation',
+        'discover', 'easter sale', 'black friday', 'cyber monday',
+        'low prices', 'your order', 'you received a document',
+        'signer of', 'welcome to',
+        # ── Spanish keywords (kept for Spanish inboxes) ───────────────────
+        'promocion', 'oferta', 'descuento', 'encuesta',
+        'off en', 'envío gratis', 'tu opinión', 'alerta de seguridad',
+        'alertas y notifications', 'factura electr', 'pedido se ha entregado',
+        'cmr puntos', 'antipulgas',
         'busca personal', 'empleo', 'vacaciones', 'plan de salud',
         'comprobante', 'transacción', 'código de verificación',
         'pasaporte', 'orden de compra', 'confirmación de pago',
-        'dcto', 'descubre', 'easter sale', 'black friday',
+        'dcto', 'descubre',
         'precios bajos', 'tu pedido', 'has recibido un documento',
-        'firmante de', 'pagaré', 'welcome to',
+        'firmante de', 'pagaré',
     ]
 
     new_emails = 0
@@ -161,7 +191,7 @@ def sync_gmail(uid: str) -> dict:
         if not conv_id:
             continue
 
-        # Filtrar spam antes de guardar
+        # Filter spam before saving
         from_field = (email.get('from', '') + ' ' + email.get('fromEmail', '')).lower()
         subject = (email.get('subject', '') or '').lower()
 
@@ -198,7 +228,7 @@ def sync_gmail(uid: str) -> dict:
 
     print(f"[Gmail Sync] {new_emails} new emails saved, {spam_filtered} spam filtered out")
 
-    inbox_result = analizar_inbox()
+    inbox_result = analyze_inbox()
     all_unassigned = inbox_result.get('emails', [])
     unassigned = sorted(all_unassigned, key=lambda x: x.get('date', x.get('createdAt', '')), reverse=True)[:20]
     print(f"[Gmail Sync] {len(unassigned)} unassigned emails to analyze")
@@ -223,50 +253,50 @@ def sync_gmail(uid: str) -> dict:
             'date': e.get('date', '')
         })
 
-    existing = listar_proyectos()
+    existing = list_projects()
     existing_names = [p.get('name', '') for p in existing.get('projects', [])]
 
-    analysis_prompt = f"""Eres el clasificador de correos de OneBox. Tu trabajo es detectar correos que son proyectos de trabajo REALES y crearlos.
+    analysis_prompt = f"""You are OneBox's email classifier. Your job is to detect emails that are REAL work projects and create them.
 
-PROYECTOS EXISTENTES (NO crear duplicados):
+EXISTING PROJECTS (do NOT create duplicates):
 {json.dumps(existing_names, ensure_ascii=False)}
 
-CORREOS SIN ASIGNAR:
+UNASSIGNED EMAILS:
 {json.dumps(email_summaries, ensure_ascii=False, indent=2)}
 
-REGLAS CRÍTICAS:
-1. SOLO ignora correos que sean CLARAMENTE newsletters, marketing, alertas automáticas de sistemas o spam.
-2. Si un correo es de una PERSONA REAL hablando de trabajo, un proyecto, una solicitud, un requerimiento, una tarea, un problema técnico, una cotización, o cualquier tema profesional → SIEMPRE créalo como proyecto con action "create_project".
-3. Si el correo ya pertenece a un proyecto existente → action "assign_to_existing"
-4. EN CASO DE DUDA, créalo como proyecto. Es mejor crear un proyecto de más que perder un correo importante.
-5. Agrupa correos del MISMO tema en un solo proyecto.
-6. Detecta bloqueos, decisiones, riesgos y tareas dentro de cada proyecto.
-7. En participants SOLO incluye personas con email verificable:
-   - Del campo "from": el remitente con su email
-   - Del campo "to": todos los destinatarios con sus emails
-   - Del campo "cc": todos los CC con sus emails
-   - NO agregues personas mencionadas en el cuerpo del correo que no tengan email en los campos from/to/cc
-   Formato: {{"nombre": "Nombre", "email": "correo@ejemplo.com", "rol": "Rol detectado"}}
-8. Lee el CUERPO COMPLETO del correo (campo "body") para detectar tareas, bloqueos, decisiones y riesgos. No te limites al subject.
+CRITICAL RULES:
+1. ONLY ignore emails that are CLEARLY newsletters, marketing, automatic system alerts, or spam.
+2. If an email is from a REAL PERSON discussing work, a project, a request, a requirement, a task, a technical issue, a quote, or any professional topic → ALWAYS create it as a project with action "create_project".
+3. If the email already belongs to an existing project → action "assign_to_existing".
+4. WHEN IN DOUBT, create it as a project. Better to create one project too many than to miss an important email.
+5. Group emails on the SAME topic into a single project.
+6. Detect blockers, decisions, risks and tasks within each project.
+7. In participants, ONLY include people with a verifiable email:
+   - From the "from" field: the sender with their email
+   - From the "to" field: all recipients with their emails
+   - From the "cc" field: all CC recipients with their emails
+   - Do NOT add people mentioned in the email body who do not have an email in the from/to/cc fields
+   Format: {{"name": "Name", "email": "email@example.com", "role": "Detected role"}}
+8. Read the FULL BODY of the email (the "body" field) to detect tasks, blockers, decisions and risks. Don't just look at the subject.
 
-EJEMPLOS de correos que SÍ son proyectos (NO ignorar):
-- "Necesito una aplicación web para..." → create_project
-- "Te envío los requerimientos de..." → create_project
-- "Hay un problema con el servidor..." → create_project
-- "¿Puedes cotizar...?" → create_project
-- Cualquier correo de un colega/cliente sobre trabajo → create_project
+EXAMPLES of emails that ARE projects (do NOT ignore):
+- "I need a web application for..." → create_project
+- "I'm sending you the requirements for..." → create_project
+- "There's a problem with the server..." → create_project
+- "Can you quote...?" → create_project
+- Any email from a colleague/client about work → create_project
 
-EJEMPLOS de correos para IGNORAR:
-- "Tu pedido de Amazon ha sido enviado" → ignore
-- "50% de descuento en..." → ignore
-- "Alerta de seguridad de Google" → ignore
-- "Nuevas ofertas de empleo" → ignore
+EXAMPLES of emails to IGNORE:
+- "Your Amazon order has been shipped" → ignore
+- "50% off on..." → ignore
+- "Google security alert" → ignore
+- "New job offers" → ignore
 
-RESPONDE SOLO JSON:
+RESPOND WITH JSON ONLY:
 {{
   "analysis": [
     {{"action": "ignore", "conversation_id": "...", "reason": "..."}},
-    {{"action": "create_project", "project_name": "...", "project_description": "...", "project_type": "...", "participants": [{{"nombre": "...", "email": "correo@ejemplo.com", "rol": "..."}}], "emails_to_assign": ["..."], "insights": [{{"type": "blocker|decision|followup|risk|task_created", "title": "...", "description": "...", "related_person": "..."}}], "tasks": [{{"text": "...", "assigned_to": "...", "status": "pending|blocked"}}]}},
+    {{"action": "create_project", "project_name": "...", "project_description": "...", "project_type": "...", "participants": [{{"name": "...", "email": "email@example.com", "role": "..."}}], "emails_to_assign": ["..."], "insights": [{{"type": "blocker|decision|followup|risk|task_created", "title": "...", "description": "...", "related_person": "..."}}], "tasks": [{{"text": "...", "assigned_to": "...", "status": "pending|blocked"}}]}},
     {{"action": "assign_to_existing", "project_name": "...", "emails_to_assign": ["..."]}}
   ]
 }}"""
@@ -274,7 +304,7 @@ RESPONDE SOLO JSON:
     print("[Gmail Sync] Analyzing with LLM...")
     print(f"[Gmail Sync] Email summaries: {json.dumps(email_summaries[:3], ensure_ascii=False)[:500]}")
     response = call_llm(
-        system_prompt="Eres el agente inteligente de OneBox. Clasificas correos y creas proyectos automáticamente. IMPORTANTE: Los correos de trabajo, solicitudes de proyectos, tareas, o comunicaciones de equipo DEBEN crear proyectos. Solo ignora newsletters automáticos, spam, códigos de verificación y alertas de marketing.",
+        system_prompt="You are OneBox's intelligent agent. You classify emails and create projects automatically. IMPORTANT: work emails, project requests, tasks or team communications MUST create projects. Only ignore automatic newsletters, spam, verification codes and marketing alerts.",
         user_message=analysis_prompt,
         temperature=0.2,
         max_tokens=8192
@@ -320,10 +350,10 @@ RESPONDE SOLO JSON:
             continue
 
         if action == 'create_project':
-            result = crear_proyecto(
+            result = create_project(
                 name=item['project_name'],
                 description=item.get('project_description', ''),
-                type=item.get('project_type', 'Otro'),
+                type=item.get('project_type', 'Other'),
                 participants=item.get('participants', []),
                 channels=['Gmail']
             )
@@ -332,18 +362,18 @@ RESPONDE SOLO JSON:
                 projects_created += 1
 
                 for conv_id in item.get('emails_to_assign', []):
-                    r = asignar_correo_a_proyecto(conv_id, pid, item['project_name'])
+                    r = assign_email_to_project(conv_id, pid, item['project_name'])
                     if r.get('success'):
                         emails_assigned += 1
 
                 for ins in item.get('insights', []):
-                    r = crear_insight(pid, item['project_name'], ins['type'], ins['title'],
+                    r = create_insight(pid, item['project_name'], ins['type'], ins['title'],
                                       ins.get('description', ''), ins.get('related_person', ''))
                     if r.get('success'):
                         insights_count += 1
 
                 for task in item.get('tasks', []):
-                    r = crear_tarea(pid, task['text'], task.get('assigned_to', ''), task.get('status', 'pending'))
+                    r = create_task(pid, task['text'], task.get('assigned_to', ''), task.get('status', 'pending'))
                     if r.get('success'):
                         tasks_count += 1
 
@@ -356,7 +386,7 @@ RESPONDE SOLO JSON:
                     break
             if target_pid:
                 for conv_id in item.get('emails_to_assign', []):
-                    r = asignar_correo_a_proyecto(conv_id, target_pid, target_name)
+                    r = assign_email_to_project(conv_id, target_pid, target_name)
                     if r.get('success'):
                         emails_assigned += 1
 
@@ -374,8 +404,8 @@ RESPONDE SOLO JSON:
 
 
 def handle_push_notification(body: dict) -> dict:
-    """Procesa una notificación de Google Pub/Sub cuando llega un correo nuevo
-    y dispara el sync de Gmail en background."""
+    """Process a Google Pub/Sub notification when a new email arrives
+    and trigger the Gmail sync in background."""
     import base64 as _base64
     import threading
 
@@ -387,14 +417,14 @@ def handle_push_notification(body: dict) -> dict:
         decoded = json.loads(_base64.b64decode(data).decode('utf-8'))
         email_address = decoded.get('emailAddress', '')
         history_id = decoded.get('historyId', '')
-        print(f"[Gmail Push] Correo nuevo para {email_address} (historyId: {history_id})")
+        print(f"[Gmail Push] New email for {email_address} (historyId: {history_id})")
     else:
-        print("[Gmail Push] Notificación sin data")
+        print("[Gmail Push] Notification without data")
 
-    # Buscar el uid del usuario al que pertenece este email de Gmail.
-    # Si no se encuentra, NO procesamos: usar un USER_ID hardcoded como
-    # fallback estaba causando que las notificaciones de un usuario
-    # quedaran asociadas a otro (data leak cross-tenant).
+    # Look up the uid of the user this Gmail email belongs to.
+    # If not found, do NOT process: using a hardcoded USER_ID as a fallback
+    # caused notifications from one user to end up associated with another
+    # (cross-tenant data leak).
     uid = None
     try:
         result = user_tokens_table.scan()
@@ -406,7 +436,7 @@ def handle_push_notification(body: dict) -> dict:
         pass
 
     if not uid:
-        print(f"[Gmail Push] No hay usuario vinculado a {email_address}, ignorando notificación.")
+        print(f"[Gmail Push] No user linked to {email_address}, ignoring notification.")
         return {"ok": True, "skipped": True, "reason": "no_user_linked"}
 
     def _sync():
@@ -432,7 +462,7 @@ def handle_push_notification(body: dict) -> dict:
 
 
 def register_watch(uid: str) -> dict:
-    """Registra el watch de Gmail para recibir notificaciones push via Pub/Sub."""
+    """Register the Gmail watch to receive push notifications via Pub/Sub."""
     import requests
 
     try:
@@ -474,7 +504,7 @@ def register_watch(uid: str) -> dict:
 
 
 def build_auth_url(uid: str) -> dict:
-    """Genera URL de autorización de Google OAuth para conectar Gmail."""
+    """Generate a Google OAuth authorization URL to connect Gmail."""
     from urllib.parse import urlencode as _urlencode
 
     params = {
@@ -491,8 +521,8 @@ def build_auth_url(uid: str) -> dict:
 
 
 def exchange_oauth_code(uid: str, code: str) -> str:
-    """Intercambia el code de Google OAuth por tokens y los guarda.
-    Devuelve el email de Gmail conectado. Lanza Exception si algo falla."""
+    """Exchange the Google OAuth code for tokens and save them.
+    Returns the connected Gmail email. Raises Exception on failure."""
     import requests as _requests
 
     print(f"[Gmail OAuth] Exchanging code for user {uid}")
@@ -515,23 +545,23 @@ def exchange_oauth_code(uid: str, code: str) -> str:
     access_token = tokens.get('access_token', '')
 
     if not access_token:
-        raise Exception("Token exchange devolvió sin access_token")
+        raise Exception("Token exchange returned without access_token")
 
-    # Si Google no manda refresh_token (típico cuando ya autorizaste antes),
-    # reusamos el existente. Pero si tampoco lo tenemos guardado, falla:
-    # sin refresh_token el cron no podrá sincronizar.
+    # If Google does not send a refresh_token (typical when you've authorized
+    # before), reuse the existing one. If we don't have one stored either,
+    # fail: without refresh_token the cron cannot sync.
     if not refresh_token:
         existing = user_tokens_table.get_item(Key={'userId': uid}).get('Item', {})
         refresh_token = existing.get('gmailRefreshToken', '')
         if not refresh_token:
             raise Exception(
-                "Google no devolvió refresh_token y no había uno previo. "
-                "Revoca el acceso en https://myaccount.google.com/permissions y reintenta."
+                "Google did not return a refresh_token and none was stored. "
+                "Revoke access at https://myaccount.google.com/permissions and retry."
             )
 
-    # Pedir info del usuario (email). SIN email no podemos guardar:
-    # el cron necesita saber qué cuenta sincronizar. Antes guardábamos
-    # gmailEmail='' y el resultado era "conectado pero invisible".
+    # Request user info (email). WITHOUT email we cannot save: the cron
+    # needs to know which account to sync. Previously we stored
+    # gmailEmail='' and the result was "connected but invisible".
     user_info_resp = _requests.get(
         'https://www.googleapis.com/oauth2/v2/userinfo',
         headers={'Authorization': f'Bearer {access_token}'},
@@ -540,13 +570,13 @@ def exchange_oauth_code(uid: str, code: str) -> str:
     print(f"[Gmail OAuth] userinfo status: {user_info_resp.status_code}")
     if user_info_resp.status_code != 200:
         raise Exception(
-            f"Userinfo falló: {user_info_resp.status_code} {user_info_resp.text[:200]}"
+            f"Userinfo failed: {user_info_resp.status_code} {user_info_resp.text[:200]}"
         )
     user_info = user_info_resp.json()
     gmail_email = (user_info.get('email') or '').strip().lower()
     if not gmail_email:
         raise Exception(
-            f"Userinfo no devolvió email. Respuesta: {json.dumps(user_info)[:200]}"
+            f"Userinfo did not return an email. Response: {json.dumps(user_info)[:200]}"
         )
 
     user_tokens_table.put_item(Item={
@@ -562,7 +592,7 @@ def exchange_oauth_code(uid: str, code: str) -> str:
 
 
 def get_status(uid: str) -> dict:
-    """Verifica si el usuario tiene Gmail conectado."""
+    """Check whether the user has Gmail connected."""
     try:
         result = user_tokens_table.get_item(Key={'userId': uid})
         item = result.get('Item')
@@ -578,7 +608,7 @@ def get_status(uid: str) -> dict:
 
 
 def disconnect(uid: str) -> dict:
-    """Desconecta Gmail del usuario."""
+    """Disconnect the user's Gmail."""
     try:
         user_tokens_table.delete_item(Key={'userId': uid})
         return {"success": True}

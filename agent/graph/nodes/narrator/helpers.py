@@ -1,42 +1,42 @@
-"""Utilidades del narrator: truncado de resultados y armado del prompt humano."""
+"""Narrator utilities: result truncation and human-prompt assembly."""
 import json
 
 MAX_RESULTS_CHARS = 4000
 
 
 def truncate_results(results: dict, limit: int = MAX_RESULTS_CHARS) -> str:
-    """Serializa los resultados respetando el límite, truncando POR PASO
-    (los más grandes primero) para que los resultados pequeños sobrevivan
-    completos en lugar de cortar el blob entero al final."""
+    """Serialize results respecting the limit, truncating PER STEP
+    (largest first) so that small results survive intact instead of
+    cutting the whole blob at the end."""
     full = json.dumps(results, ensure_ascii=False, default=str, indent=2)
     if len(full) <= limit:
         return full
 
-    # Presupuesto por paso proporcional, recortando primero los más grandes
+    # Proportional budget per step, trimming the largest ones first
     serialized = {
         k: json.dumps(v, ensure_ascii=False, default=str, indent=2)
         for k, v in results.items()
     }
-    budget = limit - 50 * max(len(serialized), 1)  # margen para claves/avisos
+    budget = limit - 50 * max(len(serialized), 1)  # margin for keys/notices
     per_step = max(budget // max(len(serialized), 1), 200)
 
     parts = []
     for k in sorted(serialized, key=lambda x: len(serialized[x])):
         text = serialized[k]
         if len(text) > per_step:
-            text = text[:per_step] + "\n... (paso truncado)"
-        parts.append(f'"paso_{k}": {text}')
+            text = text[:per_step] + "\n... (step truncated)"
+        parts.append(f'"step_{k}": {text}')
     return "{\n" + ",\n".join(parts) + "\n}"
 
 
 def build_user_prompt(user_message: str, results_text: str, guidance: str) -> str:
-    """Arma el mensaje humano del narrator con la guía específica de la intención."""
-    return f"""## Mensaje del usuario:
+    """Build the narrator's human message with the intent-specific guidance."""
+    return f"""## User message:
 {user_message}
 
-## Resultados obtenidos:
+## Results obtained:
 {results_text}
 
 {guidance}
 
-Presenta los resultados al usuario."""
+Present the results to the user."""

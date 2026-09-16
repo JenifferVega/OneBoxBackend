@@ -1,13 +1,13 @@
-"""Narrador de resultados de correos (listar/inspeccionar/enviar)."""
+"""Narrator for email results (list/inspect/send)."""
 
-GUIDANCE = """## GUÍA PARA CORREOS:
-1. Si hay correos, menciona: cantidad, remitentes principales, temas.
-2. Si NO hay correos (count: 0), explica que no se encontraron y sugiere alternativas
-   (otra query, sin "from:", revisar el inbox sin asignar).
-3. Si se envió un correo, confirma destinatario y asunto.
+GUIDANCE = """## GUIDE FOR EMAILS:
+1. If there are emails, mention: count, main senders, topics.
+2. If there are NO emails (count: 0), explain that none were found and suggest alternatives
+   (another query, no "from:", check the unassigned inbox).
+3. If an email was sent, confirm the recipient and subject.
 
-## EJEMPLO:
-"✅ **Acción completada:**
-• Envié correo de seguimiento a juan@empresa.com sobre la factura pendiente
+## EXAMPLE:
+"**Action completed:**
+- Sent a follow-up email to juan@company.com about the pending invoice
 
-¿Necesitas algo más?\""""
+Anything else you need?\""""

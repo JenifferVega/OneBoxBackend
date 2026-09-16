@@ -1,4 +1,4 @@
-"""Lógica interna de insights: listado enriquecido para el feed del frontend."""
+"""Insights internal logic: enriched listing for the frontend feed."""
 from typing import Optional
 
 from agent.tools import insights_table
@@ -7,12 +7,12 @@ from api.services.access import accessible_project_ids
 
 
 def list_insights(uid: str, user_email: str, type: Optional[str] = None) -> list:
-    """Lista insights/acciones de la IA de TODOS los proyectos a los que el
-    usuario tiene acceso (own + invitados aceptados). Opcionalmente filtra por tipo."""
-    # Obtener los proyectos a los que el usuario tiene acceso
+    """List AI insights/actions for ALL projects the user has access to
+    (own + accepted invitations). Optionally filters by type."""
+    # Fetch the projects the user has access to
     accessible_pids = accessible_project_ids(uid, user_email)
 
-    # Si no tiene acceso a ninguno, devolver lista vacía (no escanear todo)
+    # If they have access to none, return an empty list (do not scan everything)
     if not accessible_pids:
         return []
 
@@ -37,48 +37,77 @@ def list_insights(uid: str, user_email: str, type: Optional[str] = None) -> list
         time_str = created[11:16] if len(created) > 16 else created[:10]
 
         type_map = {
-            'decision':                {'badge': 'Decisión',          'badgeColor': 'bg-blue-500/20 text-blue-400 border-blue-500/30',        'icon': '✓',  'iconColor': 'bg-emerald-500/20 text-emerald-400'},
-            'blocker':                 {'badge': 'Bloqueo cliente',   'badgeColor': 'bg-red-500/20 text-red-400 border-red-500/30',           'icon': '🚧', 'iconColor': 'bg-red-500/20 text-red-400'},
-            'task_created':            {'badge': 'Tarea',             'badgeColor': 'bg-violet-500/20 text-violet-400 border-violet-500/30',  'icon': '📋', 'iconColor': 'bg-violet-500/20 text-violet-400'},
-            'work_done':               {'badge': 'Trabajo realizado', 'badgeColor': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30','icon': '✅', 'iconColor': 'bg-emerald-500/20 text-emerald-400'},
-            'followup':                {'badge': 'Follow-up',         'badgeColor': 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',  'icon': '📧', 'iconColor': 'bg-indigo-500/20 text-indigo-400'},
-            'risk':                    {'badge': 'Riesgo',            'badgeColor': 'bg-orange-500/20 text-orange-400 border-orange-500/30',  'icon': '⚠',  'iconColor': 'bg-amber-500/20 text-amber-400'},
-            'sla':                     {'badge': 'SLA',               'badgeColor': 'bg-red-500/20 text-red-400 border-red-500/30',           'icon': '🚨', 'iconColor': 'bg-red-500/20 text-red-400'},
-            'notification':            {'badge': 'Notificación',      'badgeColor': 'bg-sky-500/20 text-sky-400 border-sky-500/30',           'icon': '📱', 'iconColor': 'bg-sky-500/20 text-sky-400'},
-            'classification':          {'badge': 'Clasificación',     'badgeColor': 'bg-teal-500/20 text-teal-400 border-teal-500/30',        'icon': '🧠', 'iconColor': 'bg-teal-500/20 text-teal-400'},
-            'summary':                 {'badge': 'Resumen',           'badgeColor': 'bg-purple-500/20 text-purple-400 border-purple-500/30',  'icon': '📊', 'iconColor': 'bg-purple-500/20 text-purple-400'},
-            'project_characterization':{'badge': 'Tipo real',         'badgeColor': 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30','icon': '🎯', 'iconColor': 'bg-fuchsia-500/20 text-fuchsia-300'},
-            'client_profile':          {'badge': 'Perfil cliente',    'badgeColor': 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',        'icon': '👤', 'iconColor': 'bg-cyan-500/20 text-cyan-300'},
-            'key_insight':             {'badge': 'Insight clave',     'badgeColor': 'bg-amber-500/20 text-amber-300 border-amber-500/30',     'icon': '💡', 'iconColor': 'bg-amber-500/20 text-amber-300'},
-            'metric':                  {'badge': 'Métrica',           'badgeColor': 'bg-lime-500/20 text-lime-300 border-lime-500/30',        'icon': '📈', 'iconColor': 'bg-lime-500/20 text-lime-300'},
-            'tech_issue':              {'badge': 'Problema técnico',  'badgeColor': 'bg-rose-500/20 text-rose-300 border-rose-500/30',        'icon': '🔧', 'iconColor': 'bg-rose-500/20 text-rose-300'},
+            'decision':                {'badge': 'Decision',           'badgeColor': 'bg-blue-500/20 text-blue-400 border-blue-500/30',        'icon': '✓',  'iconColor': 'bg-emerald-500/20 text-emerald-400'},
+            'blocker':                 {'badge': 'Client blocker',     'badgeColor': 'bg-red-500/20 text-red-400 border-red-500/30',           'icon': '🚧', 'iconColor': 'bg-red-500/20 text-red-400'},
+            'task_created':            {'badge': 'Task',               'badgeColor': 'bg-violet-500/20 text-violet-400 border-violet-500/30',  'icon': '📋', 'iconColor': 'bg-violet-500/20 text-violet-400'},
+            'work_done':               {'badge': 'Work done',          'badgeColor': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30','icon': '✅', 'iconColor': 'bg-emerald-500/20 text-emerald-400'},
+            'followup':                {'badge': 'Follow-up',          'badgeColor': 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',  'icon': '📧', 'iconColor': 'bg-indigo-500/20 text-indigo-400'},
+            'risk':                    {'badge': 'Risk',               'badgeColor': 'bg-orange-500/20 text-orange-400 border-orange-500/30',  'icon': '⚠',  'iconColor': 'bg-amber-500/20 text-amber-400'},
+            'sla':                     {'badge': 'SLA',                'badgeColor': 'bg-red-500/20 text-red-400 border-red-500/30',           'icon': '🚨', 'iconColor': 'bg-red-500/20 text-red-400'},
+            'notification':            {'badge': 'Notification',       'badgeColor': 'bg-sky-500/20 text-sky-400 border-sky-500/30',           'icon': '📱', 'iconColor': 'bg-sky-500/20 text-sky-400'},
+            'classification':          {'badge': 'Classification',     'badgeColor': 'bg-teal-500/20 text-teal-400 border-teal-500/30',        'icon': '🧠', 'iconColor': 'bg-teal-500/20 text-teal-400'},
+            'summary':                 {'badge': 'Summary',            'badgeColor': 'bg-purple-500/20 text-purple-400 border-purple-500/30',  'icon': '📊', 'iconColor': 'bg-purple-500/20 text-purple-400'},
+            'project_characterization':{'badge': 'Actual type',        'badgeColor': 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30','icon': '🎯', 'iconColor': 'bg-fuchsia-500/20 text-fuchsia-300'},
+            'client_profile':          {'badge': 'Client profile',     'badgeColor': 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',        'icon': '👤', 'iconColor': 'bg-cyan-500/20 text-cyan-300'},
+            'key_insight':             {'badge': 'Key insight',        'badgeColor': 'bg-amber-500/20 text-amber-300 border-amber-500/30',     'icon': '💡', 'iconColor': 'bg-amber-500/20 text-amber-300'},
+            'metric':                  {'badge': 'Metric',             'badgeColor': 'bg-lime-500/20 text-lime-300 border-lime-500/30',        'icon': '📈', 'iconColor': 'bg-lime-500/20 text-lime-300'},
+            'tech_issue':              {'badge': 'Technical issue',    'badgeColor': 'bg-rose-500/20 text-rose-300 border-rose-500/30',        'icon': '🔧', 'iconColor': 'bg-rose-500/20 text-rose-300'},
         }
         ui = type_map.get(ins_type, type_map['task_created'])
 
-        if status in ('executed', 'new'):
-            action_type = 'EJECUTÓ'
-            action_color = 'text-emerald-400'
-            fe_status = 'executed'
-        elif status == 'review':
-            action_type = 'PAUSÓ'
+        # OBSERVATION vs ACTION.
+        # Most insight types are things the AI NOTICED while reading a
+        # project -- a risk, a summary, who the client is. Nothing was
+        # performed. Labelling those "EXECUTED" (as this did for every single
+        # row, because no code path ever wrote status='review' and the final
+        # else fell through to EXECUTED anyway) told the user an action had
+        # been taken when only a note had been written.
+        #
+        # Only the types below actually have a side effect somewhere else:
+        # a task row, a sent message, an email assigned to a project.
+        ACTION_TYPES = {'task_created', 'notification', 'classification',
+                        'followup', 'sla'}
+        is_action = ins_type in ACTION_TYPES
+
+        if status == 'review':
+            action_type = 'NEEDS REVIEW'
             action_color = 'text-amber-400'
+            chip_color = 'bg-amber-500/20 text-amber-400'
             fe_status = 'review'
+        elif status == 'error':
+            action_type = 'FAILED'
+            action_color = 'text-red-400'
+            chip_color = 'bg-red-500/20 text-red-400'
+            fe_status = 'error'
+        elif is_action:
+            # An action with no recorded actionsTaken is a claim we cannot
+            # back up, so it is reported as recorded, not as executed.
+            if actions_taken:
+                action_type = 'EXECUTED'
+                action_color = 'text-emerald-400'
+                chip_color = 'bg-emerald-500/20 text-emerald-400'
+                fe_status = 'executed'
+            else:
+                action_type = 'CREATED'
+                action_color = 'text-violet-300'
+                chip_color = 'bg-violet-500/20 text-violet-300'
+                fe_status = 'executed'
         else:
-            action_type = 'EJECUTÓ'
-            action_color = 'text-emerald-400'
-            fe_status = 'executed'
+            action_type = 'DETECTED'
+            action_color = 'text-sky-300'
+            chip_color = 'bg-sky-500/20 text-sky-300'
+            fe_status = 'recorded'
 
         tags = []
         if ins.get('relatedPerson'):
             tags.append({'label': ins['relatedPerson'], 'color': 'bg-white/5 text-white/50'})
-        tags.append({'label': 'Ejecutado' if fe_status == 'executed' else 'Pendiente',
-                     'color': 'bg-emerald-500/20 text-emerald-400' if fe_status == 'executed' else 'bg-amber-500/20 text-amber-400'})
+        tags.append({'label': action_type.title(), 'color': chip_color})
 
         enriched.append({
             'id': ins.get('insightId', ''),
             'insightId': ins.get('insightId', ''),
             'projectId': ins.get('projectId', ''),
-            'projectName': ins.get('projectName', 'Sistema'),
+            'projectName': ins.get('projectName', 'System'),
             'type': ins_type,
             'badge': ui['badge'],
             'badgeColor': ui['badgeColor'],
@@ -93,6 +122,8 @@ def list_insights(uid: str, user_email: str, type: Optional[str] = None) -> list
             'tags': tags,
             'time': time_str,
             'status': fe_status,
+            'category': 'action' if is_action else 'observation',
+            'chipColor': chip_color,
             'createdAt': created,
             'requiresReview': status == 'review',
         })

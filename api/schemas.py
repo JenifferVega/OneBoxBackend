@@ -1,4 +1,4 @@
-"""Modelos Pydantic de request/response de la API."""
+"""Pydantic request/response models for the API."""
 from typing import List, Optional
 
 from pydantic import BaseModel
@@ -7,29 +7,29 @@ from pydantic import BaseModel
 class ChatRequest(BaseModel):
     message: str
     history: Optional[List[dict]] = []
-    debug: bool = False  # si True: dry-run, no modifica DB, retorna debug_info
-    session_id: Optional[str] = None  # ID de sesión MCP (para cache dry-run por sesión)
+    debug: bool = False  # if True: dry-run, does not modify DB, returns debug_info
+    session_id: Optional[str] = None  # MCP session ID (for per-session dry-run cache)
 
 
 class ChatResponse(BaseModel):
     response: str
     toolsUsed: List[str] = []
-    debug_info: Optional[dict] = None  # solo presente cuando debug=True
+    debug_info: Optional[dict] = None  # only present when debug=True
 
 
 class CreateProjectRequest(BaseModel):
     name: str
     description: str = ""
-    type: str = "Otro"
+    type: str = "Other"
     participants: Optional[List[dict]] = []
     channels: Optional[List[str]] = ["Gmail"]
-    timing: Optional[str] = ""  # Plazo del proyecto (libre, ej: "8 semanas", "30/06/2026", "Q3 2026")
-    deliveryDate: Optional[str] = ""  # Fecha de entrega ISO (opcional)
+    timing: Optional[str] = ""  # Project timeframe (free text, e.g. "8 weeks", "30/06/2026", "Q3 2026")
+    deliveryDate: Optional[str] = ""  # ISO delivery date (optional)
 
 
 class UpdateProjectRequest(BaseModel):
-    # Todos opcionales — solo se actualizan los campos presentes en el body.
-    # El frontend envía únicamente los que cambiaron (edit modal).
+    # All optional — only fields present in the body are updated.
+    # The frontend only sends the fields that changed (edit modal).
     name: Optional[str] = None
     description: Optional[str] = None
     type: Optional[str] = None
@@ -43,19 +43,19 @@ class UpdateParticipantsRequest(BaseModel):
 
 
 class InviteRequest(BaseModel):
-    # Email y/o teléfono — al menos uno requerido (validado en el servicio)
+    # Email and/or phone — at least one required (validated in the service)
     email: Optional[str] = ""
     phone: Optional[str] = ""
-    # Nombre y rol opcionales para personalizar el participant que se guarda
+    # Name and role optional to personalize the participant record saved
     name: Optional[str] = ""
     role: Optional[str] = ""
-    # Si False, solo registra el contacto en participants[] sin enviar notificación
+    # If False, only records the contact in participants[] without sending a notification
     send_notification: Optional[bool] = True
 
 
 class RemoveParticipantRequest(BaseModel):
-    """Identifica al participante a eliminar por uno de estos campos.
-    Prioridad de matching: email > phone > name. El primero que coincida gana."""
+    """Identifies the participant to remove by one of these fields.
+    Matching priority: email > phone > name. First match wins."""
     email: Optional[str] = ""
     phone: Optional[str] = ""
     name: Optional[str] = ""
@@ -66,9 +66,9 @@ class CreateTaskRequest(BaseModel):
     assigned_to: str = ""
     status: str = "pending"
     description: str = ""
-    start_date: Optional[str] = None   # YYYY-MM-DD (opcional)
-    due_date: Optional[str] = None     # YYYY-MM-DD (opcional)
-    parent_task_id: Optional[str] = None  # taskId del padre (subtarea) o None
+    start_date: Optional[str] = None   # YYYY-MM-DD (optional)
+    due_date: Optional[str] = None     # YYYY-MM-DD (optional)
+    parent_task_id: Optional[str] = None  # parent taskId (subtask) or None
 
 
 class UpdateTaskRequest(BaseModel):
@@ -76,10 +76,10 @@ class UpdateTaskRequest(BaseModel):
     status: Optional[str] = None
     assigned_to: Optional[str] = None
     description: Optional[str] = None
-    blocked_reason: Optional[str] = None  # Motivo del bloqueo (opcional)
+    blocked_reason: Optional[str] = None  # Blocking reason (optional)
     start_date: Optional[str] = None      # YYYY-MM-DD
     due_date: Optional[str] = None        # YYYY-MM-DD
-    parent_task_id: Optional[str] = None  # mover tarea a/desde subtarea (string vacío = raíz)
+    parent_task_id: Optional[str] = None  # move task to/from subtask (empty string = root)
 
 
 class AssignRequest(BaseModel):
@@ -94,18 +94,18 @@ class AnalyzeTextPreviewRequest(BaseModel):
 class CreateProjectFromDraftRequest(BaseModel):
     draftId: str
     name: str
-    type: Optional[str] = "Otro"
+    type: Optional[str] = "Other"
     description: str
-    # Texto original completo (transcript/pegado) para que el análisis de insights
-    # vea el material real, no la descripción corta. Opcional (backward-compatible).
+    # Full original text (transcript/paste) so the insights analysis
+    # sees the real material, not the short description. Optional (backward-compatible).
     sourceText: Optional[str] = ""
     channels: List[str] = []
     emails: Optional[List[str]] = []
     phones: Optional[List[str]] = []
     timing: Optional[str] = ""
     deliveryDate: Optional[str] = ""
-    # Participantes detectados por IA: cada uno con {name, email, phone, role}
-    # Permite preservar el nombre real (Kevin/Mateo) en lugar de usar el email como nombre.
+    # AI-detected participants: each one with {name, email, phone, role}
+    # Lets us preserve the real name (Kevin/Mateo) instead of using the email as name.
     detectedParticipants: Optional[List[dict]] = []
 
 

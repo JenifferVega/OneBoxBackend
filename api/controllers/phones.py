@@ -1,4 +1,4 @@
-"""Endpoints de teléfonos vinculados (WhatsApp ↔ usuario)."""
+"""Linked phones endpoints (WhatsApp ↔ user)."""
 from fastapi import APIRouter, Header, HTTPException
 
 from api.deps import require_uid
@@ -10,7 +10,7 @@ router = APIRouter()
 
 @router.post("/api/user/phone")
 async def link_phone(req: LinkPhoneRequest, x_user_id: str = Header(default=""), x_user_email: str = Header(default=""), x_user_name: str = Header(default="")):
-    """Vincula un número de WhatsApp con el usuario autenticado."""
+    """Link a WhatsApp number to the authenticated user."""
     uid = require_uid(x_user_id)
     try:
         return phones_service.link_phone(uid, req.phoneNumber, x_user_email, x_user_name)
@@ -20,7 +20,7 @@ async def link_phone(req: LinkPhoneRequest, x_user_id: str = Header(default=""),
 
 @router.get("/api/user/phone")
 async def get_user_phone(x_user_id: str = Header(default="")):
-    """Obtiene el teléfono vinculado del usuario."""
+    """Get the user's linked phone."""
     uid = require_uid(x_user_id)
     try:
         return phones_service.get_user_phone(uid)
@@ -30,7 +30,7 @@ async def get_user_phone(x_user_id: str = Header(default="")):
 
 @router.get("/api/user/phones")
 async def get_user_phones(x_user_id: str = Header(default="")):
-    """Obtiene todos los teléfonos de WhatsApp vinculados del usuario."""
+    """Get all of the user's linked WhatsApp phones."""
     uid = require_uid(x_user_id)
     try:
         return phones_service.get_user_phones(uid)
@@ -40,7 +40,7 @@ async def get_user_phones(x_user_id: str = Header(default="")):
 
 @router.delete("/api/user/phone")
 async def unlink_phone(x_user_id: str = Header(default="")):
-    """Desvincula el teléfono del usuario."""
+    """Unlink the user's phone."""
     uid = require_uid(x_user_id)
     try:
         return phones_service.unlink_phone(uid)

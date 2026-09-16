@@ -1,203 +1,203 @@
-# Propuesta de diseño — Sistema de roles y permisos (OneBox)
+# Design proposal — Role and permissions system (OneBox)
 
-> Estado: **propuesta de diseño** (no implementado). Alcance acordado: modelo **híbrido** = rol global por usuario + override por proyecto.
-> Base: revisión de `agent/tools.py`, `mcp/server.py` y `api/services/access.py`.
-
----
-
-## 1. Estado actual (qué hay hoy)
-
-OneBox **no tiene un sistema de roles**. El único control de acceso es a nivel de **proyecto**:
-
-- `api/services/access.py → has_project_access(uid, email, project_id)` devuelve `(has_access, is_owner, project)`.
-  Un usuario accede a un proyecto si: (1) es el `owner` (`proj.userId == uid`), (2) su email aparece en `participants[]`, o (3) tiene una invitación `accepted`.
-- `agent/tools.py → _has_project_access(project_id)` es la "defensa de último kilómetro" que usan las tools de escritura antes de tocar DynamoDB, para que el LLM no inyecte `projectId` ajenos.
-- El campo `participants[].rol` ("Cliente", "Desarrollador", "PM") es **texto descriptivo**, no controla permisos.
-
-Consecuencias:
-
-1. Existe ya una distinción binaria implícita: **owner** vs **participante**. El propio docstring de `has_project_access` dice que los endpoints administrativos "deben requerir `is_owner=True`", pero no está formalizado en roles nombrados ni aplicado de forma consistente.
-2. El agente conversacional **no aplica ningún chequeo de rol**. `execute_tool(tool_name, params)` ejecuta cualquier tool sin mirar quién es el usuario; solo algunas tools de escritura llaman a `_has_project_access`. No hay forma de decir "este usuario solo puede leer" o "este usuario no puede enviar comunicación externa".
-3. No hay separación entre acciones de bajo riesgo (leer) y alto riesgo (enviar WhatsApp/SMS/email al mundo exterior).
-
-Este diseño parte de esa base y la formaliza sin romperla.
+> Status: **design proposal** (not implemented). Agreed scope: **hybrid** model = global role per user + per-project override.
+> Basis: review of `agent/tools.py`, `mcp/server.py` and `api/services/access.py`.
 
 ---
 
-## 2. Principios de diseño
+## 1. Current state (what exists today)
 
-1. **Clasificar por capacidad y riesgo, no por tool individual.** Los roles otorgan *capacidades*; cada tool exige una capacidad. Así, añadir una tool nueva solo requiere etiquetarla, no editar cada rol.
-2. **El rol más permisivo no puede saltarse el scope de proyecto.** Roles y acceso a proyecto son ortogonales: el rol dice *qué tipo de acción* puedes hacer; el acceso a proyecto dice *sobre qué datos*. Se exige pasar ambos filtros.
-3. **Híbrido con techo global.** El rol global define el **máximo** de capacidades del usuario. El rol por proyecto solo puede **restringir** dentro de ese proyecto (o, para administración, elevar a admin *de ese proyecto*) — nunca otorgar una capacidad que el rol global no permite. Esto evita escaladas de privilegio.
-4. **Enforcement en el punto único.** Un solo gate (`can(...)`) en `execute_tool` para el agente, espejado en los controladores de la API. No esparcir checks ad-hoc.
-5. **Fail-closed.** Si no se puede determinar el rol o la capacidad de una tool no está declarada, se deniega.
+OneBox **has no role system**. The only access control is at the **project** level:
+
+- `api/services/access.py → has_project_access(uid, email, project_id)` returns `(has_access, is_owner, project)`.
+  A user can access a project if: (1) they are the `owner` (`proj.userId == uid`), (2) their email appears in `participants[]`, or (3) they have an `accepted` invitation.
+- `agent/tools.py → _has_project_access(project_id)` is the "last-mile defense" write tools call before touching DynamoDB, so the LLM cannot inject someone else's `projectId`.
+- The `participants[].rol` field ("Client", "Developer", "PM") is **descriptive text**, it does not control permissions.
+
+Consequences:
+
+1. There is already an implicit binary distinction: **owner** vs **participant**. The docstring for `has_project_access` itself says that administrative endpoints "must require `is_owner=True`", but this is not formalized as named roles nor applied consistently.
+2. The conversational agent **applies no role check**. `execute_tool(tool_name, params)` runs any tool without looking at who the user is; only some write tools call `_has_project_access`. There is no way to say "this user can only read" or "this user cannot send external communication".
+3. There is no separation between low-risk actions (read) and high-risk ones (send WhatsApp/SMS/email to the outside world).
+
+This design builds on that base and formalizes it without breaking it.
 
 ---
 
-## 3. Catálogo de acciones clasificado
+## 2. Design principles
 
-Las 16 tools registradas en `agent/tools.py`, agrupadas por **capacidad** requerida y **scope**.
+1. **Classify by capability and risk, not by individual tool.** Roles grant *capabilities*; each tool requires a capability. Adding a new tool then only requires labeling it, not editing every role.
+2. **The most permissive role cannot bypass project scope.** Roles and project access are orthogonal: the role says *what kind of action* you can do; project access says *on what data*. Both filters must pass.
+3. **Hybrid with a global ceiling.** The global role defines the **maximum** capabilities of a user. The per-project role can only **restrict** within that project (or, for administration, elevate to admin *of that project*) — never grant a capability the global role doesn't allow. This prevents privilege escalation.
+4. **Single-point enforcement.** One gate (`can(...)`) in `execute_tool` for the agent, mirrored in the API controllers. No scattered ad-hoc checks.
+5. **Fail-closed.** If the role can't be determined or a tool's capability isn't declared, access is denied.
 
-| # | Acción | Scope | Capacidad requerida | Riesgo |
+---
+
+## 3. Classified action catalog
+
+The 16 tools registered in `agent/tools.py`, grouped by required **capability** and **scope**.
+
+| # | Action | Scope | Required capability | Risk |
 |---|--------|-------|---------------------|--------|
-| 1 | `listar_correos` | global | `read` | bajo |
-| 2 | `inspeccionar_correo` | global | `read` | bajo |
-| 3 | `analizar_inbox` | global | `read` | bajo |
-| 4 | `listar_proyectos` | global | `read` | bajo |
-| 5 | `listar_notificaciones` | proyecto* | `read` | bajo |
-| 6 | `obtener_contactos_proyecto` | proyecto | `read` | bajo (PII de contacto) |
-| 7 | `verificar_sla` | global | `read` (análisis) | bajo |
-| 8 | `resumen_proactivo` | global | `read` (análisis) | bajo |
-| 9 | `clasificar_mensajes_automatico` | global | `read` (solo sugiere) | bajo |
-| 10 | `crear_proyecto` | global | `write_internal` | medio |
-| 11 | `asignar_correo_a_proyecto` | proyecto | `write_internal` | medio |
-| 12 | `crear_insight` | proyecto | `write_internal` | medio |
-| 13 | `crear_tarea` | proyecto | `write_internal` | medio |
-| 14 | `crear_recordatorio` | proyecto* | `write_internal` | medio |
-| 15 | `enviar_correo` | proyecto* | `send_external` | **alto** |
-| 16 | `enviar_notificacion` | proyecto* | `send_external` | **alto** (WhatsApp/SMS/email, scheduling + recurrencia) |
+| 1 | `list_emails` | global | `read` | low |
+| 2 | `inspect_email` | global | `read` | low |
+| 3 | `analyze_inbox` | global | `read` | low |
+| 4 | `list_projects` | global | `read` | low |
+| 5 | `list_notifications` | project* | `read` | low |
+| 6 | `get_project_contacts` | project | `read` | low (contact PII) |
+| 7 | `check_sla` | global | `read` (analysis) | low |
+| 8 | `proactive_summary` | global | `read` (analysis) | low |
+| 9 | `auto_classify_messages` | global | `read` (suggest only) | low |
+| 10 | `create_project` | global | `write_internal` | medium |
+| 11 | `assign_email_to_project` | project | `write_internal` | medium |
+| 12 | `create_insight` | project | `write_internal` | medium |
+| 13 | `create_task` | project | `write_internal` | medium |
+| 14 | `create_reminder` | project* | `write_internal` | medium |
+| 15 | `send_email` | project* | `send_external` | **high** |
+| 16 | `send_notification` | project* | `send_external` | **high** (WhatsApp/SMS/email, scheduling + recurrence) |
 
-\* `project_id` es opcional en estas tools. Regla: si llega `project_id` → se aplica el rol **por proyecto**; si no llega → se aplica el rol **global** (acción a nivel cuenta).
+\* `project_id` is optional in these tools. Rule: if `project_id` is present → the **per-project** role applies; if it's absent → the **global** role applies (account-level action).
 
-Capacidades administrativas (no son tools del agente, viven en la API de proyectos: `update_participants`, `delete project`, invitaciones, gestión de roles):
+Administrative capabilities (not agent tools; they live in the project API: `update_participants`, `delete project`, invitations, role management):
 
-| Capacidad | Acciones |
+| Capability | Actions |
 |-----------|----------|
-| `manage_project` | editar/borrar proyecto, añadir/quitar participantes, invitar |
-| `manage_roles` | asignar el rol global de otros usuarios y el rol por proyecto |
+| `manage_project` | edit/delete project, add/remove participants, invite |
+| `manage_roles` | assign other users' global role and per-project role |
 
-### Las cuatro capacidades base
+### The four base capabilities
 
-- **`read`** — consultar y analizar. Sin efectos de escritura ni externos.
-- **`write_internal`** — crear/modificar datos dentro de OneBox (proyectos, tareas, insights, recordatorios, asignaciones). Sin salida al exterior.
-- **`send_external`** — enviar comunicación que sale al mundo (email, WhatsApp, SMS). La línea roja de riesgo.
-- **`manage_project` / `manage_roles`** — administración.
+- **`read`** — query and analyze. No write or external side effects.
+- **`write_internal`** — create/modify data inside OneBox (projects, tasks, insights, reminders, assignments). No outbound output.
+- **`send_external`** — send communication that goes out to the world (email, WhatsApp, SMS). The risk red line.
+- **`manage_project` / `manage_roles`** — administration.
 
 ---
 
-## 4. Modelo de roles
+## 4. Role model
 
-### 4.1 Roles globales (a nivel usuario / workspace)
+### 4.1 Global roles (at the user / workspace level)
 
-Definen el **techo** de capacidades del usuario en todo el sistema.
+They set the **ceiling** on user capabilities across the whole system.
 
-| Rol global | `read` | `write_internal` | `send_external` | `manage_project` | `manage_roles` |
+| Global role | `read` | `write_internal` | `send_external` | `manage_project` | `manage_roles` |
 |------------|:---:|:---:|:---:|:---:|:---:|
-| **Owner** (dueño de la cuenta) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Operador** | ✅ | ✅ | ✅ | ➖¹ | ❌ |
-| **Colaborador** | ✅ | ✅ | ❌ | ❌ | ❌ |
-| **Lector / Analista** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Owner** (account owner) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Operator** | ✅ | ✅ | ✅ | ➖¹ | ❌ |
+| **Collaborator** | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Viewer / Analyst** | ✅ | ❌ | ❌ | ❌ | ❌ |
 
-¹ El Operador puede administrar **solo los proyectos donde es admin de proyecto** (ver 4.2), no todos.
+¹ The Operator can administer **only projects where they are project admin** (see 4.2), not all of them.
 
-Lectura del cuadro:
+Reading the table:
 
-- **Owner**: control total, incluida la gestión de quién tiene qué rol. Hoy equivale al `proj.userId` original / dueño de la cuenta.
-- **Operador**: opera el día a día completo, incluida la comunicación externa, pero no gestiona roles de otros ni borra cosas que no administra.
-- **Colaborador**: trabaja dentro de OneBox (crea proyectos, tareas, insights) pero **no puede enviar nada al exterior**. Útil para perfiles junior, becarios o integraciones que solo deben organizar información.
-- **Lector / Analista**: consulta y usa los resúmenes/SLA/clasificación (que solo sugieren), sin modificar ni enviar nada. Útil para stakeholders, auditoría, dashboards.
+- **Owner**: full control, including managing who has which role. Today this maps to the original `proj.userId` / account owner.
+- **Operator**: runs the full day-to-day, including external communication, but doesn't manage other users' roles or delete things they don't administer.
+- **Collaborator**: works inside OneBox (creates projects, tasks, insights) but **cannot send anything to the outside**. Useful for junior profiles, interns or integrations that should only organize information.
+- **Viewer / Analyst**: queries and uses the summaries / SLA / classification (which only suggest), without modifying or sending anything. Useful for stakeholders, auditing, dashboards.
 
-### 4.2 Roles por proyecto (override dentro de un proyecto)
+### 4.2 Project roles (override within a project)
 
-Se guardan en `participants[].rol_permiso` de cada proyecto. Refinan lo que el usuario puede hacer **dentro de ese proyecto concreto**.
+Stored in `participants[].rol_permiso` on each project. They refine what the user can do **inside that specific project**.
 
-| Rol de proyecto | Significado |
+| Project role | Meaning |
 |-----------------|-------------|
-| **Project Admin** | Administra el proyecto: participantes, invitaciones, borrado. (= el actual `is_owner`) |
-| **Project Editor** | Crea/edita dentro del proyecto: tareas, insights, asignaciones, recordatorios, y — si su rol global lo permite — comunicación externa del proyecto. |
-| **Project Viewer** | Solo lectura del proyecto. |
+| **Project Admin** | Administers the project: participants, invitations, deletion. (= today's `is_owner`) |
+| **Project Editor** | Creates/edits inside the project: tasks, insights, assignments, reminders, and — if the global role allows it — external project communication. |
+| **Project Viewer** | Read-only on the project. |
 
-### 4.3 Regla de combinación (el "híbrido")
+### 4.3 Combination rule (the "hybrid")
 
-Para una acción con `project_id`, el **permiso efectivo** se calcula así:
+For an action with `project_id`, the **effective permission** is computed as:
 
 ```
-capacidad_permitida =
-    capacidades(rol_global)              # techo: qué puede hacer el usuario en general
-  ∩ capacidades(rol_proyecto)            # piso por proyecto: qué se le permite aquí
-  ∪ extras_admin_si(rol_proyecto == Admin)   # un admin de proyecto gana manage_project SOLO de este proyecto
+allowed_capability =
+    capabilities(global_role)             # ceiling: what the user can do in general
+  ∩ capabilities(project_role)            # per-project floor: what is allowed here
+  ∪ admin_extras_if(project_role == Admin)   # a project admin gets manage_project ONLY for this project
 ```
 
-En palabras:
+In words:
 
-1. El **rol global pone el techo**. Un Lector global nunca podrá `send_external`, aunque en un proyecto sea Editor.
-2. El **rol de proyecto restringe** dentro de ese proyecto. Un Operador global que en el "Proyecto X" es Viewer, en ese proyecto solo lee.
-3. **Excepción de administración**: ser **Project Admin** otorga `manage_project` *de ese proyecto* aunque el rol global no sea Owner. Es la única elevación permitida, y está acotada a ese proyecto.
-4. Si el usuario **no es participante** del proyecto (no tiene rol de proyecto) pero tiene acceso por otra vía, su permiso efectivo es el del **rol global filtrado a `read`** salvo que sea Owner global. (Configurable; por defecto conservador.)
+1. The **global role sets the ceiling**. A global Viewer will never be able to `send_external`, even if they are Editor in a project.
+2. The **project role restricts** within that project. A global Operator who is Viewer in "Project X" only reads in that project.
+3. **Administration exception**: being **Project Admin** grants `manage_project` *for that project* even if the global role is not Owner. It is the only elevation allowed, and it is scoped to that project.
+4. If the user **is not a participant** of the project (no project role) but has access through another path, their effective permission is the **global role filtered to `read`** unless they are global Owner. (Configurable; conservative by default.)
 
-Para acciones **globales** (sin `project_id`: `listar_correos`, `crear_proyecto`, `resumen_proactivo`, etc.) solo aplica el **rol global**.
+For **global** actions (no `project_id`: `list_emails`, `create_project`, `proactive_summary`, etc.) only the **global role** applies.
 
 ---
 
-## 5. Matriz de permisos rol global × acción
+## 5. Permissions matrix — global role × action
 
-✅ permitido · ❌ denegado · 🔒 permitido solo si además el rol de proyecto lo habilita (ver §4.3)
+✅ allowed · ❌ denied · 🔒 allowed only if the project role also grants it (see §4.3)
 
-| Acción | Owner | Operador | Colaborador | Lector |
+| Action | Owner | Operator | Collaborator | Viewer |
 |--------|:---:|:---:|:---:|:---:|
-| `listar_correos` | ✅ | ✅ | ✅ | ✅ |
-| `inspeccionar_correo` | ✅ | ✅ | ✅ | ✅ |
-| `analizar_inbox` | ✅ | ✅ | ✅ | ✅ |
-| `listar_proyectos` | ✅ | ✅ | ✅ | ✅ |
-| `listar_notificaciones` | ✅ | ✅ | ✅ | ✅ |
-| `obtener_contactos_proyecto` | ✅ | 🔒 | 🔒 | 🔒 |
-| `verificar_sla` | ✅ | ✅ | ✅ | ✅ |
-| `resumen_proactivo` | ✅ | ✅ | ✅ | ✅ |
-| `clasificar_mensajes_automatico` | ✅ | ✅ | ✅ | ✅ |
-| `crear_proyecto` | ✅ | ✅ | ✅ | ❌ |
-| `asignar_correo_a_proyecto` | ✅ | 🔒 | 🔒 | ❌ |
-| `crear_insight` | ✅ | 🔒 | 🔒 | ❌ |
-| `crear_tarea` | ✅ | 🔒 | 🔒 | ❌ |
-| `crear_recordatorio` | ✅ | 🔒 | 🔒 | ❌ |
-| `enviar_correo` | ✅ | 🔒 | ❌ | ❌ |
-| `enviar_notificacion` | ✅ | 🔒 | ❌ | ❌ |
-| (admin) gestionar participantes / invitar / borrar proyecto | ✅ | 🔒² | ❌ | ❌ |
-| (admin) asignar roles | ✅ | ❌ | ❌ | ❌ |
+| `list_emails` | ✅ | ✅ | ✅ | ✅ |
+| `inspect_email` | ✅ | ✅ | ✅ | ✅ |
+| `analyze_inbox` | ✅ | ✅ | ✅ | ✅ |
+| `list_projects` | ✅ | ✅ | ✅ | ✅ |
+| `list_notifications` | ✅ | ✅ | ✅ | ✅ |
+| `get_project_contacts` | ✅ | 🔒 | 🔒 | 🔒 |
+| `check_sla` | ✅ | ✅ | ✅ | ✅ |
+| `proactive_summary` | ✅ | ✅ | ✅ | ✅ |
+| `auto_classify_messages` | ✅ | ✅ | ✅ | ✅ |
+| `create_project` | ✅ | ✅ | ✅ | ❌ |
+| `assign_email_to_project` | ✅ | 🔒 | 🔒 | ❌ |
+| `create_insight` | ✅ | 🔒 | 🔒 | ❌ |
+| `create_task` | ✅ | 🔒 | 🔒 | ❌ |
+| `create_reminder` | ✅ | 🔒 | 🔒 | ❌ |
+| `send_email` | ✅ | 🔒 | ❌ | ❌ |
+| `send_notification` | ✅ | 🔒 | ❌ | ❌ |
+| (admin) manage participants / invite / delete project | ✅ | 🔒² | ❌ | ❌ |
+| (admin) assign roles | ✅ | ❌ | ❌ | ❌ |
 
-² Solo en proyectos donde el Operador es Project Admin.
+² Only in projects where the Operator is Project Admin.
 
 ---
 
-## 6. Plan de enforcement en el código
+## 6. Code enforcement plan
 
-Cambios mínimos, alineados con la arquitectura actual. **Un solo gate**, espejado entre agente y API.
+Minimal changes, aligned with the current architecture. **A single gate**, mirrored between agent and API.
 
-### 6.1 Propagar el rol del usuario al contexto
+### 6.1 Propagate the user's role into the context
 
-`agent/tools.py → set_current_user(uid, email)` ya fija el usuario actual. Extenderlo:
+`agent/tools.py → set_current_user(uid, email)` already sets the current user. Extend it:
 
 ```python
 # agent/tools.py
-_CURRENT = {"uid": "", "email": "", "global_role": "lector"}
+_CURRENT = {"uid": "", "email": "", "global_role": "viewer"}
 
-def set_current_user(uid, email="", global_role="lector"):
-    _CURRENT.update(uid=uid, email=email, global_role=(global_role or "lector"))
+def set_current_user(uid, email="", global_role="viewer"):
+    _CURRENT.update(uid=uid, email=email, global_role=(global_role or "viewer"))
 ```
 
-El rol global se lee de la tabla de usuarios y se pasa desde `api/controllers/chat.py` (donde hoy ya se llama `set_current_user(uid, user_email)`), y también vía header en los controladores REST.
+The global role is read from the users table and passed in from `api/controllers/chat.py` (which already calls `set_current_user(uid, user_email)`), and also via header in the REST controllers.
 
-### 6.2 Declarar capacidades y mapa de roles
+### 6.2 Declare capabilities and role map
 
-Tabla declarativa (única fuente de verdad):
+Declarative table (single source of truth):
 
 ```python
-# agent/permissions.py  (nuevo)
+# agent/permissions.py  (new)
 TOOL_CAP = {
-    "listar_correos": "read", "inspeccionar_correo": "read", "analizar_inbox": "read",
-    "listar_proyectos": "read", "listar_notificaciones": "read",
-    "obtener_contactos_proyecto": "read", "verificar_sla": "read",
-    "resumen_proactivo": "read", "clasificar_mensajes_automatico": "read",
-    "crear_proyecto": "write_internal", "asignar_correo_a_proyecto": "write_internal",
-    "crear_insight": "write_internal", "crear_tarea": "write_internal",
-    "crear_recordatorio": "write_internal",
-    "enviar_correo": "send_external", "enviar_notificacion": "send_external",
+    "list_emails": "read", "inspect_email": "read", "analyze_inbox": "read",
+    "list_projects": "read", "list_notifications": "read",
+    "get_project_contacts": "read", "check_sla": "read",
+    "proactive_summary": "read", "auto_classify_messages": "read",
+    "create_project": "write_internal", "assign_email_to_project": "write_internal",
+    "create_insight": "write_internal", "create_task": "write_internal",
+    "create_reminder": "write_internal",
+    "send_email": "send_external", "send_notification": "send_external",
 }
 
 ROLE_CAPS = {
-    "owner":       {"read", "write_internal", "send_external", "manage_project", "manage_roles"},
-    "operador":    {"read", "write_internal", "send_external"},
-    "colaborador": {"read", "write_internal"},
-    "lector":      {"read"},
+    "owner":        {"read", "write_internal", "send_external", "manage_project", "manage_roles"},
+    "operator":     {"read", "write_internal", "send_external"},
+    "collaborator": {"read", "write_internal"},
+    "viewer":       {"read"},
 }
 
 PROJECT_ROLE_CAPS = {
@@ -207,74 +207,74 @@ PROJECT_ROLE_CAPS = {
 }
 ```
 
-### 6.3 Gate central
+### 6.3 Central gate
 
 ```python
 def can(tool_name, project_id=""):
     cap = TOOL_CAP.get(tool_name)
     if cap is None:
-        return False                      # fail-closed: tool sin clasificar
+        return False                      # fail-closed: unclassified tool
     global_caps = ROLE_CAPS.get(_CURRENT["global_role"], set())
     if cap not in global_caps:
-        return False                      # techo global
-    if project_id:                        # acción con scope de proyecto
+        return False                      # global ceiling
+    if project_id:                        # project-scoped action
         proj_role = _project_role_of_current_user(project_id)  # admin/editor/viewer
         eff = global_caps & PROJECT_ROLE_CAPS.get(proj_role, {"read"})
         if proj_role == "admin":
             eff |= {"manage_project"}
         return cap in eff
-    return True                           # acción global, basta el techo
+    return True                           # global action; the ceiling is enough
 ```
 
-`_project_role_of_current_user` deriva el rol de proyecto leyendo `participants[].rol_permiso` (o `admin` si `proj.userId == uid`). Reutiliza `has_project_access` para no duplicar la lógica de membresía.
+`_project_role_of_current_user` derives the project role by reading `participants[].rol_permiso` (or `admin` if `proj.userId == uid`). It reuses `has_project_access` so membership logic is not duplicated.
 
-### 6.4 Aplicar el gate
+### 6.4 Apply the gate
 
 ```python
 # agent/tools.py → execute_tool
 def execute_tool(tool_name, params):
     if tool_name not in TOOL_MAP:
-        return {"error": f"Herramienta desconocida: {tool_name}"}
+        return {"error": f"Unknown tool: {tool_name}"}
     if not can(tool_name, (params or {}).get("project_id", "")):
-        return {"error": "permiso_denegado",
-                "detail": f"Tu rol no permite ejecutar {tool_name}."}
+        return {"error": "permission_denied",
+                "detail": f"Your role does not allow running {tool_name}."}
     ...
 ```
 
-El narrator ya sabe presentar errores de "sin permiso" de forma amigable (`narrator/narrators/projects.py` ya contempla el caso "sin permiso"). En la API REST, el mismo `can(...)` se invoca en cada controlador antes de llamar al service, devolviendo `403`.
+The narrator already knows how to present "no permission" errors nicely (`narrator/narrators/projects.py` already handles the "no permission" case). In the REST API, the same `can(...)` is invoked in each controller before calling the service, returning `403`.
 
-### 6.5 Esquema de datos
+### 6.5 Data schema
 
-- **Tabla de usuarios**: añadir atributo `globalRole` (`owner | operador | colaborador | lector`); default `lector`.
-- **`participants[]`** de cada proyecto: añadir `rol_permiso` (`admin | editor | viewer`); default `editor` para participantes existentes (ver migración). Se mantiene `rol` descriptivo aparte — no se mezclan.
-
----
-
-## 7. Migración y compatibilidad
-
-Para no romper a los usuarios actuales:
-
-1. **Usuarios sin `globalRole`** → tratarlos como `owner` si son dueños de al menos un proyecto, si no como `colaborador`. (O un backfill explícito; decisión del equipo.)
-2. **Dueño de proyecto (`proj.userId`)** → siempre `Project Admin` de ese proyecto, sin tocar datos: se deriva en runtime.
-3. **Participantes existentes sin `rol_permiso`** → default `editor` (comportamiento actual: podían escribir). Quien quiera endurecer, baja a `viewer` manualmente.
-4. **Roll-out por fases**: empezar en modo *log-only* (registrar qué se habría denegado, sin bloquear) durante unos días para detectar falsos positivos antes de activar el bloqueo real.
+- **Users table**: add attribute `globalRole` (`owner | operator | collaborator | viewer`); default `viewer`.
+- **`participants[]`** in each project: add `rol_permiso` (`admin | editor | viewer`); default `editor` for existing participants (see migration). The descriptive `rol` field is kept separately — the two are not mixed.
 
 ---
 
-## 8. Casos límite y riesgos
+## 7. Migration and compatibility
 
-- **Acción global de alto impacto sin proyecto** (`crear_proyecto`): controlada solo por rol global; el Lector no puede, el resto sí. Correcto.
-- **Tools con `project_id` opcional** (`enviar_notificacion`, `enviar_correo`, `crear_recordatorio`, `listar_notificaciones`): si no se pasa `project_id`, caen al rol global. Vigilar que el planner no omita `project_id` para esquivar el filtro por proyecto — reforzar en `catalog.py` que la comunicación externa siempre lleve `project_id`.
-- **El LLM no decide permisos.** El gate vive en código (`execute_tool`), no en el prompt. El planner puede *proponer* una acción prohibida; el executor la *rechaza*. Es la misma filosofía que `_has_project_access` hoy.
-- **PII de contactos** (`obtener_contactos_proyecto` devuelve teléfonos/emails): por eso se marca 🔒 (requiere ser al menos Viewer del proyecto, no solo tener rol global de lectura genérica).
-- **`manage_roles` concentrado en Owner**: evita que un Operador se autopromueva. Si se necesita delegar, crear un rol global intermedio en `ROLE_CAPS` sin tocar el resto del diseño.
-- **Fail-closed**: cualquier tool nueva que no se añada a `TOOL_CAP` queda bloqueada hasta clasificarla. Es intencional.
+To avoid breaking current users:
+
+1. **Users without `globalRole`** → treat them as `owner` if they own at least one project, otherwise as `collaborator`. (Or an explicit backfill; team decision.)
+2. **Project owner (`proj.userId`)** → always `Project Admin` of that project, without touching data: derived at runtime.
+3. **Existing participants without `rol_permiso`** → default `editor` (current behavior: they could write). Anyone who wants to tighten this can drop them to `viewer` manually.
+4. **Phased roll-out**: start in *log-only* mode (record what would have been denied, without blocking) for a few days to catch false positives before turning on real blocking.
 
 ---
 
-## 9. Resumen ejecutivo
+## 8. Edge cases and risks
 
-- Hoy solo hay control por proyecto (owner vs participante); el agente MCP no aplica roles.
-- Se propone **4 capacidades** (`read`, `write_internal`, `send_external`, admin) y un modelo **híbrido**: 4 roles globales (Owner, Operador, Colaborador, Lector) que fijan el techo, más 3 roles por proyecto (Admin, Editor, Viewer) que restringen dentro de cada proyecto.
-- La línea de riesgo clave es `send_external` (enviar WhatsApp/SMS/email): solo Owner y Operador la tienen.
-- El enforcement se concentra en un único gate `can()` en `execute_tool`, reutilizando `has_project_access`, con tabla declarativa de capacidades y roll-out en modo log-only.
+- **High-impact global action with no project** (`create_project`): controlled only by the global role; the Viewer cannot, the rest can. Correct.
+- **Tools with optional `project_id`** (`send_notification`, `send_email`, `create_reminder`, `list_notifications`): if `project_id` isn't passed, they fall back to the global role. Watch that the planner doesn't omit `project_id` to sidestep the per-project filter — reinforce in `catalog.py` that external communication must always carry `project_id`.
+- **The LLM does not decide permissions.** The gate lives in code (`execute_tool`), not in the prompt. The planner can *propose* a forbidden action; the executor *rejects* it. Same philosophy as `_has_project_access` today.
+- **Contact PII** (`get_project_contacts` returns phone numbers/emails): that's why it is 🔒 (requires being at least Viewer of the project, not just having a generic read global role).
+- **`manage_roles` concentrated on Owner**: prevents an Operator from self-promoting. If delegation is needed, add an intermediate global role in `ROLE_CAPS` without touching the rest of the design.
+- **Fail-closed**: any new tool not added to `TOOL_CAP` stays blocked until it is classified. This is intentional.
+
+---
+
+## 9. Executive summary
+
+- Today there is only project-level control (owner vs participant); the MCP agent applies no roles.
+- The proposal introduces **4 capabilities** (`read`, `write_internal`, `send_external`, admin) and a **hybrid** model: 4 global roles (Owner, Operator, Collaborator, Viewer) that set the ceiling, plus 3 project roles (Admin, Editor, Viewer) that restrict within each project.
+- The key risk line is `send_external` (sending WhatsApp/SMS/email): only Owner and Operator have it.
+- Enforcement is concentrated in a single `can()` gate in `execute_tool`, reusing `has_project_access`, with a declarative capability table and a log-only roll-out.

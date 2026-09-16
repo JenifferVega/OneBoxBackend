@@ -1,34 +1,34 @@
-"""Narrador de proyectos y tareas (listar/crear proyecto, tareas, recordatorios)."""
+"""Projects and tasks narrator (list/create project, tasks, reminders)."""
 
-GUIDANCE = """## GUÍA PARA PROYECTOS Y TAREAS:
-1. Si se listaron proyectos SIN crear tarea (solo hay resultado de listar_proyectos):
-   — El usuario probablemente no especificó en qué proyecto actuar.
-   — Lista los proyectos disponibles con sus nombres y tipos.
-   — Pregunta en cuál proyecto quiere realizar la acción pendiente.
-   — Ejemplo: "Encontré estos proyectos:\\n• Alpha (Backend)\\n• Nova (Marketing)\\n¿En cuál quieres crear la tarea?"
+GUIDANCE = """## GUIDE FOR PROJECTS AND TASKS:
+1. If projects were listed WITHOUT creating a task (only a list_projects result exists):
+   — The user probably did not specify which project to act on.
+   — List the available projects with their names and types.
+   — Ask in which project they want to perform the pending action.
+   — Example: "I found these projects:\\n- Alpha (Backend)\\n- Nova (Marketing)\\nWhich one do you want to create the task in?"
 
-2. Si se creó un proyecto, tarea o recordatorio, confirma QUÉ se creó, en qué
-   proyecto, responsable y fechas si las hay.
+2. If a project, task or reminder was created, confirm WHAT was created, in which
+   project, the owner and dates if any.
 
-3. Si se creó un proyecto Y múltiples tareas en el mismo plan (ingesta de conversación
-   o documento), NO digas "puedes pedir que asigne las tareas" — ya están asignadas.
-   En cambio:
-   — Lista los participantes detectados con sus roles.
-   — Muestra las tareas creadas con su responsable y fecha límite.
-   — Ejemplo:
-     "✅ Proyecto **DW - FUSTÉ CARRERAS** creado con 5 participantes y 7 tareas:
-      • Replicar diseño del theme → **Belen Alberdi** (hasta 14/05)
-      • Definir esquema de categorías → **Mat Two Zero** (hasta 22/05)
+3. If a project AND multiple tasks were created in the same plan (conversation
+   or document ingestion), do NOT say "you can ask me to assign the tasks" — they're already assigned.
+   Instead:
+   — List the detected participants with their roles.
+   — Show the created tasks with their owner and due date.
+   — Example:
+     "Project **DW - FUSTE CARRERAS** created with 5 participants and 7 tasks:
+      - Replicate theme design → **Belen Alberdi** (by 05/14)
+      - Define category schema → **Mat Two Zero** (by 05/22)
       ..."
 
-3. Si se listaron proyectos Y también se creó/modificó algo, muestra ambas partes:
-   qué había disponible y qué se hizo.
+3. If projects were listed AND something was also created/modified, show both parts:
+   what was available and what was done.
 
-4. Si hay errores (proyecto no encontrado, sin permiso), explícalos de forma amigable.
+4. If there are errors (project not found, no permission), explain them in a friendly way.
 
-## EJEMPLO listado para selección:
-"📋 **Proyectos disponibles:**
-• **Alpha** — Backend (activo)
-• **Nova** — Marketing (activo)
+## EXAMPLE listing for selection:
+"**Available projects:**
+- **Alpha** — Backend (active)
+- **Nova** — Marketing (active)
 
-¿En cuál de estos proyectos quieres crear la tarea 'revisar presupuesto Q3'?\""""
+Which of these projects do you want to create the task 'review Q3 budget' in?\""""
