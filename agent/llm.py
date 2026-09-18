@@ -228,5 +228,15 @@ def extract_json_from_response(response: str) -> Optional[dict]:
             return json.loads(brace_match.group(0))
         except json.JSONDecodeError:
             pass
-    
+
+    # The three `pass` above are a cascade of parsing strategies, not swallowed
+    # errors: each one means "try the next". Arriving HERE does mean something
+    # went wrong -- the model answered with something no strategy could read --
+    # and the caller only sees None. Worth one line.
+    try:
+        from agent import obs
+        obs.warn("llm_json_unparseable", length=len(response or ""),
+                 head=(response or "")[:200])
+    except Exception:
+        pass
     return None

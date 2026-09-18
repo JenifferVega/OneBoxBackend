@@ -124,6 +124,40 @@ def _strip_unsupported_keys(schema: Any) -> Any:
     return schema
 
 
+class UnfillableSchema(Exception):
+    """A field Gemini could never fill, detected before we ask it to.
+
+    Gemini's responseSchema is a CONSTRAINED DECODER, not a hint. An object
+    with no declared `properties` has no legal key, so the only output the
+    grammar permits is `{}`. Stripping `additionalProperties` -- which we must,
+    Gemini rejects it -- silently turns "any key is allowed" into "no key is
+    allowed", and the caller gets empty objects with no error anywhere.
+
+    That is exactly how, on 2026-09-16, a user got four turns of
+    `params={}` in a row. Failing here is loud and immediate; the alternative
+    is a system that quietly plans nothing.
+    """
+
+
+def _assert_fillable(schema, path="$"):
+    """Raises if normalization left a field Gemini cannot produce a value for."""
+    if isinstance(schema, dict):
+        if schema.get("type") in ("object", "OBJECT"):
+            has_shape = any(k in schema for k in
+                            ("properties", "anyOf", "oneOf", "allOf", "enum"))
+            if not has_shape:
+                raise UnfillableSchema(
+                    f"{path}: object with no 'properties'. Gemini decodes under "
+                    f"the schema, so it can only return {{}} here. Declare the "
+                    f"properties (see agent/tools/schema.param_union_schema) or "
+                    f"do not send this schema to Gemini.")
+        for k, v in schema.items():
+            _assert_fillable(v, f"{path}.{k}")
+    elif isinstance(schema, list):
+        for i, v in enumerate(schema):
+            _assert_fillable(v, f"{path}[{i}]")
+
+
 def _normalize_schema_for_gemini(raw: dict) -> dict:
     """Transforms a Pydantic JSON schema into one Gemini accepts.
 
@@ -134,7 +168,10 @@ def _normalize_schema_for_gemini(raw: dict) -> dict:
     """
     defs = raw.get("$defs") or raw.get("definitions") or {}
     resolved = _resolve_refs(raw, defs)
-    return _strip_unsupported_keys(resolved)
+    cleaned = _strip_unsupported_keys(resolved)
+    # Fail here, not in production with empty results.
+    _assert_fillable(cleaned)
+    return cleaned
 
 
 class ChatGeminiHTTP(BaseChatModel):
@@ -162,6 +199,15 @@ class ChatGeminiHTTP(BaseChatModel):
         run_manager: Any = None,
         **kwargs: Any,
     ) -> ChatResult:
+        # One line per Gemini call. Without this, a fallback from Anthropic to
+        # Gemini is invisible: the 2026-09-16 empty-params turns had nothing in
+        # the logs naming the provider that served them.
+        try:
+            from agent import obs
+            obs.log("llm_call", provider="gemini", model=self.model,
+                    structured=bool(self.response_schema))
+        except Exception:
+            pass
         system_text, contents = _messages_to_gemini(messages)
 
         body: dict = {

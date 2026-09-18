@@ -125,6 +125,13 @@ def generate_insights_for_project(
     project_name: str,
     project_type: str,
     description: str,
+    # The LIST, not only how many. The body has always used it -- it builds a
+    # richer prompt naming each person and their role -- but the signature had
+    # lost it, so line "participants = participants or []" read a name that was
+    # never bound: UnboundLocalError, and a 500 on every project created from a
+    # document. The other two call sites were broken the same way, one of them
+    # passing `participants=` to a function that did not accept it (TypeError).
+    participants: list = None,
     participants_count: int = 0,
     analysis_text: str = "",
     dry_run: bool = False
@@ -148,19 +155,27 @@ def generate_insights_for_project(
     if not content:
         return {"generated": False, "reason": "no_description"}
 
-    participants = participants or []
+    # Normalized here too: participants are stored with whatever keys the
+    # writer used ({nombre, rol} from a Spanish conversation, for one), and
+    # this prompt reads name and role. The leftover `p.get('name', p.get('name'))`
+    # below was a half-finished attempt at the same thing -- a default that
+    # re-read the key it had just failed to find.
+    try:
+        from api.services.projects import normalize_participants
+        participants = normalize_participants(participants)
+    except Exception:
+        participants = participants or []
     if not participants_count and participants:
         participants_count = len(participants)
 
-    now = datetime.utcnow().isoformat()
     # Today's date so the LLM can stagger tasks starting from here
     today_str = datetime.utcnow().strftime('%Y-%m-%d')
 
     # Build the participants section for the prompt
     if participants:
         parts_lines = "\n".join(
-            f"  - {p.get('name', p.get('name', ''))} ({p.get('role', p.get('role', 'Participant'))})"
-            for p in participants if p.get('name') or p.get('name')
+            f"  - {p.get('name', '')} ({p.get('role') or 'Participant'})"
+            for p in participants if p.get('name')
         )
         participants_section = f"PARTICIPANTS ({participants_count}):\n{parts_lines}"
     else:
@@ -519,6 +534,7 @@ def create_project_full(
         project_name=name,
         project_type=project_type,
         description=description,
+        participants=participants,
         participants_count=len(participants),
         analysis_text=analysis_text,  # original full text if the caller has it
     )

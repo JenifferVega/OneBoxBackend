@@ -98,7 +98,7 @@ def get_project_contacts(project_id: str) -> dict:
     if not _has_project_access(project_id):
         return {"error": "No access to that project"}
     try:
-        from boto3.dynamodb.conditions import Key, Attr
+        from boto3.dynamodb.conditions import Attr
 
         result = projects_table.get_item(Key={'projectId': project_id})
         project = result.get('Item')

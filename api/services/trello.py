@@ -19,6 +19,8 @@ from datetime import datetime
 
 import requests
 from fastapi import HTTPException
+
+from agent import obs
 from urllib.parse import quote
 
 from api.deps import user_tokens_table
@@ -82,11 +84,9 @@ def save_token(uid: str, token: str) -> dict:
     if not token:
         raise HTTPException(status_code=400, detail="token required")
 
-    resp = requests.get(
-        f"{TRELLO_API}/members/me",
-        params={"key": TRELLO_API_KEY, "token": token, "fields": "username,fullName"},
-        timeout=TIMEOUT,
-    )
+    resp = _call("GET", f"{TRELLO_API}/members/me", "verify_token",
+                 params={"key": TRELLO_API_KEY, "token": token,
+                         "fields": "username,fullName"})
     if resp.status_code != 200:
         raise HTTPException(
             status_code=400,
@@ -148,22 +148,49 @@ def _creds(uid: str) -> dict:
     item = user_tokens_table.get_item(Key={"userId": uid}).get("Item") or {}
     token = item.get("trelloToken", "")
     if not token:
+        # By far the most common reason "Trello does not work for this user":
+        # they never finished connecting. One query away now, instead of a
+        # reproduction exercise.
+        obs.warn("trello_not_connected", uid=uid, has_row=bool(item),
+                 username=item.get("trelloUsername", ""))
         raise HTTPException(
             status_code=400,
             detail="This user has not connected Trello. Call /api/trello/auth first.",
         )
+    if not TRELLO_API_KEY:
+        # A server misconfiguration, not a user problem -- and one that looks
+        # exactly like a bad token from the outside. The key identifies the
+        # APP: missing in production but present locally means every user
+        # fails while everything works on your machine.
+        obs.error("trello_api_key_missing",
+                  hint="TRELLO_API_KEY is empty in this environment.")
     return {"key": TRELLO_API_KEY, "token": token}
 
+
+
+def _call(method: str, url: str, operation: str, uid: str = "", **kw):
+    """Every outbound Trello call goes through here.
+
+    It times the call and records how it ended, with the user attached. A
+    failing integration used to leave no trace on the server at all: the
+    exception travelled up and became a message on someone's screen, and
+    nothing said which user, which operation, or what Trello actually
+    answered.
+    """
+    with obs.integration("trello", operation, uid=uid):
+        resp = requests.request(method, url, timeout=TIMEOUT, **kw)
+    if resp.status_code >= 400:
+        obs.warn("trello_http_error", operation=operation, uid=uid,
+                 status_code=resp.status_code, body=resp.text[:300])
+    return resp
 
 # ── Reads ───────────────────────────────────────────────────────────────────
 
 def list_boards(uid: str) -> list:
     """Boards the user can write to."""
-    resp = requests.get(
-        f"{TRELLO_API}/members/me/boards",
-        params={**_creds(uid), "fields": "name,url,closed", "filter": "open"},
-        timeout=TIMEOUT,
-    )
+    resp = _call("GET", f"{TRELLO_API}/members/me/boards", "list_boards", uid,
+                 params={**_creds(uid), "fields": "name,url,closed",
+                         "filter": "open"})
     resp.raise_for_status()
     return [
         {"boardId": b["id"], "name": b.get("name", ""), "url": b.get("url", "")}
@@ -173,11 +200,9 @@ def list_boards(uid: str) -> list:
 
 def list_board_lists(uid: str, board_id: str) -> list:
     """Lists (columns) of a board. In Trello the list IS the status."""
-    resp = requests.get(
-        f"{TRELLO_API}/boards/{board_id}/lists",
-        params={**_creds(uid), "fields": "name,closed"},
-        timeout=TIMEOUT,
-    )
+    resp = _call("GET", f"{TRELLO_API}/boards/{board_id}/lists",
+                 "list_board_lists", uid,
+                 params={**_creds(uid), "fields": "name,closed"})
     resp.raise_for_status()
     return [
         {"listId": l["id"], "name": l.get("name", "")}
@@ -192,12 +217,9 @@ def list_cards(uid: str, list_id: str) -> list:
     task, and the Trello rate limit already bites at four tasks. `fields`
     is narrowed to what the comparison actually reads.
     """
-    resp = requests.get(
-        f"{TRELLO_API}/lists/{list_id}/cards",
-        params={**_creds(uid),
-                "fields": "name,desc,due,idList,dateLastActivity,closed"},
-        timeout=TIMEOUT,
-    )
+    resp = _call("GET", f"{TRELLO_API}/lists/{list_id}/cards", "list_cards", uid,
+                 params={**_creds(uid),
+                         "fields": "name,desc,due,idList,dateLastActivity,closed"})
     if resp.status_code != 200:
         raise HTTPException(
             status_code=502,
@@ -222,7 +244,7 @@ def create_card(uid: str, list_id: str, name: str, desc: str = "",
         body["desc"] = desc[:16384]
     if due:
         body["due"] = due
-    resp = requests.post(f"{TRELLO_API}/cards", params=body, timeout=TIMEOUT)
+    resp = _call("POST", f"{TRELLO_API}/cards", "create_card", uid, params=body)
     if resp.status_code not in (200, 201):
         raise HTTPException(
             status_code=502,
@@ -251,8 +273,8 @@ def update_card(uid: str, card_id: str, name: str = "", desc: str = "",
         body["desc"] = desc[:16384]
     if due:
         body["due"] = due
-    resp = requests.put(f"{TRELLO_API}/cards/{card_id}", params=body,
-                        timeout=TIMEOUT)
+    resp = _call("PUT", f"{TRELLO_API}/cards/{card_id}", "update_card", uid,
+                 params=body)
     if resp.status_code == 404:
         raise HTTPException(
             status_code=404,
@@ -282,11 +304,9 @@ def create_board(uid: str, name: str, lists: list = None) -> dict:
     if not name:
         raise HTTPException(status_code=400, detail="Board name required")
 
-    resp = requests.post(
-        f"{TRELLO_API}/boards/",
-        params={**_creds(uid), "name": name[:16384], "defaultLists": "false"},
-        timeout=TIMEOUT,
-    )
+    resp = _call("POST", f"{TRELLO_API}/boards/", "create_board", uid,
+                 params={**_creds(uid), "name": name[:16384],
+                         "defaultLists": "false"})
     if resp.status_code not in (200, 201):
         raise HTTPException(
             status_code=502,
@@ -300,11 +320,9 @@ def create_board(uid: str, name: str, lists: list = None) -> dict:
         list_name = (list_name or "").strip()
         if not list_name:
             continue
-        lr = requests.post(
-            f"{TRELLO_API}/lists",
-            params={**_creds(uid), "name": list_name[:16384], "idBoard": board_id},
-            timeout=TIMEOUT,
-        )
+        lr = _call("POST", f"{TRELLO_API}/lists", "create_list", uid,
+                   params={**_creds(uid), "name": list_name[:16384],
+                           "idBoard": board_id})
         if lr.status_code not in (200, 201):
             # The board already exists; report the partial state instead of
             # raising, so the caller knows what it has to work with.

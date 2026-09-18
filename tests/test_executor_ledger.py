@@ -1,7 +1,74 @@
 """Does a replan repeat a write? Runs the REAL executor_node twice, the way
-the graph does when the validator says "replan"."""
-import agent.tools as T
-from agent.graph.nodes.executor.node import executor_node
+the graph does when the validator says "replan".
+
+The executor is loaded straight from its file with its imports replaced by
+stubs, so the test needs no database, no LLM and no package side effects --
+and, unlike the first version of this file, no directory that only existed on
+the machine where it was written.
+"""
+import importlib.util
+import os
+import sys
+import types
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# ── Stubs, registered BEFORE the executor is loaded ─────────────────────────
+# The executor imports these by name at module level. Pre-registering them in
+# sys.modules means the real ones (DynamoDB, the tool registry) never load.
+
+T = types.ModuleType("agent.tools")
+T.CALLS = []
+T.TOOL_MAP = {}
+T._BEHAVIOUR = {}
+
+
+def _execute_tool(tool_name, params):
+    T.CALLS.append((tool_name, params))
+    return T._BEHAVIOUR.get(tool_name, lambda p: {"success": True})(params)
+
+
+def _set_behaviour(d):
+    T._BEHAVIOUR.clear()
+    T._BEHAVIOUR.update(d)
+
+
+T.execute_tool = _execute_tool
+T.set_behaviour = _set_behaviour
+
+_state = types.ModuleType("agent.graph.state")
+_state.AgentState = dict
+_state.MAX_PLANNER_ITERATIONS = 3
+
+_validators = types.ModuleType("agent.graph.nodes.executor.validators")
+_validators.validate_tool_params = lambda tool, step, params: None
+
+for _name, _mod in (
+    ("agent", types.ModuleType("agent")),
+    ("agent.graph", types.ModuleType("agent.graph")),
+    ("agent.graph.nodes", types.ModuleType("agent.graph.nodes")),
+    ("agent.graph.nodes.executor", types.ModuleType("agent.graph.nodes.executor")),
+    ("agent.tools", T),
+    ("agent.graph.state", _state),
+    ("agent.graph.nodes.executor.validators", _validators),
+):
+    sys.modules.setdefault(_name, _mod)
+
+# resolve.py is REAL: from_step resolution is part of what this test exercises.
+_resolve_path = os.path.join(REPO, "agent", "graph", "nodes", "executor", "resolve.py")
+_spec = importlib.util.spec_from_file_location(
+    "agent.graph.nodes.executor.resolve", _resolve_path)
+_resolve = importlib.util.module_from_spec(_spec)
+sys.modules["agent.graph.nodes.executor.resolve"] = _resolve
+_spec.loader.exec_module(_resolve)
+
+_node_path = os.path.join(REPO, "agent", "graph", "nodes", "executor", "node.py")
+_spec = importlib.util.spec_from_file_location(
+    "agent.graph.nodes.executor.node", _node_path)
+_node = importlib.util.module_from_spec(_spec)
+sys.modules["agent.graph.nodes.executor.node"] = _node
+_spec.loader.exec_module(_node)
+executor_node = _node.executor_node
 
 PLAN = [
     {"step": 1, "tool": "list_projects", "params": {}},

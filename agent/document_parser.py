@@ -12,7 +12,7 @@ import base64
 import uuid
 import mimetypes
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Tuple
 
 import boto3
 import requests

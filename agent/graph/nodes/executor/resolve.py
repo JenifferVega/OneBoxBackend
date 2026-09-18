@@ -21,6 +21,7 @@ tool then failed with "project_id is a JSON object", which says nothing about
 the real problem -- that the field the plan asked for was not in the result.
 None reaches the parameter validator, which names the field and the step.
 """
+import json
 
 
 def _get_path(obj, path: str):
@@ -62,6 +63,37 @@ def _match_and_extract(obj, key: str, value: str, extract: str):
     return None
 
 
+def _as_chain_ref(value):
+    """A chaining reference, whatever shape the provider wrote it in.
+
+    The planner is supposed to write {"from_step": 1, "extract": "projectId"}
+    as an OBJECT. Gemini, decoding under a schema that types the parameter as
+    a string, writes the same thing SERIALISED:
+
+        'project_id': '{"from_step":1,"extract":"projectId"}'
+
+    Observed on 2026-09-18 with gemini-2.5-flash. Left alone it is worse than
+    an empty parameter: the reference is never resolved and the literal text
+    is passed to the tool as if it were an id, so the failure is silent and
+    the tool looks up something that cannot exist.
+
+    So: accept both. A provider that cannot express an object in a string
+    field should not be able to break chaining.
+    """
+    if isinstance(value, dict):
+        return value if "from_step" in value else None
+    if isinstance(value, str):
+        text = value.strip()
+        if not (text.startswith("{") and "from_step" in text):
+            return None
+        try:
+            parsed = json.loads(text)
+        except (ValueError, TypeError):
+            return None
+        return parsed if isinstance(parsed, dict) and "from_step" in parsed else None
+    return None
+
+
 def resolve_params(params: dict, results: dict) -> dict:
     """Resolve from_step references in the parameters."""
     if not params:
@@ -73,7 +105,9 @@ def resolve_params(params: dict, results: dict) -> dict:
 
     resolved = {}
     for key, value in params.items():
-        if isinstance(value, dict) and "from_step" in value:
+        ref = _as_chain_ref(value)
+        if ref is not None:
+            value = ref                      # normalised: the rest is unchanged
             step_ref = value["from_step"]
             step_result = results.get(step_ref)
 

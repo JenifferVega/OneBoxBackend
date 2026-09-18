@@ -191,7 +191,6 @@ def send_notification(
                 return {"error": "Twilio not configured (missing credentials).", "status": "not_configured"}
             try:
                 from twilio.rest import Client
-                from datetime import timezone
                 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
                 # Twilio requires UTC ISO 8601 with an explicit timezone.
                 send_time = scheduled_at if scheduled_at.endswith('Z') or '+' in scheduled_at[10:] else scheduled_at + 'Z'
@@ -295,7 +294,7 @@ def list_notifications(project_id: str = "") -> dict:
       so invitees also see the project's notifications.
     """
     try:
-        from boto3.dynamodb.conditions import Key, Attr
+        from boto3.dynamodb.conditions import Attr
         if project_id:
             if not _has_project_access(project_id):
                 return {"error": "No access to that project"}

@@ -12,7 +12,6 @@ import os
 import boto3
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs
-from decimal import Decimal
 
 dynamodb = boto3.resource('dynamodb')
 conversations_table = dynamodb.Table('onebox-conversations')
@@ -216,7 +215,6 @@ def lambda_handler(event, context):
         params = parse_qs(body_raw)
 
         from_number = params.get('From', [''])[0]
-        to_number = params.get('To', [''])[0]
         message_body = params.get('Body', [''])[0]
         message_sid = params.get('MessageSid', [''])[0]
         num_media = int(params.get('NumMedia', ['0'])[0])

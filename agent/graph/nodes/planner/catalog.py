@@ -12,6 +12,22 @@ _EXTRA_TOOLS = """
 - get_project_contacts(project_id): Returns the project's participants
   with their phones and pending tasks. ALWAYS use it before sending
   bulk notifications to know who has a phone and what pending work they have.
+
+- prepare_trello_board(project_query): Read-only. Finds the project by name AND
+  reports whether it already has a Trello board, in ONE call. Always the FIRST
+  step when asked to create a board.
+    - can_create: false -> it already has one; `already_linked` names it.
+    - can_create: true  -> propose creating it and ask for confirmation.
+
+- create_trello_board(name, project_id, lists): Creates a NEW board in the
+  user's real Trello account. REQUIRES the user to agree first.
+    - name: REQUIRED, the board name. Never omit it.
+    - project_id: links the project to the new board so later pushes need no
+      list. lists: column names in order; defaults to OneBox's own statuses.
+
+- link_project_to_trello(project_id, list_name, board_name, list_id): Records
+  which Trello list a project's cards go to, WITHOUT creating anything. Use it
+  when the user picks an EXISTING board instead of creating one.
 """
 
 TOOL_CATALOG = f"""## Available tools:

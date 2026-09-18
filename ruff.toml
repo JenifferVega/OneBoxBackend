@@ -1,0 +1,30 @@
+# Linter for OneBox. Deliberately NARROW: this runs before every push, so a
+# rule that fires on style would train everyone to ignore the output.
+#
+# What is here catches code that RUNS wrong, not code that reads oddly.
+# F821 alone would have caught the UnboundLocalError that returned a 500 on
+# every project created from a document -- statically, in under a second,
+# the day it was written.
+
+target-version = "py310"
+line-length = 120
+exclude = [".git", "__pycache__", "node_modules", "mcp/node_modules", ".venv"]
+
+[lint]
+select = [
+    "F821",  # undefined name            <- the 500 above
+    "F811",  # redefinition of an unused name (a def silently shadowing another)
+    "F841",  # local assigned and never used (usually a half-finished rename)
+    "F401",  # unused import (dead import left by a refactor)
+    "F632",  # `is` against a literal
+    "E711",  # == None
+    "E712",  # == True / == False
+    "B018",  # useless expression -- a statement that does nothing
+]
+
+[lint.per-file-ignores]
+# Tools are registered by import side-effect: the names look unused but
+# importing them IS the registration.
+"agent/tools/__init__.py" = ["F401"]
+"agent/graph/nodes/__init__.py" = ["F401"]
+"api/controllers/__init__.py" = ["F401"]

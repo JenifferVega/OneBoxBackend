@@ -3,9 +3,22 @@
 Exercises the real _open_goal / _close_goal from runner.py, replaying the exact
 trace that produced an empty Trello board.
 """
+import os
+import sys
+
+# Resolve against the REPOSITORY, not against whoever's machine wrote this.
+# These tests read the real source and exercise it; pointing them at an
+# absolute path outside the repo made them unrunnable for everyone else.
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, REPO)
+
+
+def repo_file(*parts):
+    return os.path.join(REPO, *parts)
+
 import ast, sys
 
-src = open("/home/claude/v11/runner.py").read()
+src = open(repo_file("agent", "graph", "runner.py"), encoding="utf-8").read()
 from typing import Dict, List, Any
 ns = {"Dict": Dict, "List": List, "Any": Any}
 for n in ast.parse(src).body:

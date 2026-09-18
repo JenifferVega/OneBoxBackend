@@ -5,10 +5,22 @@ against "Plataforma de aprendizaje en linea", was the only candidate, and the
 planner chained its projectId and listed 11 tasks of an unrelated project.
 With a write tool instead of list_tasks, that is a write to the wrong project.
 """
+import os
+import sys
+
+# Resolve against the REPOSITORY, not against whoever's machine wrote this.
+# These tests read the real source and exercise it; pointing them at an
+# absolute path outside the repo made them unrunnable for everyone else.
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, REPO)
+
+
+def repo_file(*parts):
+    return os.path.join(REPO, *parts)
+
 import ast, re, sys, unicodedata
 
-SRC = "/mnt/user-data/uploads/oneboxproject/OneBoxBackend/agent/tools/resolve.py"
-src = open(SRC).read()
+src = open(repo_file("agent", "tools", "resolve.py"), encoding="utf-8").read()
 ns = {"unicodedata": unicodedata, "re": re}
 for n in ast.parse(src).body:
     if isinstance(n, (ast.Assign, ast.AnnAssign)):

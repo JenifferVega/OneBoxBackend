@@ -20,6 +20,39 @@ Moved verbatim out of the old single-file agent/tools.py.
 # ============================================================================
 
 def _svc_error(e) -> str:
-    """Extracts a readable message from an exception (HTTPException.detail or str)."""
+    """Turns an exception into a message for the agent AND records it.
+
+    Every one of the tools ends the same way:
+
+        except Exception as e:
+            return {"error": _svc_error(e)}
+
+    which is right for the conversation -- the agent gets something it can
+    explain instead of a crash -- and was wrong for everything else: the user
+    saw a message, and the server kept no trace of who it happened to, in
+    which tool, or why. "The Trello integration does not work for this user"
+    could not be answered from the logs because there was nothing in them.
+
+    Logging HERE covers all of the tools at once, because all of them funnel
+    through this one function. The tool name is taken from the calling frame,
+    so no call site has to pass it.
+    """
+    import inspect
+
     detail = getattr(e, "detail", None)
-    return str(detail) if detail is not None else str(e)
+    message = str(detail) if detail is not None else str(e)
+
+    try:
+        from agent import obs
+        frame = inspect.currentframe()
+        tool = frame.f_back.f_code.co_name if frame and frame.f_back else "?"
+        status = getattr(e, "status_code", None)
+        fields = {"tool": tool}
+        if status:
+            fields["status_code"] = status
+        obs.error("tool_failed", exc=e, **fields)
+    except Exception:
+        # Logging must never be the reason a tool fails differently.
+        pass
+
+    return message

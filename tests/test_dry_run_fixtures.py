@@ -9,7 +9,7 @@ conversacion que no llega a ninguna parte, asi que se detecta tarde o nunca
 
 Este test convierte ese silencio en un fallo visible. Corre sin AWS.
 """
-import sys, types, re, io, ast
+import sys, types, re, io
 from unittest import mock
 
 ft = mock.MagicMock()

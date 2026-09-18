@@ -4,7 +4,6 @@ Keeps per-phone state in the session and walks the user step by step to
 collect the information needed before creating the project.
 """
 import re
-from datetime import datetime
 from typing import Optional, Tuple
 
 from agent.project_helpers import (

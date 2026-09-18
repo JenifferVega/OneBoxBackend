@@ -23,7 +23,7 @@ from agent.tools.db import invitations_table, projects_table
 def _accessible_project_ids(uid: str = "", email: str = "") -> set:
     """Returns the set of projectIds the user can see.
     If uid/email are not passed, uses the current context."""
-    from boto3.dynamodb.conditions import Key, Attr
+    from boto3.dynamodb.conditions import Key
     uid = uid or _current_uid()
     email = (email or _current_email() or "").strip().lower()
 

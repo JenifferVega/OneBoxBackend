@@ -866,7 +866,9 @@ async def _handle_notify_schedule(args: dict) -> list[types.TextContent]:
     )
 
     session_id = f"notify_schedule_{datetime.now().strftime('%H%M%S')}"
-    session = _sessions.setdefault(session_id, {"history": [], "turns_meta": []})
+    # The return value is unused, but setdefault REGISTERS the session --
+    # deleting this line, as an automatic F841 fix would, removes that.
+    _sessions.setdefault(session_id, {"history": [], "turns_meta": []})
 
     payload = {"message": prompt, "history": [], "debug": True}
     headers = {

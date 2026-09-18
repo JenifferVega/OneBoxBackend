@@ -5,7 +5,7 @@ from datetime import datetime
 
 from fastapi import HTTPException
 
-from agent.tools import notifications_table, projects_table
+from agent.tools import notifications_table
 from api.deps import attachments_table
 
 

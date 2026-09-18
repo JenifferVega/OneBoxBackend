@@ -45,7 +45,6 @@ def check_sla() -> dict:
     """Scans tasks and projects for blocked, overdue or unanswered items."""
     try:
         from boto3.dynamodb.conditions import Attr
-        now = datetime.utcnow().isoformat()
         today = datetime.utcnow().strftime("%Y-%m-%d")
 
         print(f"[Tool] check_sla → Scanning tasks and projects...")
@@ -125,7 +124,7 @@ def check_sla() -> dict:
 def auto_classify_messages() -> dict:
     """Reads unassigned messages and suggests classification based on existing projects."""
     try:
-        from boto3.dynamodb.conditions import Key, Attr
+        from boto3.dynamodb.conditions import Attr
 
         print(f"[Tool] auto_classify_messages → Analyzing inbox...")
 
@@ -203,7 +202,7 @@ def auto_classify_messages() -> dict:
 def proactive_summary() -> dict:
     """Generates an executive summary of the state of all projects and suggested actions."""
     try:
-        from boto3.dynamodb.conditions import Key, Attr
+        from boto3.dynamodb.conditions import Attr
 
         print(f"[Tool] proactive_summary → Generating summary...")
 

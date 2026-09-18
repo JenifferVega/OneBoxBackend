@@ -332,8 +332,48 @@ _DRY_RUN_RESULTS = {
 }
 
 
+def _check_signature(tool_name: str, params: dict) -> dict | None:
+    """Reject a call production would reject, BEFORE simulating it.
+
+    execute_tool does `tool_func(**params)`, so a plan that omits a required
+    parameter dies with a TypeError. The fixtures could not reproduce that:
+    every one of them reads `params.get("name", "?")`, so a MISSING parameter
+    quietly became a default and the simulated call succeeded.
+
+    That is how a real user hit
+        create_trello_board() missing 1 required positional argument: 'name'
+    on a flow that had been tested repeatedly in dry run -- the whole class of
+    "the planner left out a required parameter" was invisible here, and every
+    test reported green.
+
+    Binding against the real signature costs nothing and makes the dry run
+    fail exactly where production fails.
+    """
+    try:
+        import inspect
+
+        from agent.tools import TOOL_MAP
+        fn = TOOL_MAP.get(tool_name)
+        if fn is None:
+            return None
+        inspect.signature(fn).bind(**(params or {}))
+        return None
+    except TypeError as e:
+        print(f"   [DRY-RUN] ⚠️  Call rejected: {tool_name}({', '.join(params or {})}) "
+              f"-> {e}. Production raises the same TypeError.")
+        return {"error": f"Invalid parameters for {tool_name}: {e}",
+                "_signature_error": True, "_dry_run": True}
+    except Exception:
+        # Never let this check break a dry run: it is a guard, not a feature.
+        return None
+
+
 def _simulate_tool(tool_name: str, params: dict, session_id: str = "") -> dict:
     """Simulate the execution of a tool without touching any database."""
+    bad_call = _check_signature(tool_name, params)
+    if bad_call is not None:
+        return bad_call
+
     if tool_name == "list_projects":
         # Same list as _DRY_RUN_RESULTS["list_projects"] -- keep them in sync.
         base = [

@@ -186,6 +186,15 @@ def create_llm(node: str = "narrator", env_value: str = "", temperature: float =
                 fallbacks.append(_create_llm(p, _DEFAULT_MODELS[p], temp, max_tokens))
             except Exception as e:
                 print(f"[llm_factory] fallback {p} not available: {e}")
+    # Which provider actually serves each node, recorded at startup. Reading
+    # this in CloudWatch answers "is prod on Gemini?" -- the question that took
+    # half an hour to answer by deduction after the 2026-09-16 incident.
+    try:
+        from agent import obs
+        obs.log("llm_configured", node=node, provider=provider, model=model,
+                fallbacks=[f"{p}" for p in _available_fallback_providers(provider)])
+    except Exception:
+        pass
     return NodeLLM(primary, fallbacks)
 
 

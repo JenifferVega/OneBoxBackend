@@ -150,6 +150,26 @@ Only **conversational behavior files** are modified (catalog.py, prompts, narrat
 
 ---
 
+## Checks before pushing
+
+```bash
+./scripts/check.sh
+```
+
+ruff (undefined names) → mypy (calls that cannot bind) → contracts and smoke
+tests. No LLM, no AWS, no network: about a minute, safe to run on every change.
+Run it before proposing that anything is finished. `README.md` explains what
+each pass catches and why each check exists.
+
+Two rules that matter when touching the planner:
+
+- The planner's output schema must be fillable by a CONSTRAINED decoder, not
+  only by one that reads the schema as a hint. A field typed as a bare `dict`
+  comes back empty on Gemini. `tests/test_tool_schemas.py` guards this; see
+  "The 2026-09-16 incident" in `README.md`.
+- Never hand-write a tool's parameter list in a prompt. Derive it from the
+  signature (`agent/tools/schema.py`). Prose drifts; generated text cannot.
+
 ## Tech stack
 
 - **Python 3.11+** with FastAPI and Uvicorn

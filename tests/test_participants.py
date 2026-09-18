@@ -1,7 +1,20 @@
 """Participants render as people, whatever the writer called the fields."""
+import os
+import sys
+
+# Resolve against the REPOSITORY, not against whoever's machine wrote this.
+# These tests read the real source and exercise it; pointing them at an
+# absolute path outside the repo made them unrunnable for everyone else.
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, REPO)
+
+
+def repo_file(*parts):
+    return os.path.join(REPO, *parts)
+
 import ast, sys
 
-src = open("/home/claude/v12/projects.py").read()
+src = open(repo_file("api", "services", "projects.py"), encoding="utf-8").read()
 ns = {}
 for n in ast.parse(src).body:
     if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == "_PARTICIPANT_ALIASES":

@@ -1,7 +1,20 @@
 """The four boxes of the three-way comparison, on the REAL functions."""
+import os
+import sys
+
+# Resolve against the REPOSITORY, not against whoever's machine wrote this.
+# These tests read the real source and exercise it; pointing them at an
+# absolute path outside the repo made them unrunnable for everyone else.
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, REPO)
+
+
+def repo_file(*parts):
+    return os.path.join(REPO, *parts)
+
 import ast, sys, types
 
-src = open("/home/claude/v10/trello.py").read()
+src = open(repo_file("agent", "tools", "trello.py"), encoding="utf-8").read()
 ns = {"time": types.SimpleNamespace(sleep=lambda *_: None)}
 for n in ast.parse(src).body:
     if isinstance(n, ast.FunctionDef) and n.name in (

@@ -73,7 +73,7 @@ def inspect_email(email_id: str) -> dict:
 def analyze_inbox() -> dict:
     """Reads all unassigned emails from DynamoDB."""
     try:
-        from boto3.dynamodb.conditions import Key, Attr
+        from boto3.dynamodb.conditions import Attr
         result = conversations_table.scan(
             FilterExpression=Attr('projectId').eq('unassigned') & Attr('userId').eq(_current_uid())
         )
