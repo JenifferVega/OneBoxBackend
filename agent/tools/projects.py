@@ -140,13 +140,24 @@ def get_project_contacts(project_id: str) -> dict:
                 'total_pending': len(pending)
             })
 
-        return {
+        # `contacts_with_phone` has always been here, as a COUNT. A count is
+        # not a consequence: on 2026-09-22 two of three participants were
+        # notified and the reply said "both sent successfully" -- the third
+        # was on the project, had a pending task, had no phone, and was never
+        # mentioned. Naming them is what makes it impossible to skip quietly.
+        unreachable = [{"name": c["name"], "missing": "phone"}
+                       for c in contacts if not c["has_whatsapp"]]
+        out = {
             "project_name": project.get('name', ''),
             "project_id": project_id,
             "total_contacts": len(contacts),
             "contacts_with_phone": len([c for c in contacts if c['has_whatsapp']]),
             "contacts": contacts
         }
+        if unreachable:
+            out["unreachable"] = unreachable
+            out["instruction"] = ("These people are ON the project and CANNOT be reached: no phone on file. Notifying everyone else and reporting success leaves them silently out of their own project. Name them and say what is missing.")
+        return out
     except Exception as e:
         return {"error": str(e)}
 

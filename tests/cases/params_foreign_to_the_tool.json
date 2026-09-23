@@ -1,0 +1,32 @@
+{
+  "name": "params_foreign_to_the_tool",
+  "description": "The 2026-09-21 client ticket. The union schema offers all 43 parameter names to every tool, so the planner sent 'type' to create_task and the step died with 'unexpected keyword argument'. They are now dropped, reported, and explained.",
+  "session_id": "case-foreign-params",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "crea en Farmacia Haussman una tarea de tipo Marketing con el texto \"Revisar fichas de producto\" asignada a Ana",
+      "why": "'de tipo Marketing' invites a `type` parameter create_task does not accept.",
+      "assert": {
+        "tools_used_includes": [
+          "create_task"
+        ],
+        "results": [
+          {
+            "tool": "create_task",
+            "field": "success",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        "response_not_matches": [
+          "(?i)unexpected keyword",
+          "(?i)Invalid parameters"
+        ],
+        "comment": "The turn must survive. Before the fix this raised a TypeError and burned all three iterations."
+      }
+    }
+  ]
+}

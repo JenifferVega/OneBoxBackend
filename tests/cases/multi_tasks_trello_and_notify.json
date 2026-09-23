@@ -1,0 +1,43 @@
+{
+  "name": "multi_tasks_trello_and_notify",
+  "description": "One message, four jobs: read the project, read its tasks, export them to Trello and notify every participant. Forces list_tasks -> push_tasks_to_trello -> get_project_contacts -> send_notification in a single plan. The phone number must come from get_project_contacts and never from the model.",
+  "session_id": "case-multi-trello-notify",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Necesito que revises el proyecto Marketing Q3, me digas cuales tareas estan pendientes, las subas al tablero de Trello y despues le avises por WhatsApp a cada participante lo que le toca a el en concreto",
+      "why": "Four dependent jobs. The plan must chain them, not do one and report success.",
+      "assert": {
+        "tools_used_includes": [
+          "list_tasks",
+          "get_project_contacts"
+        ],
+        "tool_call_count": {
+          "create_task": 0
+        },
+        "response_matches": [
+          "(?i)Marketing Q3"
+        ],
+        "response_not_matches": [
+          "(?i)(he avisado|he enviado|i have sent).*(?i)(whatsapp)"
+        ],
+        "comment": "send_notification reaches a third party: turn 1 proposes, it does not send. Claiming it sent without the tool in toolsUsed is the narrator lying."
+      }
+    },
+    {
+      "n": 2,
+      "message": "si, mandalos",
+      "why": "Consent. Now it sends, and the recipient must have come from get_project_contacts.",
+      "assert": {
+        "tools_used_includes": [
+          "send_notification"
+        ],
+        "response_not_matches": [
+          "(?i)(confirmas que|shall i proceed)"
+        ]
+      }
+    }
+  ]
+}

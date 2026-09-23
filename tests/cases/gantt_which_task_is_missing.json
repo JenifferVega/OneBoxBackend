@@ -1,0 +1,32 @@
+{
+  "name": "gantt_which_task_is_missing",
+  "description": "The 2026-09-22 client ticket. 'Which task is missing from the Gantt?' is answerable from data: a task is on the timeline only with both dates, end >= start. Before the fix the agent answered 'I have no way to access your Gantt chart' while holding every field it needed.",
+  "session_id": "case-gantt-missing",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "En Farmacia Haussman hay una tarea que no aparece en el gantt, cual es y por que",
+      "why": "The rule lived only in a React component. It must now travel in the tool result.",
+      "assert": {
+        "tools_used_includes": [
+          "list_tasks"
+        ],
+        "tools_used_excludes": [
+          "create_task",
+          "update_task"
+        ],
+        "response_matches": [
+          "(?i)Rehacer las fichas",
+          "(?i)(fecha|date)"
+        ],
+        "response_not_matches": [
+          "(?i)no (tengo|puedo).{0,30}(acceso|acceder|capacidad|ver).{0,20}gantt",
+          "(?i)(compara|comparar) manualmente"
+        ],
+        "comment": "It must NAME the task and say why, not tell the user to compare the lists by hand."
+      }
+    }
+  ]
+}

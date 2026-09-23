@@ -1,0 +1,38 @@
+{
+  "name": "recurring_and_one_off_notifications",
+  "description": "One message carrying two different notifications: a recurring weekly digest to every participant, and a one-off reminder to a single person resolved by name. Forces get_project_contacts and resolve_person in the same plan, with different recipients.",
+  "session_id": "case-recurring-and-oneoff",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Todos los lunes a las 9 de la manana mandale por WhatsApp a los participantes de Farmacia Haussman un resumen de lo que tienen pendiente, y aparte hoy mandale a Maria un recordatorio de la tarea de formulacion magistral",
+      "why": "Two sends, two audiences, one recurring. Both go to third parties, so turn 1 proposes and states the schedule as it understood it.",
+      "assert": {
+        "tools_used_includes": [
+          "get_project_contacts"
+        ],
+        "response_matches": [
+          "(?i)(lunes|monday)",
+          "(?i)(9|09:00|9:00)",
+          "(?i)(confirma|confirmas|shall i)"
+        ],
+        "response_not_matches": [
+          "(?i)\\+\\d{6,}"
+        ],
+        "comment": "The last pattern: no phone number may appear in a turn that has not read contacts. A number in the reply here means the model wrote one."
+      }
+    },
+    {
+      "n": 2,
+      "message": "confirmo",
+      "why": "Both notifications go out; the recurring one carries recurring_days.",
+      "assert": {
+        "tools_used_includes": [
+          "send_notification"
+        ]
+      }
+    }
+  ]
+}

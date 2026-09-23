@@ -1,0 +1,30 @@
+{
+  "name": "trello_link_existing_board",
+  "description": "The user names a board and a list that really exist among their boards. Forces list_trello_boards -> link_project_to_trello -> push_tasks_to_trello in one plan. No board may be created: they already told us which one to use.",
+  "session_id": "case-link-existing-board",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Tengo un tablero en Trello que se llama ONEBOX, enganchame ahi el proyecto Marketing Q3 usando la lista Backlog, subeme todas las tareas pendientes y luego dime cuantas quedaron en esa lista",
+      "why": "Board and list are given and both exist. Link, push, report. Nothing gets created.",
+      "assert": {
+        "tools_used_includes": [
+          "push_tasks_to_trello"
+        ],
+        "tool_call_count": {
+          "create_trello_board": 0
+        },
+        "response_matches": [
+          "(?i)ONEBOX",
+          "(?i)Backlog"
+        ],
+        "response_not_matches": [
+          "(?i)(confirmas que quieres crear|voy a crear un tablero)"
+        ],
+        "comment": "list_id and board_id must come from list_trello_boards, never from the model."
+      }
+    }
+  ]
+}

@@ -92,6 +92,13 @@ def run(plan, behaviour, iterations=2, state=None):
     T.set_behaviour(behaviour)
     st = dict(state or {})
     st["plan"] = plan
+    # This file is about the WRITE LEDGER. Two gates run BEFORE a step
+    # executes -- the prior-read precondition and the consent check -- and
+    # without these three keys the writes never happen at all, so every
+    # assertion below would pass for entirely the wrong reason.
+    st.setdefault("consent_granted", True)
+    st.setdefault("awaiting_consent", sorted({x.get("tool", "") for x in plan}))
+    st.setdefault("tools_by_step", {0: "list_trello_boards"})
     for _ in range(iterations):
         upd = executor_node(st)
         st.update(upd)

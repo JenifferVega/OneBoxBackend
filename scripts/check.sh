@@ -29,7 +29,12 @@ bar "3/3  contracts"
 for t in tests/test_contracts.py tests/test_tool_schemas.py tests/test_smoke_tools.py \
          tests/test_smoke_services.py tests/test_participants.py \
          tests/test_trello_diff.py tests/test_pending_goal.py \
-         tests/test_resolve_chaining.py tests/test_chain_ref.py tests/test_executor_ledger.py ; do
+         tests/test_resolve_chaining.py tests/test_chain_ref.py tests/test_executor_ledger.py \
+         tests/test_consent_gate.py tests/test_degraded_language.py \
+         tests/test_validator_results.py tests/test_signature_filter.py \
+         tests/test_planner_empty_output.py tests/test_gemini_budget.py \
+         tests/test_provider_attribution.py tests/test_node_routing.py \
+         tests/test_invented_ids.py tests/test_gantt_visibility.py ; do
   [ -f "$t" ] || continue
   printf '  %s\n' "$t"
   if ! python "$t" > /tmp/onebox_check.log 2>&1 ; then

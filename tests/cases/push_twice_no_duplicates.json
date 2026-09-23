@@ -1,0 +1,35 @@
+{
+  "name": "push_twice_no_duplicates",
+  "description": "Sync round trip. The same export asked twice must not duplicate cards -- _diff_task_and_card exists precisely for this. The second turn is the test; the first only sets the board up.",
+  "session_id": "case-push-twice",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Sube las tareas pendientes de Marketing Q3 a Trello y cuando termines dime cuantas subiste, cuantas ya estaban ahi y si alguna fallo",
+      "why": "First export. The user explicitly asks for counts, so the reply must carry real numbers.",
+      "assert": {
+        "tools_used_includes": [
+          "push_tasks_to_trello"
+        ]
+      }
+    },
+    {
+      "n": 2,
+      "message": "vuelve a subirlas por si acaso, no quiero que se me haya escapado ninguna",
+      "why": "THE POINT OF THIS CASE. Same request again. Nothing new should be created, and the reply must say they were already there instead of reporting a fresh export.",
+      "assert": {
+        "tools_used_includes": [
+          "push_tasks_to_trello"
+        ],
+        "tool_call_count": {
+          "create_trello_board": 0
+        },
+        "response_matches": [
+          "(?i)(ya estaban|ya existen|already|sin cambios|nada nuevo)"
+        ]
+      }
+    }
+  ]
+}

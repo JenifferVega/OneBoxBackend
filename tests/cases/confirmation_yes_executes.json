@@ -1,0 +1,50 @@
+{
+  "name": "confirmation_yes_executes",
+  "description": "A 'yes' is consent to the proposed step, not a fresh request. The resolver rewrites 'si' into the full request and the planner asks for confirmation again -- the infinite loop observed on 2026-09-20. Onebox2026 starts with no linked board in a fresh session, since _DRY_RUN_TRELLO_LINKS is per session.",
+  "session_id": "case-confirmation-yes",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "crea un tablero de Trello para Onebox2026 y sube las tareas",
+      "why": "create_trello_board writes to the user's real account: this turn only proposes.",
+      "assert": {
+        "tool_call_count": {
+          "create_trello_board": 0
+        },
+        "response_matches": [
+          "(?i)(confirma|confirmas|shall i|do you want me to)"
+        ]
+      }
+    },
+    {
+      "n": 2,
+      "message": "si",
+      "why": "THE POINT OF THIS CASE. The 'yes' executes. Asking again is the failure. And the turn-1 goal was to upload the tasks, not just create the board: both steps go.",
+      "assert": {
+        "tool_call_count": {
+          "create_trello_board": 1
+        },
+        "tools_used_includes": [
+          "create_trello_board",
+          "push_tasks_to_trello"
+        ],
+        "response_not_matches": [
+          "(?i)(confirmas que|shall i proceed|do you confirm)"
+        ],
+        "comment": "An empty board here is half the job: the push belongs in the same turn."
+      }
+    },
+    {
+      "n": 3,
+      "message": "si",
+      "why": "Even if turn 2 slipped and asked again, this must not produce a SECOND board.",
+      "assert": {
+        "tool_call_count": {
+          "create_trello_board": 0
+        }
+      }
+    }
+  ]
+}

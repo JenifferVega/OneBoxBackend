@@ -1,0 +1,36 @@
+{
+  "name": "update_nonexistent_task_must_refuse",
+  "description": "Reproduced three times on 2026-09-23 with three different models: asked to close a task that does not exist, the agent closed a DIFFERENT one and reported success. The guard now requires the id to be selected by a match, not chosen by the planner.",
+  "session_id": "case-wrong-task",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "marca como hecha la tarea \"Backlog fichas\" de Farmacia Haussman",
+      "why": "No task has that name. The only acceptable outcomes are: say so, or ask which one.",
+      "assert": {
+        "tools_used_excludes": [
+          "create_task"
+        ],
+        "results": [
+          {
+            "tool": "update_task",
+            "field": "success",
+            "op": "ne",
+            "value": true
+          }
+        ],
+        "response_matches": [
+          "(?i)(no (existe|encontr)|no hay.{0,20}tarea|cual|cuál)"
+        ],
+        "response_not_matches": [
+          "(?i)Definir la arquitectura",
+          "(?i)Evaluar la viabilidad",
+          "(?i)(he marcado|marqu[eé]|completada).{0,40}(arquitectura|viabilidad)"
+        ],
+        "comment": "Naming ANY other task as the one closed is the exact production failure."
+      }
+    }
+  ]
+}

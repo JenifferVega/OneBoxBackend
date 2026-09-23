@@ -37,3 +37,22 @@ class ResolverOutput(BaseModel):
         default="",
         description="One short sentence justifying the verdict. For telemetry.",
     )
+    confirms: Literal["yes", "no", "unrelated"] = Field(
+        default="unrelated",
+        description=(
+            "ONLY about the PENDING PROPOSAL you were shown, if any. "
+            "'yes': this message authorises exactly that action. "
+            "'no': it declines it. "
+            "'unrelated': the message is about something else -- INCLUDING "
+            "when it answers a DIFFERENT question the assistant asked in the "
+            "same breath. Answering one of two questions authorises nothing, "
+            "and neither does the absence of an objection."
+        ),
+    )
+    language: str = Field(
+        default="",
+        description=(
+            "ISO 639-1 code of the language the USER wrote in (es, en, pt...). "
+            "Used to answer in their language on paths where no model runs."
+        ),
+    )

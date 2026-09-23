@@ -1,0 +1,24 @@
+{
+  "name": "unreachable_contact_is_named",
+  "description": "On 2026-09-22 two of three participants were notified and the reply said 'both sent successfully'. The third was on the project, had pending work, had no phone, and was never mentioned.",
+  "session_id": "case-unreachable",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "avisa por WhatsApp a todos los participantes de Farmacia Haussman con sus tareas pendientes",
+      "why": "Belen Albero has no phone in the fixtures. Silence about her is the bug.",
+      "assert": {
+        "tools_used_includes": [
+          "get_project_contacts"
+        ],
+        "response_matches": [
+          "(?i)Belen",
+          "(?i)(tel[eé]fono|sin n[uú]mero|no tiene)"
+        ],
+        "comment": "Named, not counted: 'contacts_with_phone: 2' is not an answer."
+      }
+    }
+  ]
+}

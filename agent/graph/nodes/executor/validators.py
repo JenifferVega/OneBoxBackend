@@ -37,6 +37,36 @@ def _is_invalid_scalar(value) -> bool:
     return False
 
 
+def _accepts(tool_name: str, field: str) -> bool:
+    """Does this tool actually take this parameter?
+
+    On 2026-09-21 a plan sent `task_id` to push_tasks_to_trello, which has no
+    such parameter. It resolved to None, this function saw a `task_id` in
+    _SCALAR_ID_FIELDS and reported "the from_step reference pointed at a field
+    that was NOT in that step's result" -- blaming the chaining, which had in
+    fact resolved project_id correctly. The planner believed the diagnosis,
+    stopped using from_step, and spent its remaining two iterations inventing
+    literal ids (one of them built from the user's own uid).
+
+    So a parameter the tool does not accept is not this function's business.
+    The executor drops those before calling; validating them here can only
+    produce a true statement about the wrong problem.
+    """
+    try:
+        import inspect
+
+        from agent.tools import TOOL_MAP
+        fn = TOOL_MAP.get(tool_name)
+        if fn is None:
+            return True
+        sig = inspect.signature(fn)
+        if any(p.kind is p.VAR_KEYWORD for p in sig.parameters.values()):
+            return True
+        return field in sig.parameters
+    except Exception:
+        return True          # never let the guard break the call
+
+
 def validate_tool_params(tool_name: str, step_num: int, params: dict) -> dict | None:
     """Validate a tool's parameters before executing it.
 
@@ -47,6 +77,8 @@ def validate_tool_params(tool_name: str, step_num: int, params: dict) -> dict | 
     # ── Scalar ID validations ──────────────────────────────────────
     for field, id_key in _SCALAR_ID_FIELDS.items():
         if field not in params:
+            continue
+        if not _accepts(tool_name, field):
             continue
         val = params[field]
         if _is_invalid_scalar(val):

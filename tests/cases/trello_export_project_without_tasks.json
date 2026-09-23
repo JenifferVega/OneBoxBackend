@@ -1,0 +1,36 @@
+{
+  "name": "trello_export_project_without_tasks",
+  "description": "A project created in this same session has no tasks. Asked to export it, the agent must say there is nothing to export -- not create a board for an empty project, and certainly not invent tasks to fill it.",
+  "session_id": "case-export-empty",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "creame un proyecto nuevo que se llame Auditoria Interna, tipo Backend",
+      "why": "Fixture setup. create_project registers it in the dry-run session cache.",
+      "assert": {
+        "tools_used_includes": [
+          "create_project"
+        ]
+      }
+    },
+    {
+      "n": 2,
+      "message": "Perfecto, ahora subeme a Trello todas las tareas pendientes de Auditoria Interna y creame el tablero si hace falta, que quiero empezar a moverlo ya",
+      "why": "THE POINT OF THIS CASE. There are no tasks. Report that. A board for an empty project is useless, and inventing tasks to justify it is the FUSTE failure again.",
+      "assert": {
+        "tool_call_count": {
+          "create_task": 0,
+          "create_trello_board": 0
+        },
+        "response_matches": [
+          "(?i)(no tiene|sin tareas|ninguna tarea|no tasks|esta vac)"
+        ],
+        "response_not_matches": [
+          "(?i)(he creado.*tareas|he subido)"
+        ]
+      }
+    }
+  ]
+}

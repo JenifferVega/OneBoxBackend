@@ -360,6 +360,21 @@ def prepare_trello_board(project_query: str) -> dict:
         open_tasks = [t for t in _list_tasks(_current_uid(), _current_email(), pid)
                       if (t.get("text") or "").strip() and t.get("status") != "done"]
         out["tasks_waiting_to_export"] = len(open_tasks)
+        if open_tasks:
+            # The unfinished job is not "create the board" -- that is a step. It
+            # is getting the TASKS onto it. Without this, _open_goal finds neither
+            # of its two signals, no pending_goal is ever recorded, and the
+            # confirmation turn plans only what the rewritten message still
+            # mentions: the board. Observed 2026-09-21 -- board created, three
+            # tasks left behind, and the export offered back to the user as if it
+            # were a new idea.
+            out["next_step"] = {
+                "tool": "push_tasks_to_trello",
+                    "after": [],   # any board will do: created OR linked
+                "why": (f"{len(open_tasks)} task(s) are waiting to be "
+                        f"exported. A board created and left empty is half "
+                        f"the job: the user asked for the tasks to be there."),
+            }
     except Exception as e:
         print(f"[Tool] prepare_trello_board: could not count tasks: {e}")
 
@@ -751,6 +766,17 @@ def push_tasks_to_trello(project_id: str, list_id: str = "",
             # Kept for callers that only ask "did everything work". Partial
             # counts as NOT fully successful, but `outcome` says why.
             "success": outcome in ("complete", "noop", "needs_review"),
+            # A push that left cards behind is NOT finished. Both versions
+            # already knew -- `outcome` says "partial" -- but neither told the
+            # runner, so no goal was recorded and the retry happened only if
+            # the user remembered to ask. Observed 2026-09-21: one card lost
+            # to a 429, and the next turn talked about something else with no
+            # sign the system was still holding it.
+            **({"next_step": {
+                "tool": "push_tasks_to_trello",
+                "after": [],
+                "why": f"{len(failed)} card(s) did not reach Trello.",
+            }} if failed else {}),
             # WHICH board these cards went to, by name. The planner often
             # answers the next message without calling any tool at all -- it
             # only sees the previous turn's results. Asked right afterwards to

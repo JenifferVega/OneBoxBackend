@@ -1,0 +1,25 @@
+{
+  "name": "error_answers_in_users_language",
+  "description": "Every failure path used to answer with a hardcoded English sentence. A client writing Spanish was told 'I didn't quite understand your request'.",
+  "session_id": "case-language",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "sube las tareas del proyecto Inexistente SA al tablero que no existe",
+      "why": "A request that cannot succeed. What matters is the language of the refusal.",
+      "assert": {
+        "response_not_matches": [
+          "I didn't quite understand",
+          "Sorry, I had a problem",
+          "(?i)could you be more specific"
+        ],
+        "response_matches": [
+          "(?i)(no|proyecto|tablero)"
+        ],
+        "comment": "Spanish in, Spanish out, even when nothing worked."
+      }
+    }
+  ]
+}

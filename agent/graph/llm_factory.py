@@ -40,6 +40,13 @@ _DEFAULT_MODELS = {
 
 NODE_NAMES = ("context_resolver", "planner", "validator", "narrator")
 
+# Output budget per call. Billed per token USED, not per token allowed, so a
+# larger ceiling costs nothing until it is needed -- and on Gemini it is not
+# just the answer that has to fit: thought tokens are charged against this
+# same limit, which is how a planner answer came back truncated on
+# 2026-09-21 and empty on 2026-09-22. 4096 was too close to the edge.
+_MAX_TOKENS = 8192
+
 # Per-node temperatures (preserve those of the previous agent)
 _NODE_TEMPERATURE = {
     "context_resolver": 0.0,
@@ -47,6 +54,49 @@ _NODE_TEMPERATURE = {
     "validator": 0.1,
     "narrator": 0.4,
 }
+
+
+def _attributed(runnable, provider: str, model: str, node: str):
+    """Wraps one provider's runnable so that USING it leaves a trace.
+
+    LangChain's .with_fallbacks() switches provider on an exception and says
+    nothing at all. On 2026-09-22 that meant every planner call in a 10-minute
+    session was served by a fallback while the logs looked healthy: Gemini was
+    failing 8 times out of 12 and the only visible symptom was the turn taking
+    143 seconds. A fallback that is invisible is not a safety net, it is a
+    blindfold -- and it makes "which provider should run which node?"
+    unanswerable, because no measurement can tell which one answered.
+    """
+    import time
+
+    from langchain_core.runnables import RunnableLambda
+
+    def _run(x):
+        t0 = time.perf_counter()
+        try:
+            out = runnable.invoke(x)
+        except Exception as e:
+            ms = int((time.perf_counter() - t0) * 1000)
+            print(f"   [LLM] {node}: {provider} FAILED after {ms} ms -> "
+                  f"{type(e).__name__}: {str(e)[:160]}")
+            try:
+                from agent import obs
+                obs.log("llm_attempt", node=node, provider=provider, model=model,
+                        ok=False, ms=ms, error=f"{type(e).__name__}: {str(e)[:200]}")
+            except Exception:
+                pass
+            raise
+        ms = int((time.perf_counter() - t0) * 1000)
+        print(f"   [LLM] {node}: answered by {provider} ({model}) in {ms} ms")
+        try:
+            from agent import obs
+            obs.log("llm_attempt", node=node, provider=provider, model=model,
+                    ok=True, ms=ms)
+        except Exception:
+            pass
+        return out
+
+    return RunnableLambda(_run)
 
 
 class NodeLLM:
@@ -57,23 +107,122 @@ class NodeLLM:
     BEFORE chaining the fallbacks (composition risk documented in the plan).
     """
 
-    def __init__(self, primary, fallbacks: Optional[list] = None):
+    def __init__(self, primary, fallbacks: Optional[list] = None,
+                 node: str = "?", names: Optional[list] = None):
         self._primary = primary
         self._fallbacks = fallbacks or []
-        self._plain = (
-            primary.with_fallbacks(self._fallbacks) if self._fallbacks else primary
-        )
+        self._node = node
+        # [(provider, model)] for primary + each fallback, in the same order.
+        self._names = names or [("?", "?")] * (1 + len(self._fallbacks))
+        self._plain = self._chain([primary] + self._fallbacks)
+
+    def _chain(self, runnables):
+        """primary + fallbacks, each one attributed."""
+        wrapped = [
+            _attributed(r, self._names[i][0] if i < len(self._names) else "?",
+                        self._names[i][1] if i < len(self._names) else "?",
+                        self._node)
+            for i, r in enumerate(runnables)
+        ]
+        return wrapped[0].with_fallbacks(wrapped[1:]) if len(wrapped) > 1 else wrapped[0]
 
     def invoke(self, input, **kwargs):
         return self._plain.invoke(input, **kwargs)
 
     def with_structured_output(self, schema, **kwargs):
-        structured = self._primary.with_structured_output(schema, **kwargs)
-        if self._fallbacks:
-            structured = structured.with_fallbacks(
-                [f.with_structured_output(schema, **kwargs) for f in self._fallbacks]
-            )
-        return structured
+        return self._chain(
+            [self._primary.with_structured_output(schema, **kwargs)]
+            + [f.with_structured_output(schema, **kwargs) for f in self._fallbacks]
+        )
+
+
+# ── Which provider runs which node ────────────────────────────────────────
+#
+# Measured over two days of live testing, not guessed:
+#
+#   planner            13.973 tokens of prompt, output is a NESTED structure
+#                      (a list of steps, each with an open params object of 43
+#                      possible keys), zero Literal anchors, and it is the only
+#                      node whose output is EXECUTED -- a mistake here becomes a
+#                      WhatsApp sent or a card created in a real Trello board.
+#                      On gemini-2.5-flash it failed 8 of 12 calls (MAX_TOKENS
+#                      after emitting 28k-40k chars); on gemini-2.5-pro it
+#                      silently marked the WRONG task as done. On anthropic it
+#                      ran a full test session -- multi-step plans, from_step
+#                      chaining, foreach, the consent gate -- with none of that.
+#
+#   the other three    931-1.531 tokens of prompt, flat output anchored by
+#                      Literal enums, 0 failures in 10 calls, 0.3-2.0 s each.
+#                      Classification with a closed answer is where flash is
+#                      both reliable and much cheaper.
+#
+# The model is PINNED for gemini on purpose: GEMINI_MODEL is what someone
+# changes to try 2.5-pro, and that must not silently move these three nodes
+# onto a model they were never measured on. anthropic is left unpinned so
+# ANTHROPIC_MODEL still chooses between sonnet and haiku.
+#
+# Precedence: NODE_LLM_<NODE> > LLM_PROVIDER_ALL > this table > LLM_PROVIDER.
+_NODE_PROVIDER = {
+    "planner":          "anthropic",
+    "context_resolver": "gemini:gemini-2.5-flash",
+    "validator":        "gemini:gemini-2.5-flash",
+    "narrator":         "gemini:gemini-2.5-flash",
+}
+
+
+def _checked(var: str, value: str) -> tuple:
+    """_parse_config, but the error names the variable that is wrong.
+
+    A typo here is fatal ON PURPOSE. Routing decides which model plans actions
+    that write to real Trello boards and send real messages; booting with a
+    provider nobody chose, because `antropic` was misspelled, is worse than
+    not booting.
+    """
+    try:
+        return _parse_config(value)
+    except ValueError as e:
+        raise ValueError(
+            f"{var}={value!r} in your environment is not valid. {e} "
+            f"Examples: {var}=anthropic  |  {var}=gemini:gemini-2.5-flash"
+        ) from None
+
+
+def _provider_available(provider: str) -> bool:
+    if provider == "anthropic":
+        return bool(ANTHROPIC_API_KEY)
+    if provider == "gemini":
+        return bool(GEMINI_API_KEY)
+    return True          # bedrock uses ambient IAM credentials
+
+
+def _routing_for(node: str) -> tuple:
+    """(provider, model) for this node, honouring the precedence above.
+
+    Returns (None, None) when nothing applies, so the caller falls back to the
+    global default exactly as before.
+    """
+    # 1. Explicit per-node override.
+    var = f"NODE_LLM_{node.upper()}"
+    env_node = os.environ.get(var, "").strip()
+    if env_node:
+        return _checked(var, env_node)
+
+    # 2. One provider for every node -- for an honest A/B, where the routing
+    #    table would otherwise make "measure flash on the planner" impossible.
+    env_all = os.environ.get("LLM_PROVIDER_ALL", "").strip()
+    if env_all:
+        return _checked("LLM_PROVIDER_ALL", env_all)
+
+    # 3. The routing table.
+    configured = _NODE_PROVIDER.get(node)
+    if configured:
+        provider, model = _parse_config(configured)
+        if _provider_available(provider):
+            return provider, model
+        print(f"[llm_factory] node '{node}' is routed to '{provider}' but it has "
+              f"no credentials -> falling back to the global default. This node "
+              f"has NOT been measured on that provider.")
+    return None, None
 
 
 def _parse_config(value: str) -> tuple:
@@ -94,7 +243,8 @@ def _parse_config(value: str) -> tuple:
     )
 
 
-def _create_llm(provider: str, model: str, temperature: float, max_tokens: int = 4096):
+def _create_llm(provider: str, model: str, temperature: float,
+                max_tokens: int = _MAX_TOKENS):
     """Creates the provider's chat model (lazy per-provider import)."""
     if provider == "bedrock":
         from langchain_aws import ChatBedrockConverse
@@ -169,17 +319,23 @@ def _available_fallback_providers(primary: str) -> List[str]:
 
 
 def create_llm(node: str = "narrator", env_value: str = "", temperature: float = None,
-               max_tokens: int = 4096, with_fallbacks: bool = True) -> NodeLLM:
+               max_tokens: int = _MAX_TOKENS, with_fallbacks: bool = True) -> NodeLLM:
     """Creates the NodeLLM for a graph node (or an external factory consumer)."""
-    provider, model = _parse_config(
-        env_value or os.environ.get(f"NODE_LLM_{node.upper()}", "")
-    )
+    if env_value:
+        provider, model = _parse_config(env_value)
+    else:
+        provider, model = _routing_for(node)
     provider = provider or _default_provider()
     model = model or _DEFAULT_MODELS[provider]
     temp = temperature if temperature is not None else _NODE_TEMPERATURE.get(node, 0.2)
 
     primary = _create_llm(provider, model, temp, max_tokens)
     fallbacks = []
+    # LLM_FALLBACKS=off measures one provider honestly. With fallbacks on, a
+    # provider that fails every single call still produces correct answers --
+    # someone else's. You cannot compare providers through a safety net.
+    if os.environ.get("LLM_FALLBACKS", "").strip().lower() in ("off", "0", "false", "no"):
+        with_fallbacks = False
     if with_fallbacks:
         for p in _available_fallback_providers(provider):
             try:
@@ -195,7 +351,10 @@ def create_llm(node: str = "narrator", env_value: str = "", temperature: float =
                 fallbacks=[f"{p}" for p in _available_fallback_providers(provider)])
     except Exception:
         pass
-    return NodeLLM(primary, fallbacks)
+    names = [(provider, model)] + [
+        (p, _DEFAULT_MODELS[p]) for p in (
+            _available_fallback_providers(provider) if with_fallbacks else [])]
+    return NodeLLM(primary, fallbacks, node=node, names=names)
 
 
 def create_node_llms() -> dict:
@@ -203,4 +362,23 @@ def create_node_llms() -> dict:
     llms = {}
     for node in NODE_NAMES:
         llms[node] = create_llm(node)
+
+    # Printed once at startup, because "LLM_PROVIDER says gemini but the
+    # planner runs on anthropic" is a surprise worth removing. LLM_PROVIDER
+    # has NOT stopped mattering -- it still selects the provider for
+    # agent/llm.py (document analysis, insights, Gmail classification), which
+    # is a different client entirely. It simply does not decide the graph.
+    print("\n[llm_factory] Graph node routing:")
+    for node in NODE_NAMES:
+        provider, model = llms[node]._names[0]
+        source = ("NODE_LLM_" + node.upper() if os.environ.get(f"NODE_LLM_{node.upper()}", "").strip()
+                  else "LLM_PROVIDER_ALL" if os.environ.get("LLM_PROVIDER_ALL", "").strip()
+                  else "routing table" if node in _NODE_PROVIDER
+                  else "LLM_PROVIDER")
+        print(f"   {node:18} {provider:10} {model:32} (from {source})")
+    print(f"   LLM_PROVIDER={LLM_PROVIDER or '(auto)'} is NOT used for these four "
+          f"nodes; it still selects the provider for document analysis, insights "
+          f"and Gmail classification (agent/llm.py).")
+    print("   Override one node with NODE_LLM_<NODE>=provider[:model], or every "
+          "node at once with LLM_PROVIDER_ALL=provider[:model].\n")
     return llms

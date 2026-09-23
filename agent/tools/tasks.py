@@ -111,6 +111,41 @@ def create_reminder(title: str, descripcion: str = "", due_date: str = "", proje
         return {"error": f"Error creating reminder: {str(e)}"}
 
 
+# What the Gantt can and cannot draw.
+#
+# The timeline is not a view of "the tasks": it is a view of the tasks that
+# can be placed on a calendar. ProjectGantt.tsx keeps only those with BOTH
+# dates and with end >= start; everything else is dropped silently.
+#
+# On 2026-09-22 a client reported "the dashboard says 8 blocked and the gantt
+# shows 5". Asked which task was missing, the agent answered "I have no way to
+# access your Gantt chart" -- and it was wrong: it had every field it needed.
+# What it lacked was the RULE, which lived only in a React component.
+#
+# Teaching the rule to the prompt would have been the wrong fix: prose is not
+# enforced, it drifts, and every model would have to learn it again. The fact
+# belongs in the data, next to the task it describes -- the same reason
+# get_project_contacts reports `unreachable` instead of a phone count.
+#
+# NOTE: this rule is a second copy of the one in
+# OneBoxFrontEnd/OneBox/src/components/ProjectGantt.tsx (the `scheduledAll`
+# filter). If one changes, the other must. tests/test_gantt_visibility.py
+# pins both.
+def _timeline_issue(task: dict) -> str:
+    """Why this task cannot be drawn on the timeline, or '' if it can."""
+    start = (task.get("startDate") or "").strip()
+    due = (task.get("dueDate") or "").strip()
+    if not start and not due:
+        return "no start date and no due date"
+    if not start:
+        return "no start date"
+    if not due:
+        return "no due date"
+    if due < start:                      # ISO dates compare as strings
+        return f"due date {due} is before the start date {start}"
+    return ""
+
+
 @register_tool("list_tasks")
 def list_tasks(project_id: str) -> dict:
     """Lists a project's tasks. Useful for locating the real taskId."""
@@ -119,16 +154,38 @@ def list_tasks(project_id: str) -> dict:
     try:
         from api.services.tasks import list_tasks
         items = list_tasks(_current_uid(), _current_email(), project_id)
-        tasks = [{
-            "taskId":       t.get("taskId", ""),
-            "text":         t.get("text", ""),
-            "status":       t.get("status", ""),
-            "assignedTo":   t.get("assignedTo", ""),
-            "startDate":    t.get("startDate", ""),
-            "dueDate":      t.get("dueDate", ""),
-            "parentTaskId": t.get("parentTaskId", ""),
-        } for t in items]
-        return {"count": len(tasks), "tasks": tasks}
+        tasks = []
+        for t in items:
+            issue = _timeline_issue(t)
+            tasks.append({
+                "taskId":       t.get("taskId", ""),
+                "text":         t.get("text", ""),
+                "status":       t.get("status", ""),
+                "assignedTo":   t.get("assignedTo", ""),
+                "startDate":    t.get("startDate", ""),
+                "dueDate":      t.get("dueDate", ""),
+                "parentTaskId": t.get("parentTaskId", ""),
+                "on_timeline":  not issue,
+                "timeline_issue": issue,
+            })
+
+        off = [{"taskId": t["taskId"], "text": t["text"],
+                "why": t["timeline_issue"]}
+               for t in tasks if not t["on_timeline"]]
+        out = {"count": len(tasks), "tasks": tasks}
+        if off:
+            # Named, not counted: a count cannot be acted on, and "3 tasks are
+            # missing from your Gantt" is not an answer to "which one?".
+            out["not_on_timeline"] = off
+            out["instruction"] = (
+                f"{len(off)} of these {len(tasks)} tasks do NOT appear on the "
+                f"Gantt/timeline, listed under 'not_on_timeline' with the reason. "
+                f"A task is on the timeline only if it has BOTH a start date and "
+                f"a due date, and the due date is not earlier than the start. "
+                f"If the user asks what is missing from the Gantt, answer with "
+                f"those names and their reason; do not say you cannot see their "
+                f"Gantt.")
+        return out
     except Exception as e:
         return {"error": _svc_error(e)}
 

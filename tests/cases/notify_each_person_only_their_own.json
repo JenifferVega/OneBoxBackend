@@ -1,0 +1,42 @@
+{
+  "name": "notify_each_person_only_their_own",
+  "description": "Every participant gets THEIR pending tasks, not the whole project list. Forces get_project_contacts (which returns pending_tasks per contact) and then one send_notification per person with different content. Phones come from the contacts.",
+  "session_id": "case-notify-per-person",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Mandale por WhatsApp a cada participante de Farmacia Haussman un mensaje con lo que tiene pendiente el, solo lo suyo, no la lista entera, y ponle al final para cuando lo necesito",
+      "why": "Third-party send: turn 1 proposes. It must already know who is in the project.",
+      "assert": {
+        "tools_used_includes": [
+          "get_project_contacts"
+        ],
+        "tool_call_count": {
+          "send_notification": 0
+        },
+        "response_matches": [
+          "(?i)(confirma|confirmas|shall i)"
+        ],
+        "response_not_matches": [
+          "(?i)\\+\\d{6,}"
+        ],
+        "comment": "A phone number in a turn that only proposed means the model wrote one."
+      }
+    },
+    {
+      "n": 2,
+      "message": "dale, mandalo",
+      "why": "Now it sends, one message per contact, each with that person's own tasks.",
+      "assert": {
+        "tools_used_includes": [
+          "send_notification"
+        ],
+        "response_not_matches": [
+          "(?i)(confirmas que|shall i proceed)"
+        ]
+      }
+    }
+  ]
+}

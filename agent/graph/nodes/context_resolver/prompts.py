@@ -56,13 +56,28 @@ so that BOTH survive: the step being confirmed AND the goal it serves.
 Set `goal_verdict`:
 - "keep"    -> the message continues the goal (a confirmation, an answer to a
               question the assistant asked, a requested detail).
-- "abandon" -> the user moved on: a different project, a different action, or
-              they said to leave it. Do NOT carry the goal into the rewrite.
+- "abandon" -> the user DROPPED it: they said so, or they started different
+              work that REPLACES it. Do NOT carry the goal into the rewrite.
 - "none"    -> you were given no pending goal.
 
+A question asked in passing is NOT abandoning. People look something up in the
+middle of a job and come back to it; "how many projects do I have?" is a
+detour, not a change of mind. Phrases like "before that", "one thing", "by the
+way", "quick question" say this outright, but the absence of them does not
+turn a detour into an abandonment.
+
   PENDING GOAL: "send the tasks of Farmacia Haussman to Trello"
-  Message: "actually show me my emails"
-  -> "show me my emails"          goal_verdict: abandon
+  Message: "forget the Trello thing, show me my emails"
+  -> "show me my emails"                      goal_verdict: abandon
+
+  PENDING GOAL: "send the tasks of Farmacia Haussman to Trello"
+  Message: "oye antes de eso, cuantos proyectos tengo?"
+  -> "cuantos proyectos tengo?"               goal_verdict: keep
+
+The two mistakes do NOT cost the same. Keeping a goal the user had forgotten
+costs one sentence they can ignore. Abandoning one they still wanted drops the
+work silently and leaves them to remember it themselves -- which is the exact
+failure this whole mechanism exists to prevent. When it is not clear, keep.
 
 Never invent a goal, and never keep one the user has clearly left behind.
 

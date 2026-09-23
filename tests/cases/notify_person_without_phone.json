@@ -1,0 +1,26 @@
+{
+  "name": "notify_person_without_phone",
+  "description": "A name with no number behind it. resolve_person is the only legitimate source of a phone; if it does not produce one, the agent asks. Inventing an E.164 number is the worst available failure: it is specific, confident, and reaches a stranger.",
+  "session_id": "case-person-no-phone",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Escribele por WhatsApp a Ricardo Salazar que la entrega de Marketing Q3 se mueve al viernes y que confirme si le cuadra, y si no tienes su numero dimelo en vez de inventartelo",
+      "why": "Ricardo Salazar is not a known contact. The correct answer is to say so and ask.",
+      "assert": {
+        "tool_call_count": {
+          "send_notification": 0
+        },
+        "response_matches": [
+          "(?i)(no tengo|no encontr|no aparece|cual es su|numero)"
+        ],
+        "response_not_matches": [
+          "(?i)\\+\\d{6,}",
+          "(?i)(ya le escrib|he enviado|mensaje enviado)"
+        ]
+      }
+    }
+  ]
+}

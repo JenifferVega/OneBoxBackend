@@ -7,7 +7,12 @@ Intent dispatcher (from the reference pattern):
 """
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from agent.graph.nodes.narrator.helpers import build_user_prompt, truncate_results
+from agent.graph.nodes.narrator.helpers import (NOTHING_CAME_BACK_GUIDANCE,
+                                                build_earlier_block,
+                                                build_pending_block,
+                                                build_user_prompt,
+                                                build_verdict_block,
+                                                last_resort, truncate_results)
 from agent.graph.nodes.narrator.narrators import GUIDANCE_BY_INTENT
 from agent.graph.nodes.narrator.prompts import NARRATOR_SYSTEM
 from agent.graph.state import AgentState
@@ -30,18 +35,26 @@ def narrator_node(state: AgentState, llm) -> dict:
         return update
 
     results = state.get("results", {})
-    if not results:
-        return {
-            "response": "I didn't get any results. Could you rephrase your question?",
-            "status": "done",
-        }
-
     intent = state.get("intent") or "generic"
-    guidance = GUIDANCE_BY_INTENT.get(intent, GUIDANCE_BY_INTENT["generic"])
-    print(f"   Intent: {intent}")
+    # An empty result set is still something to say, and saying it well means
+    # saying it in the user's language -- so it goes through the LLM like
+    # everything else instead of through a hardcoded English sentence.
+    guidance = (NOTHING_CAME_BACK_GUIDANCE if not results
+                else GUIDANCE_BY_INTENT.get(intent, GUIDANCE_BY_INTENT["generic"]))
+    print(f"   Intent: {intent}" + ("  (no results)" if not results else ""))
 
     user_message = state.get("resolved_message") or state.get("user_message", "")
-    prompt = build_user_prompt(user_message, truncate_results(results), guidance)
+    verdict = build_verdict_block(state.get("validation_decision") or "",
+                                  state.get("validation_feedback") or "")
+    prompt = build_user_prompt(
+        user_message,
+        truncate_results(results, tools_by_step=state.get("tools_by_step")),
+        guidance,
+        verdict,
+        build_pending_block(state.get("pending_goal") or {}),
+        build_earlier_block(results, state.get("tools_by_step") or {},
+                            state.get("results_by_tool") or {}),
+    )
 
     try:
         result = llm.invoke([
@@ -51,10 +64,7 @@ def narrator_node(state: AgentState, llm) -> dict:
         response = result.content if hasattr(result, "content") else str(result)
     except Exception as e:
         print(f"   Narrator failed: {e}")
-        response = (
-            "I ran your request but had a problem writing the summary. "
-            "The data was processed correctly; try again to see the details."
-        )
+        response = last_resort("narrator_failed", state.get("language", ""))
 
     print(f"   Response: {str(response)[:150]}...")
     update = {"response": response, "status": "done"}

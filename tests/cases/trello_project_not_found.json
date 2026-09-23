@@ -1,0 +1,28 @@
+{
+  "name": "trello_project_not_found",
+  "description": "resolve_entity returns confidence=none and the instruction 'Say it does not exist. Do NOT offer to create it'. 'Zenith Robotics' scores below the recall floor against every dry-run fixture (Farmacia Haussman / Onebox2026 / Marketing Q3), so nothing resolves. This passes today: it is a regression guard.",
+  "session_id": "case-project-not-found",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Me puedes conectar Trello con Zenith Robotics y poner las tareas pendientes?",
+      "why": "It does not exist. Said in ONE turn, without offering to create it and without burning replans.",
+      "assert": {
+        "tool_call_count": {
+          "create_project": 0,
+          "create_trello_board": 0,
+          "create_task": 0
+        },
+        "response_matches": [
+          "(?i)(no existe|no encontr|does not exist|not found)",
+          "(?i)Zenith"
+        ],
+        "response_not_matches": [
+          "(?i)(quieres que.*(cree|creo)|crear el proyecto|shall i create)"
+        ]
+      }
+    }
+  ]
+}

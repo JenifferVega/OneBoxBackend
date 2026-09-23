@@ -56,6 +56,14 @@ class PlannerOutput(BaseModel):
             "(greeting, help, casual conversation, out-of-scope request)."
         ),
     )
+    proposing: List[str] = Field(
+        default_factory=list,
+        description=(
+            "ONLY when direct_response asks the user to AUTHORISE an action: "
+            "the EXACT tool names you are asking permission for. Empty for any "
+            "direct_response that is not a request for authorisation."
+        ),
+    )
     reasoning: Optional[str] = Field(
         default=None,
         description="Brief internal reasoning (not shown to the user).",

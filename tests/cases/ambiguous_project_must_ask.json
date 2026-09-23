@@ -1,0 +1,26 @@
+{
+  "name": "ambiguous_project_must_ask",
+  "description": "The other side of loose matching: when a fragment matches more than one record, matching returns nothing on purpose. A missing id costs a question; a wrong one costs somebody's data.",
+  "session_id": "case-ambiguous",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "listame las tareas pendientes del proyecto de marketing",
+      "why": "Two fixture projects could answer to 'marketing'. Guessing one is the failure mode.",
+      "assert": {
+        "tools_used_excludes": [
+          "create_task",
+          "update_task",
+          "push_tasks_to_trello",
+          "send_notification"
+        ],
+        "response_matches": [
+          "(?i)(cual|cuál|que proyecto|qué proyecto|\\?)"
+        ],
+        "comment": "Asking is the pass condition. Silently picking one is the bug."
+      }
+    }
+  ]
+}

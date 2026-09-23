@@ -69,7 +69,26 @@ def _project(item):
     return kept
 
 
-def _summarize_results(results: dict) -> str:
+def _called_with(params_by_step, step_num):
+    """The parameters a step actually ran with, after from_step resolution.
+
+    The plan shows what the planner WROTE, where a project_id can still be
+    {"from_step": 1, "extract": ...} and a filter can be absent. Only the
+    resolved params say which project was queried and whether a request for
+    pending tasks went out with a status filter at all.
+    """
+    if not params_by_step:
+        return None
+    for key in (step_num, str(step_num)):
+        if key in params_by_step:
+            value = params_by_step[key]
+            if isinstance(value, dict):
+                return {k: _clip(v) for k, v in value.items()}
+            return _clip(value)
+    return None
+
+
+def _summarize_results(results: dict, params_by_step: dict = None) -> str:
     """Render step results for the validator as an index, not a data dump."""
     if not results:
         return "{}"
@@ -77,16 +96,24 @@ def _summarize_results(results: dict) -> str:
     lines = []
     for step_num in sorted(results, key=lambda k: (isinstance(k, str), k)):
         r = results[step_num]
+        called = _called_with(params_by_step, step_num)
+
         if not isinstance(r, dict):
-            lines.append(f'"step {step_num}": {_clip(r)}')
+            body = {"_called_with": called, "result": _clip(r)} if called is not None else {"result": _clip(r)}
+            lines.append(f'"step {step_num}": {json.dumps(body, ensure_ascii=False, default=str)}')
             continue
 
         # Failures go through verbatim: they are short and they are the point.
         if r.get("_validation_error") or r.get("error") or r.get("success") is False:
-            lines.append(f'"step {step_num}": {json.dumps(r, ensure_ascii=False, default=str)[:600]}')
+            body = dict(r)
+            if called is not None:
+                body = {"_called_with": called, **body}
+            lines.append(f'"step {step_num}": {json.dumps(body, ensure_ascii=False, default=str)[:900]}')
             continue
 
         digest = {}
+        if called is not None:
+            digest["_called_with"] = called
         for k, v in r.items():
             if isinstance(v, list):
                 shown = [_project(i) for i in v[:_MAX_ITEMS]]
@@ -149,14 +176,67 @@ def validator_node(state: AgentState, llm) -> dict:
         print(f"   Code validation failed: {feedback[:200]}")
         if iteration >= MAX_PLANNER_ITERATIONS:
             print("   Limit reached, continuing to the narrator anyway")
-            return _narrate_with_best(state, results)
+            return _narrate_with_best(state, results, "ERROR", feedback)
         return {"status": "replan", "validation_feedback": feedback,
-                **_keep_good(state, results)}
+                "validation_decision": "ERROR", **_keep_good(state, results)}
+
+    # ── A step was blocked for consent: only the user can unblock it ──
+    # Replanning cannot produce authorisation, so sending this round again
+    # just burns the iteration budget proposing the same blocked tool. Go
+    # straight to the narrator, which turns the block into the question.
+    blocked = [r.get("_consent_missing") for r in results.values()
+               if isinstance(r, dict) and r.get("_consent_missing")]
+    if blocked:
+        print(f"   Consent missing for {', '.join(blocked)} -> narrate, no replan")
+        return {"status": "narrate", "validation_decision": "CONTINUE",
+                "validation_feedback": (
+                    "The user has not authorised " + ", ".join(blocked) + ". "
+                    "Nothing was done with it. Ask for explicit confirmation "
+                    "and say exactly what it would do.")}
+
+    # ── Work the tool has already named for a LATER turn ───────────
+    # A tool that ran, did part of the job and reported `next_step` pointing
+    # at ITSELF is describing a retry, not a planning mistake. The write
+    # ledger refuses to run it again in this turn, so a replan can only
+    # produce the same result -- observed 2026-09-22: three iterations, six
+    # LLM calls, the ledger rejecting each one, and the same partial push.
+    # The runner records it as pending; the next turn is where it belongs.
+    planned = {s.get("tool") for s in (plan or [])}
+    deferred = [r.get("next_step", {}).get("tool") for r in results.values()
+                if isinstance(r, dict) and (r.get("next_step") or {}).get("tool")
+                and r["next_step"]["tool"] in planned]
+    if deferred:
+        print(f"   Retry already named for a later turn ({', '.join(deferred)})"
+              f" -> narrate, no replan")
+        return {"status": "narrate", "validation_decision": "CONTINUE",
+                "validation_feedback": (
+                    "Part of the work did not complete and is recorded as "
+                    "pending: " + ", ".join(deferred) + ". Say plainly what "
+                    "was done and what was not. Do not claim it is finished.")}
+
+    # ── Every step failed: there is nothing to judge (no LLM) ──────
+    # Deliberately narrow. A PARTIAL failure still goes to the model, because
+    # whether a half-done plan satisfies the request is a judgement. And a
+    # step carrying needs_user_choice is not a failure at all -- it is a
+    # question for the user -- so a result like push_tasks_to_trello's
+    # "no list given, offer BOTH options" must never be replanned around.
+    steps = list(results.values())
+    if steps and all(_failed(r) for r in steps) and not any(
+            isinstance(r, dict) and r.get("needs_user_choice") for r in steps):
+        feedback = "TOOL FAILURES reported by the system:\n" + "\n".join(
+            f"  - step {k}: "
+            f"{(r.get('error') or r.get('hint') or 'failed') if isinstance(r, dict) else 'failed'}"
+            for k, r in results.items())
+        print(f"   Every step failed (no LLM): {feedback[:160]}")
+        if iteration >= MAX_PLANNER_ITERATIONS:
+            return _narrate_with_best(state, results, "ERROR", feedback)
+        return {"status": "replan", "validation_feedback": feedback,
+                "validation_decision": "ERROR", **_keep_good(state, results)}
 
     system = VALIDATOR_PROMPT.format(
         user_message=user_message,
         plan=json.dumps(plan, ensure_ascii=False, indent=2),
-        results=_summarize_results(results),
+        results=_summarize_results(results, state.get("params_by_step")),
     )
 
     try:
@@ -171,16 +251,19 @@ def validator_node(state: AgentState, llm) -> dict:
     if output is None or output.decision == "DONE":
         summary = (output.summary if output else "")[:100]
         print(f"   → Validation successful: {summary}")
-        return {"status": "narrate"}
+        return {"status": "narrate", "validation_decision": "DONE",
+                "validation_feedback": None}
 
     print(f"   → {output.decision}: {output.feedback[:150]}")
 
     if iteration >= MAX_PLANNER_ITERATIONS:
         print("   Limit reached, continuing to the narrator")
-        return _narrate_with_best(state, results)
+        return _narrate_with_best(state, results, output.decision,
+                                  output.feedback or output.summary)
 
     return {"status": "replan",
             "validation_feedback": output.feedback or output.summary,
+            "validation_decision": output.decision,
             **_keep_good(state, results)}
 
 
@@ -199,17 +282,20 @@ def _keep_good(state: AgentState, results: dict) -> dict:
     return {}
 
 
-def _narrate_with_best(state: AgentState, results: dict) -> dict:
+def _narrate_with_best(state: AgentState, results: dict,
+                       decision: str = "", feedback: str = "") -> dict:
     """Narrate the best attempt, not merely the most recent one.
 
     Only swaps in the stash when THIS attempt failed and an earlier one did
     not, so a successful retry always wins and nothing is ever hidden from
     the narrator except failures we have something better than.
     """
+    verdict = {"validation_decision": decision or "CONTINUE",
+               "validation_feedback": feedback}
     if _all_clean(results):
-        return {"status": "narrate"}
+        return {"status": "narrate", **verdict}
     stash = state.get("last_good_results") or {}
     if _all_clean(stash):
         print("   Retries failed -> narrating the last error-free results instead")
-        return {"status": "narrate", "results": stash}
-    return {"status": "narrate"}
+        return {"status": "narrate", "results": stash, **verdict}
+    return {"status": "narrate", **verdict}

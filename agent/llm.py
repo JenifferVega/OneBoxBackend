@@ -33,6 +33,24 @@ def get_bedrock_client():
     return _bedrock_client
 
 
+def _gemini_generation_config(temperature: float, max_tokens: int) -> dict:
+    """generationConfig for a raw Gemini call, with the thinking budget.
+
+    Shares one rule with the graph's adapter so the two Gemini clients in this
+    repo cannot drift: thinking off on flash (0 is legal there), nothing sent
+    on other models (2.5-pro rejects 0), GEMINI_THINKING_BUDGET overrides.
+    """
+    cfg = {"temperature": temperature, "maxOutputTokens": max_tokens}
+    try:
+        from agent.graph.gemini_adapter import _thinking_budget_for
+        budget = _thinking_budget_for(GEMINI_MODEL)
+    except Exception:
+        budget = None
+    if budget is not None:
+        cfg["thinkingConfig"] = {"thinkingBudget": budget}
+    return cfg
+
+
 def _call_gemini(
     system_prompt: str,
     messages: list,
@@ -59,10 +77,7 @@ def _call_gemini(
         json={
             "system_instruction": {"parts": [{"text": system_prompt}]},
             "contents": contents,
-            "generationConfig": {
-                "temperature": temperature,
-                "maxOutputTokens": max_tokens
-            }
+            "generationConfig": _gemini_generation_config(temperature, max_tokens)
         },
         timeout=120
     )
@@ -75,9 +90,27 @@ def _call_gemini(
     if not candidates:
         raise Exception("Gemini returned no candidates")
 
+    # Same accounting as the graph's adapter. This path had none of it: a
+    # response cut short by the thinking budget came back as an EMPTY STRING
+    # and went straight into extract_json_from_response(), so the caller saw
+    # "no JSON" instead of "the model ran out of room". document_parser calls
+    # this with max_tokens=2048, which is the tightest budget in the repo.
+    finish = (candidates[0] or {}).get("finishReason", "")
+    usage = data.get("usageMetadata") or {}
+    thoughts = usage.get("thoughtsTokenCount", 0)
     parts = candidates[0].get("content", {}).get("parts", [])
     text_parts = [p.get("text", "") for p in parts if "text" in p]
-    return "\n".join(text_parts)
+    text = "\n".join(text_parts)
+
+    if finish == "MAX_TOKENS" or not text:
+        note = (f" It spent {thoughts} of its {max_tokens} output tokens on "
+                f"THINKING first (Gemini 2.5 thinks by default and those tokens "
+                f"come out of maxOutputTokens)." if thoughts else "")
+        raise Exception(
+            f"Gemini returned no usable text (finishReason={finish!r}).{note}"
+            f" First 200 chars: {text[:200]!r}")
+
+    return text
 
 
 def _call_anthropic(

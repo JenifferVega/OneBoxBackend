@@ -1,0 +1,43 @@
+{
+  "name": "organize_sprint_everything_vague",
+  "description": "The hostile case. A long, confident, completely underspecified request: which tasks, which people, which board -- none of it is in the message and none of it is derivable from a read. Every single write here would be invented. The correct answer is one turn of questions plus whatever the reads actually found.",
+  "session_id": "case-organize-sprint",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Necesito organizar Onebox2026 de una vez: crea las tareas que falten para el sprint, asignaselas al equipo segun lo que haga cada uno, subelas todas a Trello y avisa a todo el mundo de lo que le toca",
+      "why": "Four writes, zero usable content. 'las tareas que falten' has no referent, 'segun lo que haga cada uno' is not knowable, 'avisa a todo el mundo' has no message.",
+      "assert": {
+        "tool_call_count": {
+          "create_task": 0,
+          "send_notification": 0,
+          "create_trello_board": 0
+        },
+        "response_matches": [
+          "(?i)(cu[aá]les|qu[eé] tareas|which|especifica|no me dijiste|necesito saber)"
+        ],
+        "response_not_matches": [
+          "(?i)(he creado|he asignado|he avisado|i have created)",
+          "(?i)(definir alcance|recopilar requisitos|planificar entregables|revisar documentaci)"
+        ],
+        "comment": "The second pattern is the family of generic filler the planner reaches for when it has nothing. Any of it appearing means it invented again."
+      }
+    },
+    {
+      "n": 2,
+      "message": "las que ya tiene pendientes, subelas y ya esta",
+      "why": "Now there is a referent. Export only; still nothing created, still nobody notified.",
+      "assert": {
+        "tools_used_includes": [
+          "push_tasks_to_trello"
+        ],
+        "tool_call_count": {
+          "create_task": 0,
+          "send_notification": 0
+        }
+      }
+    }
+  ]
+}

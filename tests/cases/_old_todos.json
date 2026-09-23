@@ -1,0 +1,43 @@
+{
+  "name": "trello_todos_sin_contenido",
+  "description": "Reproduccion del turno del 2026-09-20. 'armar unos todos' no dice QUE todos. Ningun dato del sistema puede rellenar ese hueco, asi que la unica respuesta correcta es preguntar -- y ofrecer las tareas que el proyecto YA tiene, que es lo que list_tasks devuelve. Inventar contenido y darlo por hecho es el fallo que este caso fija. FIXTURE: el proyecto debe existir y tener tareas.",
+  "session_id": "case-todos-sin-contenido",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Me puedes conectar el proyecto FUSTE carreras con Trello y armar unos todos",
+      "why": "EL PUNTO DEL CASO. El contenido de los todos no esta en el mensaje ni sale de ninguna lectura. No se crea nada: se pregunta.",
+      "assert": {
+        "tool_call_count": {
+          "create_task": 0
+        },
+        "tools_used_excludes": [
+          "create_task"
+        ],
+        "response_matches": [
+          "(?i)(cu[aá]les|qu[eé] tareas|no me dijiste|especifica)"
+        ],
+        "response_not_matches": [
+          "(?i)he (conectado|creado)",
+          "(?i)(definir alcance|recopilar requisitos|planificar entregables)"
+        ],
+        "comment": "El segundo patron son literalmente las tres tareas que invento el 20-09. Si vuelven a aparecer, el arreglo no funciono."
+      }
+    },
+    {
+      "n": 2,
+      "message": "sube las que ya estan pendientes",
+      "why": "Ahora si hay referente: las tareas existentes. Se exportan, no se crean nuevas.",
+      "assert": {
+        "tools_used_includes": [
+          "push_tasks_to_trello"
+        ],
+        "tool_call_count": {
+          "create_task": 0
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "name": "invite_assign_and_notify",
+  "description": "Three writes chained on one new person: invite them to the project, create a task assigned to them, and tell them. The email is given, so it is usable; the task text is given too. Nothing here needs to be invented, so all three should go through after one confirmation.",
+  "session_id": "case-invite-assign-notify",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Mete a laura.pena@ejemplo.com en Marketing Q3 como Disenadora, creale una tarea que diga 'Rehacer las piezas del lanzamiento' para el 30 de octubre, y avisale por correo de que ya la tiene asignada",
+      "why": "Everything is specified: email, role, exact task text, date. The only thing that needs consent is that it reaches a third party.",
+      "assert": {
+        "response_matches": [
+          "(?i)laura\\.pena@ejemplo\\.com",
+          "(?i)Rehacer las piezas"
+        ],
+        "response_not_matches": [
+          "20226-",
+          "(?i)(enero|febrero|marzo|abril|mayo|junio|julio|agosto)"
+        ],
+        "comment": "October 30 is in the future. A past month means the planner invented the year."
+      }
+    },
+    {
+      "n": 2,
+      "message": "si, adelante con todo",
+      "why": "All three writes go. The task text must be the one the user dictated, verbatim.",
+      "assert": {
+        "tools_used_includes": [
+          "invite_user",
+          "create_task"
+        ],
+        "results": [
+          {
+            "tool": "create_task",
+            "field": "text",
+            "op": "contains",
+            "value": "Rehacer las piezas"
+          }
+        ]
+      }
+    }
+  ]
+}

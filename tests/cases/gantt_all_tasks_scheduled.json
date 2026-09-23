@@ -1,0 +1,26 @@
+{
+  "name": "gantt_all_tasks_scheduled",
+  "description": "The negative of the case above: in Onebox2026 every task has both dates. Nothing is missing from the timeline, and the agent must not invent an absence to sound useful.",
+  "session_id": "case-gantt-complete",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Falta alguna tarea de Onebox2026 en el gantt?",
+      "why": "An empty answer is the correct answer. Pins that the field is read, not pattern-matched.",
+      "assert": {
+        "tools_used_includes": [
+          "list_tasks"
+        ],
+        "response_matches": [
+          "(?i)(todas|ninguna|no falta|all|none)"
+        ],
+        "response_not_matches": [
+          "(?i)Rehacer las fichas"
+        ],
+        "comment": "Onebox2026 = proj-DRYRUN-bbb222, whose three tasks all carry both dates."
+      }
+    }
+  ]
+}

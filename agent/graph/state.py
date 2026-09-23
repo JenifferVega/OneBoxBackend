@@ -22,12 +22,36 @@ class AgentState(TypedDict, total=False):
     # `needs_user_choice` means it did not do its job, and a tool returning
     # `next_step` names the call that would finish it. The resolver may only
     # ABANDON it, when the user has moved on.
-    #   {"text", "done_when", "done_tool", "opened_at"}
+    #   {"text", "opened_at", "queue": [{"tool", "after", "why"}]}
+    # The queue is a small dependency graph, not a list: `after` names the
+    # tools that must SUCCEED before that call can run, so the planner can
+    # tell what it may do now from what has to wait. The edges come from the
+    # tools themselves (`next_step.after`), the same way from_step already
+    # expresses order inside a single plan.
+    # It remembers; it does not drive. A queued write still goes through the
+    # consent gate: nothing reaches a third party because of something the
+    # user said three turns ago.
     # Without this, a confirmation like "yes" reached the planner as "create a
     # board" and the request that motivated it ("send the tasks to Trello")
     # existed nowhere in the state: the board was created empty and the turn
     # was declared complete.
     pending_goal: dict
+
+    # Language the user wrote in (ISO 639-1), detected by the resolver.
+    # The degraded paths -- narrator LLM down, empty response -- cannot call a
+    # model to phrase themselves, and a hardcoded English sentence reaches a
+    # Spanish user exactly when something has already gone wrong.
+    language: str
+
+    # ── consent ──
+    # A turn that ASKS for authorisation runs no tools at all, so pending_goal
+    # (which the runner opens from what tools report) can never carry it.
+    # Without these, "yes" and "upload the pending ones" look identical to the
+    # planner, and an answer to a DIFFERENT question reads as consent -- which
+    # is how a Trello board got created in a turn that authorised nothing.
+    proposing: List[str]         # tools THIS turn asks permission for
+    awaiting_consent: List[str]  # tools the PREVIOUS turn asked about
+    consent_granted: bool        # the resolver's verdict on this message
 
     # ── planner ──
     plan: List[dict]             # [{"step": int, "tool": str, "params": dict}]
@@ -49,9 +73,34 @@ class AgentState(TypedDict, total=False):
 
     # ── validator ──
     validation_feedback: Optional[str]   # error context for the replan
+    validation_decision: Optional[str]   # DONE | CONTINUE | ERROR, carried to
+                                         # the narrator so it cannot report a
+                                         # turn as finished that was not
     last_good_results: Dict[int, dict]   # snapshot of the last error-free results,
                                          # so a failing replan cannot destroy an
                                          # answer the system already had
+
+    # Which tool produced each step's result. `results` is keyed by step
+    # NUMBER only, so a narrator reading it cannot tell a list_trello_boards
+    # (a read) from a link_project_to_trello (a write) -- which is how a
+    # successful board LISTING was reported as "I connected the project".
+    tools_by_step: Dict[int, str]
+
+    # The last result of each tool run ANYWHERE in this turn, keyed by tool.
+    # `results` is keyed by step number and the planner clears it on every
+    # replan, so a read from iteration 1 is gone by the time the narrator
+    # writes. Observed 2026-09-22: get_project_contacts returned three people,
+    # two were messaged, and the reply said "both sent successfully" and named
+    # neither -- the narrator no longer had the contacts, only the phone
+    # numbers buried in the send parameters.
+    results_by_tool: Dict[str, dict]
+
+    # The parameters each step RAN with, after from_step references were
+    # resolved. The validator used to see only the plan as the planner wrote
+    # it, where a project_id can be {"from_step": 1, ...} -- so it could not
+    # tell WHICH project was queried, nor that a request for pending tasks
+    # had gone out with no status filter and brought back the finished ones.
+    params_by_step: Dict[int, dict]
 
     # ── narrator ──
     response: str

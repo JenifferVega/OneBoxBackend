@@ -1,0 +1,39 @@
+{
+  "name": "compare_two_projects_and_remind",
+  "description": "Two projects in one message plus a write that depends on comparing them. Forces list_tasks twice with different project_ids, then create_reminder. Also pins the date bug: a reminder for 'el viernes' must not land in the past.",
+  "session_id": "case-compare-remind",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Comparame Onebox2026 y Marketing Q3: dime cuantas tareas pendientes tiene cada uno, cual de los dos va mas retrasado, y creame un recordatorio para revisar el que peor este, para el viernes de esta semana",
+      "why": "Two reads that cannot be merged, then one write whose target depends on both.",
+      "assert": {
+        "tool_call_count": {
+          "list_tasks": 2
+        },
+        "tools_used_includes": [
+          "create_reminder"
+        ],
+        "results": [
+          {
+            "tool": "create_reminder",
+            "field": "success",
+            "op": "eq",
+            "value": true
+          }
+        ],
+        "response_matches": [
+          "(?i)Onebox2026",
+          "(?i)Marketing Q3"
+        ],
+        "response_not_matches": [
+          "20226-",
+          "(?i)(enero|febrero|marzo|abril|mayo|junio|julio)"
+        ],
+        "comment": "The planner has no current date in its prompt, so it invents one. On 2026-09-20 it produced due dates in June. '20226-' is the malformed date already seen in production."
+      }
+    }
+  ]
+}

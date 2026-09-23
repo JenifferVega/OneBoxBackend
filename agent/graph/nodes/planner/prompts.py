@@ -60,7 +60,14 @@ PLANNER_PROMPT = "\n\n".join([
     DIRECT_RESPONSE_FIDELITY,
     RULES,
     personality.LANGUAGE,
-    """## Conversation history:
+    """## TODAY IS {today}
+
+Every date you write is computed from this one. A due date earlier than today
+is always wrong, and so is a year that is not this one: the rules below tell
+you to compute "tomorrow" or "Friday" from today, and this line is the only
+place you can read today from.
+
+## Conversation history:
 {history}
 
 ## THE USER'S PROJECTS AND THEIR TRELLO BOARDS (current, read fresh this turn):

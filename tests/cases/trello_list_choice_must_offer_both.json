@@ -1,0 +1,40 @@
+{
+  "name": "trello_list_choice_must_offer_both",
+  "description": "A long request that never says where the cards go. push_tasks_to_trello returns needs_user_choice with two options and the instruction 'Offer BOTH'. Having boards already does not mean the user wants this project's cards in one of them.",
+  "session_id": "case-list-choice",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Oye necesito tener Onebox2026 controlado en Trello, subeme todo lo que este pendiente, ordenado, y que quede donde lo vea el equipo",
+      "why": "'donde lo vea el equipo' is not a list. Both options must be offered: an existing board, or a new one with OneBox's own columns.",
+      "assert": {
+        "tool_call_count": {
+          "create_trello_board": 0
+        },
+        "response_matches": [
+          "(?i)(existente|existing|ya tienes|ONEBOX)",
+          "(?i)(nuevo|new|crear|create)"
+        ],
+        "comment": "Silently picking one of the two boards is the failure this pins down."
+      }
+    },
+    {
+      "n": 2,
+      "message": "usa el que ya tengo, el de ONEBOX, en MVP - TO DO",
+      "why": "Existing board chosen with real names. Push, no creation.",
+      "assert": {
+        "tools_used_includes": [
+          "push_tasks_to_trello"
+        ],
+        "tool_call_count": {
+          "create_trello_board": 0
+        },
+        "response_matches": [
+          "(?i)MVP"
+        ]
+      }
+    }
+  ]
+}

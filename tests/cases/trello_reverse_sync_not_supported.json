@@ -1,0 +1,26 @@
+{
+  "name": "trello_reverse_sync_not_supported",
+  "description": "There is no tool that reads cards back into OneBox -- the integration only exports. Asked to sync the other way, the agent must say so plainly instead of pretending, and must not update tasks from data it never read.",
+  "session_id": "case-reverse-sync",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "En Trello ya movimos varias cards de Marketing Q3 a la columna Done, traetelas y marcalas como hechas aqui en OneBox, y de paso dime cuales siguen en curso alla",
+      "why": "No tool imports from Trello. Any update_task here would be based on data the system never read. Saying 'done' without the capability is the failure.",
+      "assert": {
+        "tool_call_count": {
+          "update_task": 0
+        },
+        "response_matches": [
+          "(?i)(no puedo|solo.*(export|subir|env)|todav[ií]a no|not supported|unidirecc)"
+        ],
+        "response_not_matches": [
+          "(?i)(he marcado|he actualizado|ya estan marcadas|i have marked)"
+        ],
+        "comment": "The bidirectional sync is parked work. Until it exists, the honest answer is the capability boundary, not a guess about what is in Done."
+      }
+    }
+  ]
+}

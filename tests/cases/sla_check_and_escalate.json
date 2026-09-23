@@ -1,0 +1,29 @@
+{
+  "name": "sla_check_and_escalate",
+  "description": "check_sla finds what is blocked or late; the escalation that follows must target the people those alerts actually name. Forces check_sla -> get_project_contacts -> send_notification, with the recipients derived from the alerts.",
+  "session_id": "case-sla-escalate",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Dime que esta bloqueado o fuera de plazo en todos mis proyectos, y a los responsables de lo que lleve mas tiempo parado mandales un WhatsApp preguntandoles que necesitan para desbloquearlo",
+      "why": "Reads first, and the recipient list is a consequence of what the alerts returned.",
+      "assert": {
+        "tools_used_includes": [
+          "check_sla"
+        ],
+        "tool_call_count": {
+          "send_notification": 0
+        },
+        "response_matches": [
+          "(?i)(confirma|confirmas|shall i)"
+        ],
+        "response_not_matches": [
+          "(?i)\\+\\d{6,}",
+          "(?i)(ya les escrib|he enviado)"
+        ]
+      }
+    }
+  ]
+}

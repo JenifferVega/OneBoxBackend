@@ -43,6 +43,20 @@ def _get_path(obj, path: str):
     return current
 
 
+def _normalize(text) -> str:
+    """Casefold, strip accents, collapse whitespace — for comparing names.
+
+    "Sistema de Gestión de Inventarios" and "sistema de gestion de
+    inventarios" are the same project to a person, and were two different
+    strings to this function.
+    """
+    import re
+    import unicodedata
+    s = unicodedata.normalize("NFKD", str(text or ""))
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return re.sub(r"\s+", " ", s).strip().lower()
+
+
 def _match_and_extract(obj, key: str, value: str, extract: str):
     """In a list of objects, find the one where obj[key]==value and return obj[extract]."""
     if isinstance(obj, list):
@@ -53,9 +67,36 @@ def _match_and_extract(obj, key: str, value: str, extract: str):
     else:
         return None
 
-    for item in items:
-        if isinstance(item, dict) and str(item.get(key, "")).lower() == str(value).lower():
-            return item.get(extract)
+    # Three passes, each looser than the last, and each requiring the match to
+    # be UNIQUE.
+    #
+    # Exact-only was too strict for how people talk: on 2026-09-23 a user asked
+    # about "el proyecto del sistema de gestión de inventarios", the planner
+    # matched on that phrase, no project was named exactly that, the reference
+    # resolved to None and the turn burned an iteration before the planner
+    # gave up and pasted a literal id.
+    #
+    # Loose is dangerous in the other direction, which is why ambiguity is
+    # NOT resolved: if two records match, this returns None. Picking the first
+    # of several is precisely the "wrong record" failure the write guards
+    # exist to prevent, and a missing id costs a question while a wrong one
+    # costs somebody's data.
+    want = _normalize(value)
+    candidates = [i for i in items if isinstance(i, dict)]
+
+    for test in (
+        lambda have: have == want,                       # same text
+        lambda have: want and (want in have or have in want),  # one contains the other
+    ):
+        hits = [i for i in candidates if test(_normalize(i.get(key, "")))]
+        if len(hits) == 1:
+            return hits[0].get(extract)
+        if len(hits) > 1:
+            print(f"   [MATCH] '{value}' matches {len(hits)} records on '{key}' "
+                  f"({', '.join(str(h.get(key)) for h in hits[:4])}). Ambiguous "
+                  f"is not a match: returning nothing so the user is asked.")
+            return None
+
     # No match. We used to fall back to items[0] here, which is how a task
     # could silently land in whatever project happened to be listed first.
     # A wrong id is far worse than a missing one: return None and let the

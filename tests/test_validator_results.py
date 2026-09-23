@@ -96,6 +96,51 @@ print("\n=== un paso pequenio no se pierde detras de uno enorme ===")
 o3 = V._summarize_results({1: enorme[1], 2: {"count": 1, "tasks": [{"text": "aguja en el pajar"}]}})
 check("aguja en el pajar" in o3, "el paso 2 sobrevive al paso 1 gigante")
 
+print("\n=== the validator sees the RESOLVED parameters, not the plan's ===")
+# The planner writes project_id as {"from_step": 1, ...}; only the executor
+# knows which id that became. Without it the validator cannot tell whether a
+# request for pending tasks went out with a status filter at all.
+params = {1: {"query": "farmacia hussman"},
+          2: {"project_id": "proj-2"}}
+o4 = V._summarize_results({1: LIST_PROJECTS, 2: LIST_TASKS}, params)
+check("_called_with" in o4, "the executed parameters reach the prompt")
+check('"proj-2"' in o4, "the RESOLVED project id is visible, not a from_step reference")
+
+# The result itself is visible next to the params: every task keeps its status,
+# so the validator can check WHICH subset a later step acted on.
+check(o4.count('"status"') >= 3, "each task carries its status into the prompt")
+check('"status": "blocked"' in o4, "including the ones the user did not ask for")
+
+o4b = V._summarize_results({1: LIST_TASKS}, {1: {"project_id": "proj-2", "only_pending": True}})
+check('"only_pending"' in o4b and '"true"' in o4b,
+      "the one real filter (push_tasks_to_trello.only_pending) is visible")
+
+failed = {2: {"error": "project_id is a JSON object", "_validation_error": True}}
+o5 = V._summarize_results(failed, {2: {"project_id": {"from_step": 1}}})
+check("_called_with" in o5 and "from_step" in o5,
+      "a failed step also shows what it ran with")
+
+o6 = V._summarize_results({1: LIST_TASKS}, None)
+check("_called_with" not in o6, "with no params_by_step the output is unchanged")
+
+o7 = V._summarize_results({1: LIST_TASKS}, {"1": {"status": "pending"}})
+check("_called_with" in o7, "string step keys (post-serialization) still match")
+
+
+print("\n=== contract: the prompt's claim about filters is still true ===")
+import ast as _ast, glob as _glob
+_filters = []
+for _f in sorted(_glob.glob("agent/tools/*.py")):
+    for _n in _ast.parse(open(_f, encoding="utf-8").read()).body:
+        if isinstance(_n, _ast.FunctionDef) and any(
+                "register_tool" in _ast.unparse(_d) for _d in _n.decorator_list):
+            for _a in _n.args.args:
+                if _a.arg in ("status", "state", "pending", "only_pending"):
+                    _filters.append(f"{_n.name}.{_a.arg}")
+check(set(_filters) <= {"create_task.status", "update_task.status",
+                        "update_project.status", "push_tasks_to_trello.only_pending"},
+      f"no READ tool gained a status filter (found: {_filters})")
+
 print("\n=== la red: un replan fallido no borra la respuesta buena ===")
 buenos = {1: LIST_PROJECTS, 2: LIST_TASKS}
 check(V._keep_good({}, buenos) == {"last_good_results": buenos},

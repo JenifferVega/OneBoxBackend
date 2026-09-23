@@ -64,22 +64,84 @@ _DRY_RUN_BOARDS_CREATED: dict = {}
 # Farmacia Haussman's tasks for whatever project you pushed, and contradicted
 # what list_tasks had just said. Incoherent fixtures produce bug reports about
 # bugs that do not exist.
+# Contacts per fixture project, mirroring _DRY_RUN_TASKS. Without these,
+# get_project_contacts returned 0 for EVERY fixture project -- the session
+# cache is only filled by create_project -- so the whole notification path,
+# the tools that reach real people, could never be exercised in a dry run.
+# The fixture that used to live in _DRY_RUN_RESULTS was unreachable code.
+#
+# Belen has NO phone ON PURPOSE: "this one cannot be reached" is the case
+# where inventing a number is most tempting, and it has to be testable.
+_DRY_RUN_CONTACTS = {
+    "proj-DRYRUN-aaa111": [        # Farmacia Haussman
+        # Counts derived from _DRY_RUN_TASKS below, not invented: Ana has the
+        # blocked a3, Carlos has a2 and a4, Belen has a5 -- and no phone.
+        {"name": "Ana Torres", "phone": "+50494622817",
+         "email": "ana.torres@example.com", "role": "Coordinator",
+         "pending_tasks": 1},
+        {"name": "Carlos Lopez", "phone": "+50494622818",
+         "email": "carlos.lopez@example.com", "role": "Developer",
+         "pending_tasks": 2},
+        {"name": "Belen Albero", "phone": "",
+         "email": "belen.albero@example.com", "role": "Designer",
+         "pending_tasks": 1},
+    ],
+    "proj-DRYRUN-bbb222": [        # Onebox2026 -- matches its task assignees
+        {"name": "Jesus Vega", "phone": "+34600111222",
+         "email": "jesus.vega@example.com", "role": "Lead",
+         "pending_tasks": 0},
+        {"name": "Carlos Lopez", "phone": "+50494622818",
+         "email": "carlos.lopez@example.com", "role": "Developer",
+         "pending_tasks": 1},
+        {"name": "Ana Torres", "phone": "+50494622817",
+         "email": "ana.torres@example.com", "role": "Coordinator",
+         "pending_tasks": 1},
+    ],
+    "proj-DRYRUN-ccc333": [        # Marketing Q3
+        {"name": "Ana Torres", "phone": "+50494622817",
+         "email": "ana.torres@example.com", "role": "Coordinator",
+         "pending_tasks": 2},
+        {"name": "Carlos Lopez", "phone": "+50494622818",
+         "email": "carlos.lopez@example.com", "role": "Developer",
+         "pending_tasks": 1},
+    ],
+}
+
+# (taskId, text, status, assignedTo, startDate, dueDate)
+#
+# startDate was added on 2026-09-23. Until then every simulated task had a due
+# date and no start date, which after the timeline rule landed meant ALL of
+# them counted as "not on the Gantt" -- a fixture that no longer resembled
+# production, and would have made the Gantt test assert something degenerate.
+#
+# Two tasks are deliberately off the timeline, because that is the case the
+# client reported and the one worth testing:
+#   a5  no dates at all      -> "which task is missing from the Gantt?"
+#   c3  due before start     -> the other way a task falls off it
 _DRY_RUN_TASKS = {
     "proj-DRYRUN-aaa111": [
-        ("task-DRYRUN-a1", "Analizar el proceso actual de formulacion magistral", "done",    "Ana Torres",   "2026-07-20"),
-        ("task-DRYRUN-a2", "Evaluar la viabilidad tecnica de la automatizacion",  "pending", "Carlos Lopez", "2026-07-30"),
-        ("task-DRYRUN-a3", "Definir la arquitectura y el stack tecnologico",      "blocked", "Ana Torres",   "2026-08-05"),
-        ("task-DRYRUN-a4", "Desarrollar una solucion de automatizacion",          "pending", "Carlos Lopez", "2026-08-20"),
+        ("task-DRYRUN-a1", "Analizar el proceso actual de formulacion magistral", "done",    "Ana Torres",   "2026-07-01", "2026-07-20"),
+        ("task-DRYRUN-a2", "Evaluar la viabilidad tecnica de la automatizacion",  "pending", "Carlos Lopez", "2026-07-15", "2026-07-30"),
+        ("task-DRYRUN-a3", "Definir la arquitectura y el stack tecnologico",      "blocked", "Ana Torres",   "2026-07-25", "2026-08-05"),
+        ("task-DRYRUN-a4", "Desarrollar una solucion de automatizacion",          "pending", "Carlos Lopez", "2026-08-01", "2026-08-20"),
+        ("task-DRYRUN-a5", "Rehacer las fichas de producto",                      "pending", "Belen Albero", "",           ""),
     ],
     "proj-DRYRUN-bbb222": [
-        ("task-DRYRUN-b1", "Migrar el backend a FastAPI",            "done",    "Jesus Vega",   "2026-06-15"),
-        ("task-DRYRUN-b2", "Configurar CI en GitHub Actions",        "pending", "Carlos Lopez", "2026-09-01"),
-        ("task-DRYRUN-b3", "Documentar el API publico",              "pending", "Ana Torres",   "2026-09-10"),
+        ("task-DRYRUN-b1", "Migrar el backend a FastAPI",            "done",    "Jesus Vega",   "2026-06-01", "2026-06-15"),
+        ("task-DRYRUN-b2", "Configurar CI en GitHub Actions",        "pending", "Carlos Lopez", "2026-08-20", "2026-09-01"),
+        ("task-DRYRUN-b3", "Documentar el API publico",              "pending", "Ana Torres",   "2026-09-01", "2026-09-10"),
     ],
     "proj-DRYRUN-ccc333": [
-        ("task-DRYRUN-c1", "Disenar la landing page de campana",     "blocked", "Ana Torres",   "2026-07-30"),
-        ("task-DRYRUN-c2", "Integrar la pasarela de pago",           "pending", "Carlos Lopez", "2026-08-05"),
-        ("task-DRYRUN-c3", "Preparar el calendario de contenidos",   "pending", "Ana Torres",   "2026-08-12"),
+        ("task-DRYRUN-c1", "Disenar la landing page de campana",     "blocked", "Ana Torres",   "2026-07-15", "2026-07-30"),
+        ("task-DRYRUN-c2", "Integrar la pasarela de pago",           "pending", "Carlos Lopez", "2026-07-20", "2026-08-05"),
+        ("task-DRYRUN-c3", "Preparar el calendario de contenidos",   "pending", "Ana Torres",   "2026-08-30", "2026-08-12"),
+    ],
+    # Exists so that "the marketing project" matches TWO records. A fragment
+    # that fits several is not a choice, and the matcher must refuse it rather
+    # than take the first.
+    "proj-DRYRUN-ddd444": [
+        ("task-DRYRUN-d1", "Cerrar el presupuesto del trimestre",    "pending", "Ana Torres",   "2026-10-01", "2026-10-15"),
+        ("task-DRYRUN-d2", "Renovar los creativos de campana",       "pending", "Carlos Lopez", "2026-10-05", "2026-10-20"),
     ],
 }
 
@@ -227,9 +289,33 @@ def _dry_run_list_tasks(params: dict) -> dict:
         return {"count": 0, "tasks": [], "project_id": pid,
                 "note": "No project with that id.", "_dry_run": True}
     want = (params.get("status") or "").strip().lower()
-    out = [{"taskId": t, "text": x, "status": s, "assignedTo": w, "dueDate": d}
-           for t, x, s, w, d in tasks if not want or s == want]
-    return {"count": len(out), "tasks": out, "project_id": pid, "_dry_run": True}
+    rows = [{"taskId": t, "text": x, "status": s, "assignedTo": w,
+             "startDate": sd, "dueDate": dd}
+            for t, x, s, w, sd, dd in tasks if not want or s == want]
+
+    # Same rule as the real list_tasks, imported rather than copied.
+    try:
+        from agent.tools.tasks import _timeline_issue
+    except Exception:
+        _timeline_issue = lambda _t: ""
+    out = []
+    for r in rows:
+        issue = _timeline_issue(r)
+        out.append({**r, "on_timeline": not issue, "timeline_issue": issue})
+
+    res = {"count": len(out), "tasks": out, "project_id": pid, "_dry_run": True}
+    off = [{"taskId": t["taskId"], "text": t["text"], "why": t["timeline_issue"]}
+           for t in out if not t["on_timeline"]]
+    if off:
+        res["not_on_timeline"] = off
+        res["instruction"] = (
+            f"{len(off)} of these {len(out)} tasks do NOT appear on the "
+            f"Gantt/timeline, listed under 'not_on_timeline' with the reason. "
+            f"A task is on the timeline only if it has BOTH a start date and a "
+            f"due date, and the due date is not earlier than the start. If the "
+            f"user asks what is missing from the Gantt, answer with those names "
+            f"and their reason; do not say you cannot see their Gantt.")
+    return res
 
 
 # Realistic simulated results per tool (dry-run)
@@ -246,10 +332,11 @@ _DRY_RUN_RESULTS = {
     # proj-DRYRUN-aaa111 to "Farmacia Haussman" while list_projects called the
     # same id "Demo Project A". The agent then reported a project mismatch --
     # a correct reaction to incoherent test data, and a false failure.
-    "list_projects":            lambda p: {"count": 3, "projects": [
+    "list_projects":            lambda p: {"count": 4, "projects": [
         {"projectId": "proj-DRYRUN-aaa111", "name": "Farmacia Haussman", "type": "Consulting", "status": "active"},
         {"projectId": "proj-DRYRUN-bbb222", "name": "Onebox2026", "type": "Infrastructure", "status": "active"},
         {"projectId": "proj-DRYRUN-ccc333", "name": "Marketing Q3", "type": "Marketing", "status": "active"},
+        {"projectId": "proj-DRYRUN-ddd444", "name": "Marketing Q4", "type": "Marketing", "status": "active"},
     ], "_dry_run": True},
     "list_emails":              lambda p: {"count": 2, "emails": [
         {"email_id": "email-DRYRUN-cc1", "subject": "Meeting tomorrow", "from": "team@company.com"},
@@ -261,10 +348,6 @@ _DRY_RUN_RESULTS = {
     ], "_dry_run": True},
     "list_notifications":       lambda p: {"count": 1, "notifications": [
         {"id": "notif-DRYRUN-001", "message": "Pending task", "status": "unread"},
-    ], "_dry_run": True},
-    "get_project_contacts":  lambda p: {"total_contacts": 2, "contacts": [
-        {"name": "Ana Torres", "phone": "+50494622817", "role": "Coordinator", "pending_tasks": 2},
-        {"name": "Carlos Lopez", "phone": "+50494622818", "role": "Developer", "pending_tasks": 1},
     ], "_dry_run": True},
     "list_tasks":               lambda p: _dry_run_list_tasks(p),
     "update_task":            lambda p: {"success": True, "taskId": p.get("task_id", "?"), "status": "simulated", "_dry_run": True},
@@ -380,6 +463,7 @@ def _simulate_tool(tool_name: str, params: dict, session_id: str = "") -> dict:
             {"projectId": "proj-DRYRUN-aaa111", "name": "Farmacia Haussman", "type": "Consulting",    "status": "active"},
             {"projectId": "proj-DRYRUN-bbb222", "name": "Onebox2026",        "type": "Infrastructure", "status": "active"},
             {"projectId": "proj-DRYRUN-ccc333", "name": "Marketing Q3",      "type": "Marketing",      "status": "active"},
+            {"projectId": "proj-DRYRUN-ddd444", "name": "Marketing Q4",      "type": "Marketing",      "status": "active"},
         ]
         extra = get_dry_run_projects(session_id) if session_id else []
         all_projects = base + extra
@@ -391,8 +475,21 @@ def _simulate_tool(tool_name: str, params: dict, session_id: str = "") -> dict:
         cached = get_dry_run_participants(session_id, project_id) if session_id else []
         if not cached and session_id:
             cached = get_dry_run_participants(session_id, "_latest")
+        if not cached:
+            cached = _DRY_RUN_CONTACTS.get(project_id) or []
         if cached:
-            return {"total_contacts": len(cached), "contacts": cached, "_dry_run": True}
+            out = {"total_contacts": len(cached), "contacts": cached,
+                   "contacts_with_phone": len([c for c in cached
+                                               if (c.get("phone") or "").strip()]),
+                   "_dry_run": True}
+            # Same shape as the real tool, or the dry run rehearses a
+            # conversation production does not have.
+            unreachable = [{"name": c.get("name", "?"), "missing": "phone"}
+                           for c in cached if not (c.get("phone") or "").strip()]
+            if unreachable:
+                out["unreachable"] = unreachable
+                out["instruction"] = ("These people are ON the project and CANNOT be reached: no phone on file. Notifying everyone else and reporting success leaves them silently out of their own project. Name them and say what is missing.")
+            return out
         return {"total_contacts": 0, "contacts": [], "_dry_run": True,
                 "_note": "No participants registered for this project in dry-run"}
 
@@ -442,6 +539,16 @@ def _simulate_tool(tool_name: str, params: dict, session_id: str = "") -> dict:
                     "This project has NO Trello board. Creating one writes into "
                     "the user's Trello account, so PROPOSE it and ask for "
                     "confirmation first.")})
+            if open_tasks:
+                # Same key the real tool sets, or the dry run exercises a
+                # conversation production does not have.
+                out["next_step"] = {
+                    "tool": "push_tasks_to_trello",
+                    "after": [],   # any board will do: created OR linked
+                    "why": (f"{len(open_tasks)} task(s) are waiting to be "
+                            f"exported. A board created and left empty is "
+                            f"half the job."),
+                }
         return out
 
     # ── Trello: these three share state across turns ───────────────────────
@@ -569,7 +676,7 @@ def _simulate_tool(tool_name: str, params: dict, session_id: str = "") -> dict:
         burned = _DRY_RUN_RATE_LIMITED.setdefault(session_id, set())
 
         created, skipped, failed = [], [], []
-        for tid, text, status, _who, _due in tasks:
+        for tid, text, status, _who, _start, _due in tasks:
             if status == "done":
                 continue                      # the real tool pushes open tasks
             if tid in already:
@@ -612,6 +719,17 @@ def _simulate_tool(tool_name: str, params: dict, session_id: str = "") -> dict:
             # existed; and reporting "everything was already there" as a failure
             # invents a problem the user does not have.
             "success": bool(created) or not failed,
+            # A push that left cards behind is NOT finished. Both versions
+            # already knew -- `outcome` says "partial" -- but neither told the
+            # runner, so no goal was recorded and the retry happened only if
+            # the user remembered to ask. Observed 2026-09-21: one card lost
+            # to a 429, and the next turn talked about something else with no
+            # sign the system was still holding it.
+            **({"next_step": {
+                "tool": "push_tasks_to_trello",
+                "after": [],
+                "why": f"{len(failed)} card(s) did not reach Trello.",
+            }} if failed else {}),
             # WHICH board, by name -- the planner often answers the next
             # message from previous_results alone, with no tool call.
             "board": (link or _DRY_RUN_TRELLO_LINKS.get(session_id, {}).get(pid)),
@@ -637,6 +755,51 @@ def _simulate_tool(tool_name: str, params: dict, session_id: str = "") -> dict:
             "params": params,
             "_note": f"No dry-run fixture defined for '{tool_name}'. This is a "
                      f"test-harness gap, NOT a failure of the tool itself."}
+
+
+# Parameters the planner writes that the chosen tool does not accept.
+#
+# `param_union_schema()` declares the 43 parameter names of all 30 tools as
+# optional properties of ONE `params` object, because a constrained decoder
+# can only emit names it has been shown (the 2026-09-16 fix). The side effect
+# is that every name is legal for every tool, and Gemini fills them: on
+# 2026-09-21 a real user's push_tasks_to_trello arrived with project_name,
+# task_id, text and type -- all real parameters, of OTHER tools. Since
+# execute_tool does `tool_func(**params)`, one extra name is a TypeError and
+# the whole step dies with a message about "unexpected keyword argument".
+#
+# The tool's signature is the authority on what it accepts, so the extras are
+# dropped here rather than crashing the step. They are REPORTED in the result:
+# a dropped parameter can be the planner aiming at the wrong tool, and that
+# must stay visible to the validator instead of being swallowed.
+_SIGNATURE_CACHE: dict = {}
+
+
+def _accepted_params(tool_name: str, params: dict):
+    """Split params into (accepted by the signature, dropped)."""
+    if not isinstance(params, dict) or not params:
+        return params, []
+    if tool_name not in _SIGNATURE_CACHE:
+        import inspect
+
+        from agent.tools import TOOL_MAP
+        fn = TOOL_MAP.get(tool_name)
+        if fn is None:
+            _SIGNATURE_CACHE[tool_name] = None
+        else:
+            sig = inspect.signature(fn)
+            # A tool taking **kwargs accepts anything; none do today, and this
+            # keeps that from silently becoming wrong if one ever does.
+            if any(p.kind is p.VAR_KEYWORD for p in sig.parameters.values()):
+                _SIGNATURE_CACHE[tool_name] = None
+            else:
+                _SIGNATURE_CACHE[tool_name] = set(sig.parameters)
+    allowed = _SIGNATURE_CACHE[tool_name]
+    if allowed is None:
+        return params, []
+    kept = {k: v for k, v in params.items() if k in allowed}
+    dropped = [k for k in params if k not in allowed]
+    return kept, dropped
 
 
 def _execute_foreach_step(
@@ -746,6 +909,212 @@ _READ_TOOLS = {
 }
 
 
+# A subset of the writes: irreversible, or leaving OneBox altogether. These
+# need the user to have authorised THIS tool on the PREVIOUS turn. Creating a
+# task in a project the user named needs no ceremony; a board in their real
+# Trello account, or a message to a third party, does.
+#
+# Observed 2026-09-21: the assistant asked two questions in one breath --
+# "confirm the board?" and "which tasks?" -- the user answered the second, and
+# create_trello_board ran. Consent has to be a recorded fact, not a reading of
+# the conversation.
+_CONSENT_TOOLS = {
+    "create_trello_board",
+    "send_email",
+    "send_notification",
+    "invite_user",
+    "delete_task",
+    "remove_participant",
+}
+assert _CONSENT_TOOLS <= _WRITE_TOOLS, "a consent tool that is not a write"
+
+
+# A write that must not be proposed blind: the value is the READ that has to
+# have run first, in this plan or earlier in the turn.
+#
+# The catalog rule used to say "propose creating it" and never mentioned
+# looking, so the planner offered a brand new board to a user who already had
+# two -- doing exactly as it was told, while prepare_trello_board's own result
+# said "Offer BOTH options". The rule is fixed now; this is what stops the
+# next edit from quietly undoing it.
+# Identifiers a write is not allowed to invent.
+#
+# 2026-09-23, observed twice in dry run with two different providers: the user
+# asked to mark the task "Backlog fichas" as done. That task does not exist.
+# The plan went straight to update_task with a LITERAL task_id -- no list_tasks
+# in the plan at all -- and closed "Definir la arquitectura y el stack
+# tecnologico" instead. Every check passed: the id was well-formed, the tool
+# succeeded, and the narrator reported it as done.
+#
+# The from_step machinery already handles this correctly: a `match` that finds
+# nothing resolves to None and validate_tool_params stops the write. The hole
+# is the LITERAL id, which looks like data the planner was given rather than
+# data it produced.
+#
+# So the rule is about provenance, not format: an id a write acts on must have
+# come back from a READ in this same turn. Nothing else is trustworthy --
+# ids remembered from an earlier turn describe a world that may have moved.
+_ID_MUST_COME_FROM_A_READ = {
+    "update_task":  ("task_id",    "list_tasks"),
+    "delete_task":  ("task_id",    "list_tasks"),
+    "update_project": ("project_id", "list_projects or resolve_entity"),
+}
+
+
+def _invented_id(tool_name: str, params: dict, results: dict,
+                 raw_params: dict = None, state: dict = None) -> dict:
+    """Block a write whose identifier the planner CHOSE rather than matched.
+
+    Provenance alone is not enough, and one turn on 2026-09-23 proved it. The
+    guard below first caught an id that came from nowhere. The planner then
+    replanned, ran list_tasks, and picked -- out of the five real rows it had
+    just read -- a DIFFERENT one from the task the user had just confirmed.
+    The id was now perfectly legitimate: a real read had returned it. It was
+    simply the wrong row.
+
+    So the rule is stronger than "where did this id come from": for a write
+    that overwrites an existing record, the id must be SELECTED BY A MATCH on
+    the data, not chosen by the planner --
+
+        {"from_step": N, "match": {"key": "text", "value": "<what the user said>"},
+         "extract": "taskId"}
+
+    A match that finds nothing resolves to None and the write stops. A literal
+    id cannot fail that way: it always points at something, and when it is
+    wrong it points at somebody else's record.
+
+    The one literal that IS allowed is one the user typed themselves.
+    """
+    spec = _ID_MUST_COME_FROM_A_READ.get(tool_name)
+    if not spec or not isinstance(params, dict):
+        return None
+    field, read_hint = spec
+    value = params.get(field)
+    if not isinstance(value, str) or not value.strip():
+        return None          # absent or unresolved: other checks own this
+
+    # Was it a chain reference before resolution? Then a match selected it.
+    raw = (raw_params or {}).get(field)
+    if isinstance(raw, dict) and "from_step" in raw:
+        return None
+    if isinstance(raw, str) and raw.strip().startswith("{") and "from_step" in raw:
+        return None          # Gemini serialises the reference as a string
+
+    # A literal the user typed themselves is their own instruction.
+    said = " ".join([
+        ((state or {}).get("resolved_message") or ""),
+        ((state or {}).get("user_message") or ""),
+        *[(h.get("content") or "") for h in ((state or {}).get("history") or [])
+          if isinstance(h, dict) and h.get("role") == "user"],
+    ]).lower()
+    if value.lower() in said:
+        return None
+
+    seen = json.dumps(results, default=str, ensure_ascii=False)
+    where = ("it came from a read in this turn, but the planner PICKED it "
+             "rather than matching on what the user said"
+             if value in seen else
+             "it was not returned by any step of this turn at all")
+
+    return {
+        "_validation_error": True,
+        "tool": tool_name,
+        "error": (
+            f"'{field}': '{value}' was written as a literal id -- {where}."),
+        "hint": (
+            f"CORRECTION REQUIRED ({tool_name}): a literal {field} cannot be "
+            f"verified against what the user asked for, and {where}. Call "
+            f"{read_hint} first and reference the record BY MATCHING the words "
+            f"the user used: "
+            f'{{"from_step": N, "match": {{"key": "text", "value": "<the text '
+            f'the user said>"}}, "extract": "taskId"}}. '
+            f"That way a wrong name fails instead of hitting the wrong record. "
+            f"If nothing matches what the user said, do NOT substitute a "
+            f"similar record: report that it does not exist and ask."),
+    }
+
+
+_REQUIRES_PRIOR_READ = {
+    "create_trello_board": "list_trello_boards",
+}
+
+
+def _missing_prior_read(tool_name: str, read_tool: str) -> dict:
+    """A plain error on purpose: unlike a consent block, a REPLAN can fix it.
+
+    Consent stops the turn because only the user can grant it. This does not:
+    the planner just has to add the read and try again, so it goes back round
+    the loop with the instruction to do so.
+    """
+    return {
+        "error": (f"{tool_name} requires {read_tool} to have run first, and it "
+                  f"did not."),
+        "hint": (f"Add {read_tool} to the plan BEFORE {tool_name}, then offer "
+                 f"the user BOTH the boards they already have and a new one."),
+        "_missing_prior_read": read_tool,
+    }
+
+
+def _unchosen_destination(params: dict, state: dict) -> dict | None:
+    """A Trello board the USER never named is a guess, not a destination.
+
+    Observed 2026-09-22: asked to push the pending tasks of "Onebox2026",
+    which has no board, the planner passed board_name "ONEBOX" and list
+    "MVP - TO DO" -- a board belonging to nothing in particular, picked
+    because the name looks similar. The cards landed somewhere nobody chose,
+    and push_tasks_to_trello links the project to that list, so it would have
+    stayed the project's destination from then on.
+
+    The board list is a legitimate READ; "this project goes there" is not
+    something any read can tell you. It has to come from the user, and only
+    from the user: the assistant proposing a board in a previous turn is not
+    the user choosing it.
+    """
+    board = (params.get("board_name") or "").strip()
+    lst = (params.get("list_name") or "").strip()
+    if not board and not lst:
+        return None          # the tool's own needs_user_choice covers this
+    said = " ".join([
+        (state.get("resolved_message") or ""),
+        (state.get("user_message") or ""),
+        *[(h.get("content") or "") for h in (state.get("history") or [])
+          if isinstance(h, dict) and h.get("role") == "user"],
+    ]).lower()
+    unsaid = [v for v in (board, lst) if v and v.lower() not in said]
+    if not unsaid:
+        return None
+    return {
+        "error": ("The user never chose " + " / ".join(unsaid)
+                  + ". A board this project is not linked to cannot be "
+                    "picked for them."),
+        "needs_user_choice": True,
+        "instruction": ("Ask which board and list they want, offering BOTH "
+                        "their existing boards and a new one. A board whose "
+                        "name merely resembles the project is not a choice."),
+        "_unchosen_destination": unsaid,
+    }
+
+
+def _consent_missing(tool_name: str) -> dict:
+    """Shaped like needs_user_choice on purpose.
+
+    That shape already travels through this graph: push_tasks_to_trello
+    returns it when no list was given, the no-LLM validator path steps aside
+    for it, and the planner knows to ask instead of replanning around it. A
+    new shape would need all three taught again.
+    """
+    return {
+        "error": f"{tool_name} was not authorised by the user.",
+        "needs_user_choice": True,
+        "instruction": (
+            f"Ask the user to confirm {tool_name} explicitly and say what it "
+            f"will do. An answer to a DIFFERENT question is not consent, and "
+            f"neither is the absence of an objection."
+        ),
+        "_consent_missing": tool_name,
+    }
+
+
 def _audit_tool_classification() -> None:
     """Every registered tool must be classified as a read or a write.
 
@@ -768,6 +1137,18 @@ def _audit_tool_classification() -> None:
 _audit_tool_classification()
 
 
+# For most writes the whole parameter set is the identity. Not for sends:
+# the message text is in there, so a replan that merely rephrases it produces
+# a different fingerprint and the person is messaged TWICE. Within one turn,
+# two different messages to the same person on the same channel is a bug far
+# more often than an intention -- and the two mistakes do not cost the same:
+# one costs a message that does not go out, the other reaches a third party.
+_FINGERPRINT_KEYS = {
+    "send_notification": ("recipient", "channel", "project_id"),
+    "send_email":        ("recipient_email", "project_id"),
+}
+
+
 def _write_fingerprint(tool_name: str, params: dict) -> str:
     """Identity of a write: the tool plus the parameters it actually ran with.
 
@@ -775,6 +1156,9 @@ def _write_fingerprint(tool_name: str, params: dict) -> str:
     expresses it differently (a literal project_id one time, a from_step
     reference the next).
     """
+    keys = _FINGERPRINT_KEYS.get(tool_name)
+    if keys and isinstance(params, dict):
+        params = {k: params.get(k) for k in keys}
     try:
         body = json.dumps(params, sort_keys=True, default=str, ensure_ascii=False)
     except Exception:
@@ -815,6 +1199,13 @@ def executor_node(state: AgentState) -> dict:
     # Writes already performed in this turn. Empty on the first iteration;
     # on a replan it holds what the earlier attempt actually did.
     executed_writes = dict(state.get("executed_writes", {}))
+    tools_by_step = dict(state.get("tools_by_step", {}))
+    results_by_tool = dict(state.get("results_by_tool", {}))
+    params_by_step = dict(state.get("params_by_step", {}))
+    # Granted only when the previous turn asked about exactly this tool AND
+    # the resolver judged that THIS message authorises it.
+    consented = (set(state.get("awaiting_consent") or [])
+                 if state.get("consent_granted") else set())
 
     if debug_mode:
         print("   DEBUG MODE — dry-run active, the database will not be modified")
@@ -829,6 +1220,44 @@ def executor_node(state: AgentState) -> dict:
         params = step.get("params", {})
 
         print(f"\n   Step {step_num}: {tool_name}")
+        dropped_params = []
+
+        # The prior read exists so the user is OFFERED the choice. Once they
+        # have authorised this exact tool, that conversation already happened
+        # -- in an earlier turn, where the read also already happened. Asking
+        # for it again here re-fetches data the user has been shown and costs
+        # a replan to discover, which is what "si, confirmo" used to spend
+        # three planner rounds on.
+        if tool_name == "push_tasks_to_trello":
+            guessed = _unchosen_destination(params, state)
+            if guessed is not None:
+                results[step_num] = guessed
+                tools_by_step[step_num] = tool_name
+                params_by_step.pop(step_num, None)
+                print(f"   BLOCKED — destination not chosen by the user: "
+                      f"{guessed['_unchosen_destination']}")
+                continue
+
+        required_read = _REQUIRES_PRIOR_READ.get(tool_name)
+        if tool_name in consented:
+            required_read = None
+        if required_read and required_read not in set(tools_by_step.values()):
+            result = _missing_prior_read(tool_name, required_read)
+            results[step_num] = result
+            tools_by_step[step_num] = tool_name
+            params_by_step.pop(step_num, None)
+            print(f"   BLOCKED — {tool_name} without {required_read} first")
+            continue
+
+        if tool_name in _CONSENT_TOOLS and tool_name not in consented:
+            # Not appended to tools_used: it never ran.
+            result = _consent_missing(tool_name)
+            results[step_num] = result
+            tools_by_step[step_num] = tool_name
+            params_by_step.pop(step_num, None)
+            print(f"   BLOCKED — no consent on record for {tool_name}")
+            continue
+
         try:
             # ── Detect foreach in any param ─────────────────────────
             foreach_key = next(
@@ -886,7 +1315,16 @@ def executor_node(state: AgentState) -> dict:
                 print(f"   Params: {json.dumps(resolved_params, default=str)[:200]}")
 
                 # ── Parameter validation before executing ──────────────
-                validation_error = validate_tool_params(tool_name, step_num, resolved_params)
+                resolved_params, dropped_params = _accepted_params(
+                    tool_name, resolved_params)
+                if dropped_params:
+                    print(f"   IGNORED params not in {tool_name}'s signature: "
+                          f"{dropped_params}")
+
+                validation_error = (
+                    _invented_id(tool_name, resolved_params, results,
+                                 raw_params=params, state=state)
+                    or validate_tool_params(tool_name, step_num, resolved_params))
                 if sched_error:
                     print(f"   INVALID SCHEDULE: {sched_error.get('error')}")
                     result = {"error": sched_error.get("error"),
@@ -942,7 +1380,18 @@ def executor_node(state: AgentState) -> dict:
                 "params": resolved_params, "result": result,
             }
 
+        if dropped_params and isinstance(result, dict):
+            result = {**result, "_ignored_params": dropped_params,
+                      "_ignored_params_note": (
+                          f"The plan sent these to {tool_name}, which does not "
+                          f"accept them; they were ignored. If the intent behind "
+                          f"one of them still matters, it needs its own step with "
+                          f"the tool that does accept it.")}
+
         results[step_num] = result
+        tools_by_step[step_num] = tool_name
+        results_by_tool[tool_name] = result
+        params_by_step[step_num] = resolved_params
         tools_used.append(tool_name)
 
         if debug_mode:
@@ -959,6 +1408,9 @@ def executor_node(state: AgentState) -> dict:
     print(f"\n   Plan {'simulated' if debug_mode else 'executed'}: {len(plan)} steps")
 
     update = {"results": results, "tools_used": tools_used,
+              "tools_by_step": tools_by_step,
+              "results_by_tool": results_by_tool,
+              "params_by_step": params_by_step,
               "executed_writes": executed_writes, "status": "validating"}
     if debug_mode and simulated_calls:
         existing = state.get("debug_info") or {}

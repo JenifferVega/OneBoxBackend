@@ -30,6 +30,7 @@ What it does NOT support (not used in the graph):
 from __future__ import annotations
 
 import json
+import os
 from typing import Any, List, Optional, Type
 
 import requests
@@ -174,17 +175,54 @@ def _normalize_schema_for_gemini(raw: dict) -> dict:
     return cleaned
 
 
+def _thinking_budget_for(model: str) -> Optional[int]:
+    """The thinkingBudget to send for this model, or None to send none.
+
+    Env wins. Otherwise 0 (thinking off) on flash, which supports it, and
+    nothing at all on every other model, which may not.
+    """
+    env = os.environ.get("GEMINI_THINKING_BUDGET", "").strip()
+    if env.lstrip("-").isdigit():
+        return int(env)
+    return 0 if "flash" in (model or "").lower() else None
+
+
 class ChatGeminiHTTP(BaseChatModel):
     """LangChain-compatible chat model that talks to Gemini over direct HTTP."""
 
     model: str = "gemini-2.5-flash"
     api_key: str = ""
     temperature: float = 0.2
-    max_tokens: int = 4096
-    timeout: int = 60
+    max_tokens: int = 8192
+    # Raised with max_tokens: a bigger answer takes longer to produce, and a
+    # timeout here costs a full retry of a ~12k-token prompt. agent/llm.py
+    # has used 120 all along.
+    timeout: int = 120
     # If set, forces responseMimeType=application/json + responseSchema
     # → Gemini guarantees the output is valid JSON conforming to the schema.
     response_schema: Optional[dict] = Field(default=None)
+
+    # Gemini 2.5 models think by DEFAULT and, per Google's own documentation,
+    # "max_output_tokens sets the maximum number of tokens a response can
+    # generate, INCLUDING thought tokens". The planner's prompt is ~12k tokens
+    # of catalog, which is exactly the kind of input that makes a thinking
+    # model think for a long time -- and every one of those tokens is taken
+    # out of the same budget the JSON answer has to fit in. Two failures in
+    # production match that shape: a document cut mid-string (2026-09-21) and
+    # a schema-valid but EMPTY object (2026-09-22, twice).
+    #
+    # So thinking is turned OFF by default on the flash models, where the API
+    # allows a budget of 0. It is NOT turned off on other models: 2.5-pro
+    # rejects 0 (its minimum is 128), and a default that breaks the moment
+    # someone changes GEMINI_MODEL is a trap, not a safety net.
+    #
+    # GEMINI_THINKING_BUDGET overrides both: 0 off, -1 dynamic, or a cap in
+    # tokens (0..24576 on flash).
+    thinking_budget: Optional[int] = None
+
+    def model_post_init(self, __context) -> None:
+        if self.thinking_budget is None:
+            self.thinking_budget = _thinking_budget_for(self.model)
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -222,6 +260,9 @@ class ChatGeminiHTTP(BaseChatModel):
         if self.response_schema:
             body["generationConfig"]["responseMimeType"] = "application/json"
             body["generationConfig"]["responseSchema"] = self.response_schema
+        if self.thinking_budget is not None:
+            body["generationConfig"]["thinkingConfig"] = {
+                "thinkingBudget": self.thinking_budget}
 
         if not self.api_key:
             raise RuntimeError("GEMINI_API_KEY is not configured")
@@ -257,8 +298,71 @@ class ChatGeminiHTTP(BaseChatModel):
                 f"Unexpected Gemini response format: {json.dumps(data)[:500]}"
             ) from e
 
+        # WHY THIS IS LOGGED
+        # Two failures were diagnosed blind because the response's own account
+        # of what happened was discarded: a structured output cut mid-document
+        # (2026-09-21, a real user) and a schema-valid EMPTY object (2026-09-22,
+        # twice in a row). Both look like "the model did not understand" and
+        # neither is: `finishReason` says whether the model finished or ran out
+        # of room, and `thoughtsTokenCount` says how much of maxOutputTokens
+        # the thinking consumed before the answer began. Neither was read.
+        finish = (candidates[0] or {}).get("finishReason", "")
+        usage = data.get("usageMetadata") or {}
+        thoughts = usage.get("thoughtsTokenCount", 0)
+        try:
+            from agent import obs
+            obs.log("llm_response", provider="gemini", model=self.model,
+                    finish_reason=finish,
+                    prompt_tokens=usage.get("promptTokenCount", 0),
+                    output_tokens=usage.get("candidatesTokenCount", 0),
+                    thoughts_tokens=thoughts,
+                    max_output_tokens=self.max_tokens,
+                    thinking_budget=self.thinking_budget,
+                    chars=len(text))
+        except Exception:
+            pass
+
+        budget_note = (
+            f" The model spent {thoughts} of its {self.max_tokens} output tokens "
+            f"on THINKING before answering; Gemini 2.5 thinks by default and "
+            f"those tokens come out of maxOutputTokens. Set "
+            f"GEMINI_THINKING_BUDGET=0 or raise max_tokens."
+            if thoughts else "")
+
+        if finish == "MAX_TOKENS":
+            # A truncated structured answer is not an answer, even on the rare
+            # occasion it still parses. Raising puts it in the caller's retry
+            # loop with the reason named, instead of handing the graph a
+            # half-decoded plan.
+            #
+            # PRINTED, not only raised: NodeLLM wraps this model in
+            # .with_fallbacks([bedrock, anthropic]), and LangChain's fallback
+            # swallows the exception without a word. On 2026-09-22 every
+            # planner call ended in MAX_TOKENS and every plan was quietly
+            # produced by the FALLBACK provider -- the logs showed a healthy
+            # turn, and Gemini had failed 100% of the time. An error that only
+            # exists inside an exception a fallback eats is not an error
+            # anyone can see.
+            print(f"   [GEMINI] TRUNCATED at MAX_TOKENS after {len(text)} chars "
+                  f"(max_output_tokens={self.max_tokens}, "
+                  f"thinking_budget={self.thinking_budget}, thoughts={thoughts}). "
+                  f"A fallback provider will answer instead, silently.")
+            print(f"   [GEMINI] head: {text[:400]!r}")
+            print(f"   [GEMINI] tail: {text[-200:]!r}")
+            try:
+                from agent import obs
+                obs.log("llm_truncated", provider="gemini", model=self.model,
+                        chars=len(text), head=text[:200])
+            except Exception:
+                pass
+            raise RuntimeError(
+                f"Gemini stopped at MAX_TOKENS: the response is truncated."
+                f"{budget_note} First 200 chars: {text[:200]!r}")
+
         if not text:
-            raise RuntimeError(f"Gemini returned empty text. Raw: {json.dumps(data)[:300]}")
+            raise RuntimeError(
+                f"Gemini returned empty text (finishReason={finish!r})."
+                f"{budget_note} Raw: {json.dumps(data)[:300]}")
 
         return ChatResult(generations=[ChatGeneration(message=AIMessage(content=text))])
 

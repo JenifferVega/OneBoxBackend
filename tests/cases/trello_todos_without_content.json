@@ -1,0 +1,43 @@
+{
+  "name": "trello_todos_without_content",
+  "description": "Reproduces the 2026-09-20 turn. 'armar unos todos' never says WHICH todos. No read can fill that hole, so the only correct move is to ask -- and to offer the tasks the project already has, which list_tasks returns. Inventing the content and then reporting success is the failure this case pins down.",
+  "session_id": "case-todos-without-content",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Me puedes conectar el proyecto Marketing Q3 con Trello y armar unos todos",
+      "why": "THE POINT OF THIS CASE. The content of the todos is neither in the message nor in any read. Nothing is written: the agent asks.",
+      "assert": {
+        "tool_call_count": {
+          "create_task": 0
+        },
+        "tools_used_excludes": [
+          "create_task"
+        ],
+        "response_matches": [
+          "(?i)(cu[aá]les|qu[eé] tareas|which tasks|no me dijiste)"
+        ],
+        "response_not_matches": [
+          "(?i)(he conectado|he creado|i have connected|i have created)",
+          "(?i)(definir alcance|recopilar requisitos|planificar entregables)"
+        ],
+        "comment": "The second pattern is literally the three tasks the planner invented on 2026-09-20. If they come back, the fix did not work."
+      }
+    },
+    {
+      "n": 2,
+      "message": "sube las que ya estan pendientes",
+      "why": "Now there IS a referent: the existing tasks. They are exported, not re-created.",
+      "assert": {
+        "tools_used_includes": [
+          "push_tasks_to_trello"
+        ],
+        "tool_call_count": {
+          "create_task": 0
+        }
+      }
+    }
+  ]
+}

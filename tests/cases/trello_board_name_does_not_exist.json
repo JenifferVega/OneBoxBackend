@@ -1,0 +1,40 @@
+{
+  "name": "trello_board_name_does_not_exist",
+  "description": "The user names a board that is not among theirs. The dry run validates board and list names against the fixtures for exactly this reason -- it used to accept an invented board_name derived from the project name, which hid the bug. The agent must say it does not exist and show the real ones, not quietly pick a different board.",
+  "session_id": "case-board-name-wrong",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Pasame las tareas pendientes de Marketing Q3 al tablero de Diseno, a la lista de Sprint Actual, y avisame cuando este listo",
+      "why": "Neither 'Diseno' nor 'Sprint Actual' exist. Substituting a real board silently is the failure.",
+      "assert": {
+        "tool_call_count": {
+          "create_trello_board": 0
+        },
+        "response_matches": [
+          "(?i)(no existe|no encontr|does not exist|no tienes)",
+          "(?i)(ONEBOX|Bienvenido a Trello)"
+        ],
+        "response_not_matches": [
+          "(?i)(he subido|he pasado|listo|i have pushed)"
+        ],
+        "comment": "Showing the real board names is the useful half of the answer."
+      }
+    },
+    {
+      "n": 2,
+      "message": "ah vale, entonces a ONEBOX en Backlog",
+      "why": "Corrected with real names. Now it pushes.",
+      "assert": {
+        "tools_used_includes": [
+          "push_tasks_to_trello"
+        ],
+        "tool_call_count": {
+          "create_trello_board": 0
+        }
+      }
+    }
+  ]
+}

@@ -9,6 +9,7 @@ The compiled graph and the LLMs are built ONCE per warm container
 """
 from typing import Any, Dict, List
 
+from agent.graph.nodes.narrator.helpers import last_resort
 from agent.graph.state import AgentState
 
 _GRAPH = None
@@ -22,12 +23,19 @@ _LAST_RESULTS: Dict[str, Dict] = {}
 _LAST_RESULTS_MAX = 200
 
 # The user's unfinished request, per session.
-#   {"text", "done_when", "done_tool", "opened_at"}
+#   {"text", "opened_at", "queue": [{"tool", "after", "why"}]}
 # Opened and closed HERE, from what the tools reported, because both are
 # facts: a tool answering `needs_user_choice` did not do its job, and a tool
 # returning `next_step` names the call that would finish it. The resolver may
 # only abandon a goal -- it never opens one.
 _PENDING_GOAL: Dict[str, Dict] = {}
+
+# What the assistant asked permission for, per session. A confirmation turn
+# executes no tools, so _PENDING_GOAL -- which is opened from what tools
+# report -- structurally cannot hold it. A proposal survives exactly ONE turn:
+# re-asking costs a turn, acting without consent costs a board in the user's
+# real Trello account.
+_AWAITING_CONSENT: Dict[str, list] = {}
 _GOAL_MAX_TURNS = 6          # a goal nobody returns to stops haunting the chat
 
 
@@ -38,22 +46,42 @@ def _tool_of_step(plan: list, step_num) -> str:
     return ""
 
 
-def _close_goal(goal: dict, plan: list, results: dict) -> bool:
-    """Did this turn finish the job? True when the declared tool succeeded."""
-    want = (goal or {}).get("done_tool")
-    if not want:
-        return False
+def _succeeded_tools(plan: list, results: dict) -> set:
+    """Tools that actually did their job this turn."""
+    ok = set()
     for step_num, res in (results or {}).items():
-        if _tool_of_step(plan, step_num) != want:
-            continue
-        if not isinstance(res, dict):
+        tool = _tool_of_step(plan, step_num)
+        if not tool or not isinstance(res, dict):
             continue
         if res.get("error") or res.get("success") is False:
             continue
         if res.get("needs_user_choice"):
             continue          # it ran, and said again that it could not finish
-        return True
-    return False
+        ok.add(tool)
+    return ok
+
+
+def _close_goal(goal: dict, plan: list, results: dict) -> dict:
+    """Drop the queue entries whose tool succeeded; return what is still left.
+
+    An empty result means the whole job is done. A job is NOT finished because
+    ONE of its calls ran: creating the board and never exporting the tasks is
+    the case this exists to stop.
+    """
+    queue = list((goal or {}).get("queue") or [])
+    if not queue:
+        return {}
+    done = _succeeded_tools(plan, results)
+    remaining = [e for e in queue if e.get("tool") not in done]
+    if not remaining:
+        return {}
+    if len(remaining) < len(queue):
+        print(f"[goal] {len(queue) - len(remaining)} done, "
+              f"{len(remaining)} still pending")
+    # A dependency that is satisfied stops being one.
+    for e in remaining:
+        e["after"] = [t for t in (e.get("after") or []) if t not in done]
+    return {**goal, "queue": remaining}
 
 
 def _open_goal(user_message: str, plan: list, results: dict) -> Dict:
@@ -65,19 +93,23 @@ def _open_goal(user_message: str, plan: list, results: dict) -> Dict:
       - `next_step`: the tool succeeded but says the work is not complete, and
         names the call that completes it.
     """
+    queue, seen = [], set()
     for step_num, res in (results or {}).items():
         if not isinstance(res, dict):
             continue
         nxt = res.get("next_step") or {}
-        if nxt.get("tool"):
-            return {"text": user_message, "done_tool": nxt["tool"],
-                    "done_when": nxt.get("why", "")}
-        if res.get("needs_user_choice"):
+        if nxt.get("tool") and nxt["tool"] not in seen:
+            seen.add(nxt["tool"])
+            queue.append({"tool": nxt["tool"],
+                          "after": list(nxt.get("after") or []),
+                          "why": nxt.get("why", "")})
+        elif res.get("needs_user_choice"):
             tool = _tool_of_step(plan, step_num)
-            if tool:
-                return {"text": user_message, "done_tool": tool,
-                        "done_when": res.get("error", "")}
-    return {}
+            if tool and tool not in seen:
+                seen.add(tool)
+                queue.append({"tool": tool, "after": [],
+                              "why": res.get("error", "")})
+    return {"text": user_message, "queue": queue} if queue else {}
 
 
 def _session_key(session_id: str) -> str:
@@ -141,6 +173,10 @@ def run_agent(user_message: str, history: List[dict] = None, debug_mode: bool = 
         "session_id": session_id,
         "previous_results": _LAST_RESULTS.get(_session_key(session_id), {}),
         "pending_goal": _PENDING_GOAL.get(_session_key(session_id), {}),
+        "awaiting_consent": _AWAITING_CONSENT.get(_session_key(session_id), []),
+        "proposing": [],
+        "consent_granted": False,
+        "language": "",
         "intent_draft": None,
         "debug_info": {},
     }
@@ -168,6 +204,18 @@ def run_agent(user_message: str, history: List[dict] = None, debug_mode: bool = 
                 _LAST_RESULTS.pop(next(iter(_LAST_RESULTS)), None)
             _LAST_RESULTS[key] = turn_results
 
+    # ── What the user was asked to authorise ──────────────────────────────
+    # Stored only when THIS turn asked for it; cleared otherwise. A proposal
+    # that went unanswered is not a proposal any more.
+    _k = _session_key(session_id)
+    if _k:
+        _proposed = final.get("proposing") or []
+        if _proposed:
+            _AWAITING_CONSENT[_k] = list(_proposed)
+            print(f"[consent] awaiting authorisation for: {', '.join(_proposed)}")
+        else:
+            _AWAITING_CONSENT.pop(_k, None)
+
     # ── The unfinished job ────────────────────────────────────────────────
     # Order matters: CLOSE before OPEN. A turn that finishes the old goal and
     # immediately reports a new one must not have the new one wiped by the
@@ -180,19 +228,36 @@ def run_agent(user_message: str, history: List[dict] = None, debug_mode: bool = 
         goal = _PENDING_GOAL.get(key, {}) if goal is None else goal
         plan = final.get("plan") or []
 
-        if goal and _close_goal(goal, plan, turn_results):
-            print(f"[goal] done: {goal.get('text','')[:80]}")
-            goal = {}
+        before = (goal or {}).get("text", "")
+        if goal:
+            goal = _close_goal(goal, plan, turn_results)
+            if not goal:
+                print(f"[goal] done: {before[:80]}")
 
         opened = _open_goal(user_message, plan, turn_results)
         if opened:
             # Keep the ORIGINAL wording of an older goal still open: it is the
             # request the user actually made, and the later turns are steps
-            # towards it, not new requests.
-            if goal and goal.get("text"):
-                opened["text"] = goal["text"]
-                opened["opened_at"] = goal.get("opened_at", 0)
-            goal = opened
+            # towards it, not new requests. New calls are MERGED into the same
+            # queue rather than replacing it -- a turn that discovers more work
+            # is adding to the job, not starting a different one.
+            if goal and goal.get("queue"):
+                have = {e["tool"] for e in goal["queue"]}
+                goal["queue"] += [e for e in opened["queue"]
+                                  if e["tool"] not in have]
+            else:
+                # `before` is the wording of the goal this very turn just
+                # closed. Without it the new goal is labelled with whatever
+                # the user happened to type -- and when that is "si, confirmo",
+                # the resolver is shown a pending job that says nothing, and
+                # abandons it on the next turn. Observed 2026-09-22: the card
+                # lost to a 429 was dropped because its goal was called
+                # "si, confirmo".
+                keep = (goal or {}).get("text") or before
+                if keep:
+                    opened["text"] = keep
+                    opened["opened_at"] = (goal or {}).get("opened_at", 0)
+                goal = opened
 
         if goal:
             goal["opened_at"] = goal.get("opened_at", 0) + 1
@@ -201,8 +266,13 @@ def run_agent(user_message: str, history: List[dict] = None, debug_mode: bool = 
                       f"{goal.get('text','')[:60]}")
                 goal = {}
             else:
+                q = goal.get("queue") or []
+                ready = [e["tool"] for e in q if not e.get("after")]
+                waiting = [e["tool"] for e in q if e.get("after")]
                 print(f"[goal] pending ({goal['opened_at']}/{_GOAL_MAX_TURNS}): "
-                      f"{goal.get('text','')[:70]} -> {goal.get('done_tool','')}")
+                      f"{goal.get('text','')[:60]} | ready: "
+                      f"{', '.join(ready) or '-'} | waiting: "
+                      f"{', '.join(waiting) or '-'}")
 
         if goal:
             if len(_PENDING_GOAL) >= _LAST_RESULTS_MAX and key not in _PENDING_GOAL:
@@ -212,7 +282,8 @@ def run_agent(user_message: str, history: List[dict] = None, debug_mode: bool = 
             _PENDING_GOAL.pop(key, None)
 
     return {
-        "response": final.get("response") or "Sorry, I couldn't process your request.",
+        "response": (final.get("response")
+                     or last_resort("no_response", final.get("language", ""))),
         "tools_used": final.get("tools_used", []),
         "debug_info": final.get("debug_info"),
         "results": final.get("results", {}),  # raw results per step (for internal callers)

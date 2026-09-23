@@ -1,0 +1,23 @@
+{
+  "name": "inbox_triage_to_project_and_tasks",
+  "description": "Email side, chained into the project side. analyze_inbox returns unassigned emails with a suggested project; the tasks created afterwards must take their text FROM those emails via from_step, not from the model's idea of what an email probably said.",
+  "session_id": "case-inbox-triage",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "Revisame la bandeja, mira si hay algo sin asignar que pinte de Farmacia Haussman, asignalo al proyecto y creame una tarea por cada correo con el asunto del correo como texto de la tarea",
+      "why": "The task text is explicitly defined as the email subject, so it IS derivable -- from step 1. Anything else in that field is invented.",
+      "assert": {
+        "tools_used_includes": [
+          "analyze_inbox"
+        ],
+        "response_not_matches": [
+          "(?i)(definir alcance|recopilar requisitos|planificar entregables)"
+        ],
+        "comment": "If no unassigned email matches, the correct answer is 'there is nothing', not three generic tasks."
+      }
+    }
+  ]
+}
