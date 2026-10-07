@@ -1,0 +1,622 @@
+{
+  "_mock": "Proyecto nuevo creado desde texto pegado (chat de WhatsApp exportado en Android). Sin tareas: la primera lectura del sistema.",
+  "exportVersion": 1,
+  "project": {
+    "projectId": "proj-onebox01",
+    "userId": "owner-santi",
+    "name": "OneBox",
+    "description": "Plataforma SaaS de gestión de proyectos con IA que lee conversaciones (WhatsApp, Gmail, Slack) y documentos para detectar tareas, riesgos y decisiones.",
+    "type": "Desarrollo de software",
+    "status": "active",
+    "deliveryDate": "",
+    "channels": [
+      "WhatsApp",
+      "Gmail"
+    ],
+    "participants": [
+      {
+        "name": "Santi",
+        "email": "santiago@digitalworkers.online",
+        "role": "Product owner"
+      },
+      {
+        "name": "Jesús Alejandro Vega",
+        "email": "ventas.javc@gmail.com",
+        "role": "Backend / IA"
+      },
+      {
+        "name": "Jeniffer",
+        "email": "jenifferf.funezp@gmail.com",
+        "role": "Frontend / Cloud"
+      },
+      {
+        "name": "Eloi",
+        "role": "PM externo",
+        "email": "eloi@pm.example",
+        "phone": ""
+      }
+    ],
+    "createdAt": "2026-06-05T09:00:00",
+    "planVersion": 1,
+    "trelloBoardId": "65f0b1a2c3d4e5f600000002",
+    "trelloBoardName": "OneBox MVP",
+    "trelloListId": "",
+    "trelloListName": ""
+  },
+  "tasks": [
+    {
+      "taskId": "ob-verificacion-whatsapp",
+      "text": "Proporcionar documentación de verificación de identidad para vincular la app de WhatsApp",
+      "status": "in_progress",
+      "assignedTo": "Jeniffer",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "taskId": "ob-asana",
+      "text": "Completar integración con Asana - segunda parte: detección de acciones y creación de tareas",
+      "status": "in_progress",
+      "assignedTo": "Jeniffer",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "taskId": "ob-login",
+      "text": "Implementar login normal con máxima seguridad (alternativa a OAuth Google)",
+      "status": "in_progress",
+      "assignedTo": "Jeniffer",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "taskId": "ob-permisos",
+      "text": "Corregir bug de permisos: usuarios no registrados pueden acceder a proyectos",
+      "status": "in_progress",
+      "assignedTo": "Jeniffer",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "taskId": "ob-meta-docs",
+      "text": "Enviar documentación a Meta para permisos de WhatsApp",
+      "status": "pending",
+      "assignedTo": "Santi",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [
+        "ob-verificacion-whatsapp"
+      ],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "taskId": "ob-trello-seguimiento",
+      "text": "Actualizar Trello con seguimiento del proyecto",
+      "status": "in_progress",
+      "assignedTo": "Eloi",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "taskId": "ob-responsive",
+      "text": "Adaptar diseño responsivo para móvil y tablet",
+      "status": "pending",
+      "assignedTo": "Jeniffer",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "taskId": "ob-testing",
+      "text": "Realizar testing con casos reales de proyectos",
+      "status": "pending",
+      "assignedTo": "Santi",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [
+        "ob-microsoft",
+        "ob-asana",
+        "ob-login",
+        "ob-permisos",
+        "ob-seguridad-chat"
+      ],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "taskId": "ob-seguridad-chat",
+      "text": "Corregir problemas críticos: lectura incorrecta de chats y chatbot mostrando info de otros proyectos",
+      "status": "in_progress",
+      "assignedTo": "Jesús Alejandro Vega",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "taskId": "ob-fechas-ia",
+      "text": "Implementar detección automática de fechas y actividades pendientes por IA",
+      "status": "pending",
+      "assignedTo": "Jesús Alejandro Vega",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "taskId": "ob-revision-experto",
+      "text": "Preparar revisión de ciberseguridad y arquitectura con experto de Stanford",
+      "status": "pending",
+      "assignedTo": "Jesús Alejandro Vega",
+      "startDate": "",
+      "dueDate": "2026-06-09",
+      "dateStatus": "committed",
+      "dependsOn": [
+        "ob-login",
+        "ob-permisos"
+      ],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "taskId": "ob-graficos",
+      "text": "Completar desarrollo de gráficos en front end",
+      "status": "in_progress",
+      "assignedTo": "Jeniffer",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "taskId": "ob-presentacion",
+      "text": "Presentar evoluciones del MVP",
+      "status": "in_progress",
+      "assignedTo": "Jesús Alejandro Vega",
+      "startDate": "",
+      "dueDate": "2026-06-05",
+      "dateStatus": "committed",
+      "dependsOn": [
+        "ob-graficos",
+        "ob-asana",
+        "ob-seguridad-chat"
+      ],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "taskId": "ob-microsoft",
+      "text": "Completar integración con Outlook/Microsoft",
+      "status": "in_progress",
+      "assignedTo": "Jeniffer",
+      "startDate": "",
+      "dueDate": "2026-06-06",
+      "dateStatus": "committed",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:55:50.782439"
+    }
+  ],
+  "insights": [
+    {
+      "insightId": "2026-10-06T02:55:50.782439#note01a53f1f",
+      "projectId": "proj-onebox01",
+      "projectName": "OneBox",
+      "userId": "owner-santi",
+      "type": "note",
+      "noteKind": "decision",
+      "title": "Decisión de expandir conexiones más allá de Gmail",
+      "description": "",
+      "relatedPerson": "",
+      "eventDate": "2025-10-12",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "chat_onebox.txt (parte 3/10)",
+          "locator": "10/12/25, 16:14",
+          "quote": "podemos empezar a hacer la conexión a otras plataformas"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "a53f1f7a112f",
+      "status": "created",
+      "createdAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "insightId": "2026-10-06T02:55:50.782439#note02a53f1f",
+      "projectId": "proj-onebox01",
+      "projectName": "OneBox",
+      "userId": "owner-santi",
+      "type": "note",
+      "noteKind": "decision",
+      "title": "Meta de presentar OneBox en enero 2026",
+      "description": "",
+      "relatedPerson": "",
+      "eventDate": "2025-10-12",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "chat_onebox.txt (parte 3/10)",
+          "locator": "10/12/25, 16:15",
+          "quote": "si tengo presente que en enero lo queremos mostrar"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "a53f1f7a112f",
+      "status": "created",
+      "createdAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "insightId": "2026-10-06T02:55:50.782439#note03a53f1f",
+      "projectId": "proj-onebox01",
+      "projectName": "OneBox",
+      "userId": "owner-santi",
+      "type": "note",
+      "noteKind": "info",
+      "title": "Jesús sin acceso remoto en Bogotá, esposa creó puente de red el 30/10/25",
+      "description": "",
+      "relatedPerson": "Jesús",
+      "eventDate": "2025-10-30",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "chat_onebox.txt (parte 1/10)",
+          "locator": "30/10/25, 1:59",
+          "quote": "mi esposa pudo crear el puente"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "a53f1f7a112f",
+      "status": "created",
+      "createdAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "insightId": "2026-10-06T02:55:50.782439#note04a53f1f",
+      "projectId": "proj-onebox01",
+      "projectName": "OneBox",
+      "userId": "owner-santi",
+      "type": "note",
+      "noteKind": "decision",
+      "title": "Precio del MVP acordado en 5000 USD cerrados",
+      "description": "",
+      "relatedPerson": "Santi",
+      "eventDate": "2025-11-11",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "chat_onebox.txt (parte 2/10)",
+          "locator": "11/11/25, 10:11",
+          "quote": "tu crees que podemos dejarlo en 5000 cerrados ? dolares? yo creo que si"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "a53f1f7a112f",
+      "status": "created",
+      "createdAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "insightId": "2026-10-06T02:55:50.782439#note05a53f1f",
+      "projectId": "proj-onebox01",
+      "projectName": "OneBox",
+      "userId": "owner-santi",
+      "type": "note",
+      "noteKind": "info",
+      "title": "Santi compartió documento de casos de uso y dashboard final",
+      "description": "",
+      "relatedPerson": "Santi",
+      "eventDate": "2025-11-16",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "chat_onebox.txt (parte 2/10)",
+          "locator": "16/11/25, 18:51",
+          "quote": "os adjunto varios casos de uso y un Dashboard final"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "a53f1f7a112f",
+      "status": "created",
+      "createdAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "insightId": "2026-10-06T02:55:50.782439#note06a53f1f",
+      "projectId": "proj-onebox01",
+      "projectName": "OneBox",
+      "userId": "owner-santi",
+      "type": "note",
+      "noteKind": "info",
+      "title": "Sistema procesa texto de múltiples fuentes con agentes de IA",
+      "description": "",
+      "relatedPerson": "",
+      "eventDate": "2025-12-01",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "chat_onebox.txt (parte 2/10)",
+          "locator": "1/12/25, 16:35",
+          "quote": "puede procesar cualquier cosa que sea texto"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "a53f1f7a112f",
+      "status": "created",
+      "createdAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "insightId": "2026-10-06T02:55:50.782439#note07a53f1f",
+      "projectId": "proj-onebox01",
+      "projectName": "OneBox",
+      "userId": "owner-santi",
+      "type": "note",
+      "noteKind": "info",
+      "title": "Clasificador de texto completado, procesa 15 PDFs en 5 segundos y crea knowledge graph",
+      "description": "",
+      "relatedPerson": "",
+      "eventDate": "2025-12-03",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "chat_onebox.txt (parte 2/10)",
+          "locator": "3/12/25, 7:26",
+          "quote": "Este es un clasificador de texto rapidisimo se demora 5 segundos"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "a53f1f7a112f",
+      "status": "created",
+      "createdAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "insightId": "2026-10-06T02:55:50.782439#note08a53f1f",
+      "projectId": "proj-onebox01",
+      "projectName": "OneBox",
+      "userId": "owner-santi",
+      "type": "note",
+      "noteKind": "info",
+      "title": "API de Gmail implementada, acceso y lectura de correos logrado",
+      "description": "",
+      "relatedPerson": "",
+      "eventDate": "2025-12-24",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "chat_onebox.txt (parte 3/10)",
+          "locator": "24/12/25, 21:39",
+          "quote": "Con esto yo creo que ya lo podemos aplicar a correos eletronicos"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "a53f1f7a112f",
+      "status": "created",
+      "createdAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "insightId": "2026-10-06T02:55:50.782439#note09a53f1f",
+      "projectId": "proj-onebox01",
+      "projectName": "OneBox",
+      "userId": "owner-santi",
+      "type": "note",
+      "noteKind": "decision",
+      "title": "Todas las conversaciones del proyecto deben hacerse por correo",
+      "description": "",
+      "relatedPerson": "Santi",
+      "eventDate": "2026-01-19",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "chat_onebox.txt (parte 3/10)",
+          "locator": "19/1/26, 14:06",
+          "quote": "todas las conversaciones se hagan por correo, esto es obligatorio"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "a53f1f7a112f",
+      "status": "created",
+      "createdAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "insightId": "2026-10-06T02:55:50.782439#note10a53f1f",
+      "projectId": "proj-onebox01",
+      "projectName": "OneBox",
+      "userId": "owner-santi",
+      "type": "note",
+      "noteKind": "info",
+      "title": "WIZE usado para pagos a Colombia, Jeniffer recibió pago",
+      "description": "",
+      "relatedPerson": "Jeniffer",
+      "eventDate": "2026-02-27",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "chat_onebox.txt (parte 4/10)",
+          "locator": "27/2/26, 22:49",
+          "quote": "listo ya recibi el envio mil gracias Santi"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "a53f1f7a112f",
+      "status": "created",
+      "createdAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "insightId": "2026-10-06T02:55:50.782439#note11a53f1f",
+      "projectId": "proj-onebox01",
+      "projectName": "OneBox",
+      "userId": "owner-santi",
+      "type": "note",
+      "noteKind": "info",
+      "title": "Cuenta AWS creada, Jeniffer subiendo servicios a AWS",
+      "description": "",
+      "relatedPerson": "Jeniffer",
+      "eventDate": "2026-03-02",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "chat_onebox.txt (parte 4/10)",
+          "locator": "2/3/26, 20:04",
+          "quote": "Voy a estar empezando a subir algunas cosas ya a la nube de AWS"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "a53f1f7a112f",
+      "status": "created",
+      "createdAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "insightId": "2026-10-06T02:55:50.782439#note12a53f1f",
+      "projectId": "proj-onebox01",
+      "projectName": "OneBox",
+      "userId": "owner-santi",
+      "type": "note",
+      "noteKind": "info",
+      "title": "Arquitectura terminada y compartida",
+      "description": "",
+      "relatedPerson": "",
+      "eventDate": "2026-03-05",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "chat_onebox.txt (parte 4/10)",
+          "locator": "5/3/26, 10:54",
+          "quote": "ya terminó la arquitectura y te la paso con el update"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "a53f1f7a112f",
+      "status": "created",
+      "createdAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "insightId": "2026-10-06T02:55:50.782439#note13a53f1f",
+      "projectId": "proj-onebox01",
+      "projectName": "OneBox",
+      "userId": "owner-santi",
+      "type": "note",
+      "noteKind": "decision",
+      "title": "Decisión de invitación manual en lugar de API de terceros por costos (157.5 USD/mes para 100 usuarios)",
+      "description": "",
+      "relatedPerson": "Santi",
+      "eventDate": "2026-03-09",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "chat_onebox.txt (parte 5/10)",
+          "locator": "9/3/26, 22:53",
+          "quote": "Vale, pues hagamos por invitacion para empezar y luego verems"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "a53f1f7a112f",
+      "status": "created",
+      "createdAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "insightId": "2026-10-06T02:55:50.782439#note14a53f1f",
+      "projectId": "proj-onebox01",
+      "projectName": "OneBox",
+      "userId": "owner-santi",
+      "type": "note",
+      "noteKind": "info",
+      "title": "Dominio oneboxmanager.com adquirido, acceso a Hostinger proporcionado",
+      "description": "",
+      "relatedPerson": "",
+      "eventDate": "2026-03-11",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "chat_onebox.txt (parte 5/10)",
+          "locator": "10/3/26, 11:46",
+          "quote": "Ya tenemos oneboxmanager.com"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "a53f1f7a112f",
+      "status": "created",
+      "createdAt": "2026-10-06T02:55:50.782439"
+    },
+    {
+      "insightId": "2026-10-06T02:55:50.782439#note15a53f1f",
+      "projectId": "proj-onebox01",
+      "projectName": "OneBox",
+      "userId": "owner-santi",
+      "type": "note",
+      "noteKind": "decision",
+      "title": "OneBox pondrá capa encima de OpenClaw, evaluación futura de incorporación",
+      "description": "",
+      "relatedPerson": "",
+      "eventDate": "2026-03-24",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "chat_onebox.txt (parte 6/10)",
+          "locator": "24/3/26, 23:28",
+          "quote": "despues de este paso que hacemos con onebox miramos como incorporarnos o conectarnos con openclaw"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "a53f1f7a112f",
+      "status": "created",
+      "createdAt": "2026-10-06T02:55:50.782439"
+    }
+  ],
+  "attachments": []
+}

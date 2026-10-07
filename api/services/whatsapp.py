@@ -187,7 +187,9 @@ def handle_twilio_webhook(body_raw: str) -> dict:
                         'email': user_info.get('email', ''),
                         'phone': clean_number,
                         'role': 'Creator'
-                    }]
+                    }],
+                    analysis_text=text,
+                    source_name=fname or f'doc.{ext}',
                 )
                 project_id = result['projectId']
 

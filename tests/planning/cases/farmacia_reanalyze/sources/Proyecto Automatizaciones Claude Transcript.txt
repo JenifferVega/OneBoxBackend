@@ -1,0 +1,572 @@
+Proyecto Automatizaciones Claude
+Tue, Jul 14, 2026
+
+0:00 - Sandra Prades Hausmann
+No sé cómo es bien y mal porque... Que sí, que me llegó bien, pero que yo no me aclaro mucho con eso.
+
+0:15 - Digital Workers
+Bueno, a ver si el tipo... Bueno, no te preocupes. Igual está acabando ahí algo. ¿Qué tal, Cata? ¿Quieres escribirle algo?
+
+0:28 - Sandra Prades Hausmann
+estoy escribiendo pero no es que allí a lo mejor son las ocho de la mañana bueno ya es muy pronto porque yo con Perú solo solo conectarme hasta ahora también y son las siete o así son en Perú normalmente nos conectamos son 7 igual son las 9 9, no sé qué decirte.
+
+0:58 - Digital Workers
+¿Cómo se dirá? Las ocho, mira, son las ocho.
+
+1:03 - Sandra Prades Hausmann
+Sí, en Lima son las ocho, o sea, que deben ser sus ocho también. O sea, le dejamos que se desperece y se despierte.
+
+1:14 - Digital Workers
+No problem. Bueno, no sé. Porque tú lo has dejado después.
+
+1:19 - Sandra Prades Hausmann
+Se lo pasamos. Ahora igual sí que, no.
+
+1:23 - Digital Workers
+parecido oír a alguien pero no. No, no me dice nada.
+
+1:30 - Sandra Prades Hausmann
+No sé qué le pasa, es raro porque normalmente tal vez está con algo seguro.
+
+1:39 - Digital Workers
+Y que estáis con tus hermanos o algo ¿no? Estamos no, solo con mis sobrinos y mi abuelo.
+
+1:49 - Sandra Prades Hausmann
+mi madre. Ah vale, guay. Entonces este es el plan porque estáis ahí unos pocos, todo bajo control. Sí. Porque yo cuando estamos todos y los niños lo justo para que es mucha animación pero a la vez también ella va, tiene ahí entretenimiento.
+
+2:03 - Digital Workers
+Ella va sola, ella va sola y está todo el día entretenida, o sea no la veo, yo estoy todo el día trabajando. Está todo el día en la piscina esta que hay aquí en la terraza y... No la veo nada, pero bueno. Es duro, ¿eh? Porque no para los niños.
+
+2:22 - Sandra Prades Hausmann
+No paran, ¿no?
+
+2:23 - Digital Workers
+No, son intensos, son bastante intensos. A ver qué le pasa a este hombre. Bueno, si no, no, si no, reconvocamos porque yo quiero que esté él. No sé, claro. Lo que tú quieras.
+
+2:38 - Sandra Prades Hausmann
+Yo si quieres te cuento un poco por encima lo que...
+
+2:42 - Digital Workers
+No, no, cuéntame, cuéntame.
+
+2:44 - Sandra Prades Hausmann
+Sí, sí, cuéntame, obviamente. Ya está.
+
+2:49 - Unidentified Speaker
+Ale.
+
+2:49 - Digital Workers
+No te veo. Hola. Tengo unos pequeños problemas técnicos, pero ya estoy aquí.
+
+3:00 - alejandro vega
+Muy buenos días, ¿cómo están?
+
+3:04 - Digital Workers
+Hola. Bien, bien, bien. ¿Estás despierto o no? Rockstar. Te presento a Sandra.
+
+3:16 - Unidentified Speaker
+Mucho gusto.
+
+3:17 - Digital Workers
+Ella es la que ha tenido el canal farmacéutico en España y en el mundo. Ahí está. Vamos a hacer business con ella. Bueno, entonces yo a Ale ya le explico Un poco, un poco. Por lo que tú me explicas, le hice una pequeña intro para que le entendiera por dónde venían los tiros. Le hablé de automatización, le hablé de cloud, pero a partir de ahí poquito más. Sandra, somos todo orejas.
+
+3:54 - Sandra Prades Hausmann
+Yo os cuento un poco lo que está en mi cabeza, pero claro, yo soy farmacéutica. O sea, que igual lo que está en mi cabeza son unicornios y no se pueden. O igual yo he pensado en cloud y otra cosa o lo que sea entonces vosotros me decís. Yo os cuento tenemos farmacia y entonces en la farmacia pues como hay dos áreas de negocio una digamos que es la tienda de vender y ya está y luego hay otra parte que es la formulación magistral entonces en la formulación magistral hacemos digamos que no sólo hacemos fórmulas o sea medicamentos para nuestros pacientes que vienen a la farmacia sino que tenemos formulación, tenemos autorización para formular para otras farmacias, ¿vale? Entonces, formulamos para cliente y para farmacias que luego las dispensan, ¿vale? Entonces, claro, tenemos igual, no sé, entre 50 y 100 fórmulas al día, ¿vale?
+
+4:56 - alejandro vega
+Y esto es. Disculpame, ¿hay algo que el comercio no es homeopático?
+
+5:03 - Sandra Prades Hausmann
+Homeopático. Bueno, no, homeopáticos no son de todos, son medicamentos pues yo que sé, lo que más se vende es medicamentos anti caída o así, cremas, el tema es que el médico hace una fórmula solo para ti y te dice mira vas a poner esta crema con este principio activo y con...
+
+5:24 - Digital Workers
+yo que sé y ya está y eso yo lo preparo... Son 50, 100 fórmulas nuevas al día?
+
+5:31 - Sandra Prades Hausmann
+Sí, cada fórmula supuestamente ha de ser siempre nueva.
+
+5:35 - Digital Workers
+Es única, vale.
+
+5:36 - Sandra Prades Hausmann
+Siempre, todas son únicas. Luego internamente, ya sé que se está grabando, pero sí que a veces para las más típicas haces lotes y tú tienes producción de, pues yo que sé, anticaída, es una que piden siempre, entonces como ya sabes que tiene mucha rotación, tú tienes ese producto hecho y vas usando, digamos. Pero sí, todas las que vienen se tienen que hacer únicas porque vienen con su etiqueta, con su nombre, con su médico, o sea, paciente, médico y composición. Y eso todo es único. De ahí todo el lío de trabajo. Entonces, nosotros trabajamos con las farmacias, que digamos es el groso más grande, te piden las fórmulas a través de nuestra web, ellos rellenan un formulario, cuelgan la receta y la piden. Entonces a mí me aparece esa fórmula, yo la descargo, la imprimo, la cojo y la tengo que pasar a otro sistema, a otro programa en el cual yo entro producto por producto, pongo el médico, pongo el paciente, completo los datos de facturación de la farmacia, cotizo, paso presupuesto y hago una hoja y la vuelvo a imprimir y entonces saco una hoja de elaboración, saco la documentación de facturación, todo. Entonces todo esto queda como en un lado y entonces los compañeros la hacen Entonces la hacen, la envuelven y entonces cuando la envuelven hacen todos los albaranes de envío que igual salen envíos cada día. O sea, que pagamos de mensajería, no sé, cerca de yo diría 5000 euros al mes. Vale, entonces y se vuelven a hacer a mano todos los de esto y luego a mano volvemos a hacer. Nos metemos otra vez en la intranet de nuestra web y volvemos a hacer enviada, enviada, enviada.
+
+7:47 - Digital Workers
+Yo he visto la automatización, pero... Alejandro, dime tú, pero yo la veo clarísima. Sí, quería preguntarte la intranet.
+
+7:54 - alejandro vega
+¿Tú sabes qué maneja? ¿Ustedes manejan un ERP o algún sistema conocido? ¿O es algo como propio ustedes?
+
+8:01 - Sandra Prades Hausmann
+Bueno, no, nos lo ha hecho el chico que nos hizo la web, pero tenemos mucha, muy buena relación con él y no habría problema en... Pero yo no te sé decir si es un ERP, Pero vamos, que él está abierto a lo que digamos, ¿vale?
+
+8:18 - alejandro vega
+Esto no lo pueden modificar, es lo que quería saber.
+
+8:21 - Sandra Prades Hausmann
+Sí, con su permiso, lo que sea, obviamente sí que nos dejará, no habrá problema. Porque él lo ha ido modificando a medida que lo hacíamos. Lo ha hecho solo para nosotros. Lo que pasa es que él no se dedica a esto. Entonces, meterle en toda esta bola. Y aparte, yo lo que quiero es también integrar esto, esta intranet, con el programa de gestión de formulación. Porque, a ver, os he hecho un resumen muy mal y muy rápido, ¿vale? Pero el programa de formulación, encima lo que tiene es que tú facturas a clientes. Entonces, facturamos cada decena. Entonces, cada decena enviamos las facturas por mail uno por uno. Luego, colgamos en su intranet de cada uno las facturas uno por uno. Luego, este programa de formulación, yo que sé, nos saca listados de estadísticas. Yo no puedo saber cómo compro la materia prima, cuáles me rotan más, qué clientes son buenos o malos y eso es cuestión de listados y filtrar. Hay una parte de que yo no tengo conocimiento porque este programa lo hizo un tío en Valencia que ahora vive creo que en Chile y se conecta un par de horas al día para contestar dudas y ya está y está casi jubilado y en cuatro días ya se jubilará del todo con lo cual perderemos ahí el tal pero farmacias las más grandes que formulamos a terceros, que quiere decir para otras farmacias y somos igual 30 en España, nosotros estamos facturando cerca de 700.000 euros al año y no somos de las más grandes y casi todos trabajamos con este programa o acabamos teniendo uno adaptado a nosotros. Entonces este programa también se le puede sacar mucho más jugo pero es que los tutoriales que tiene Es un programa obsoleto.
+
+10:08 - Digital Workers
+Él no sé qué va a hacer, pero no sé qué va a pasar con esto.
+
+10:15 - Sandra Prades Hausmann
+Tú le preguntas una duda y te dice métete online, que está el tutorial. Hay una web que la podéis buscar, que es tremenda, solo cuando la veáis os daréis las manos a la cabeza, pero supuestamente ahí está todo. Entonces yo sé que hay cosas que lo pueda hacer con el mismo programa, que yo no le saco suficiente partido. Yo empecé con esto porque me puse con chat GPT Cloud, hasta donde yo llego que tengo muchas limitaciones en ese sentido. Y yo le dije, quiero que te estudies todo, todo como si fuera un manual del programa y me digas todo lo que puedo hacer, porque necesito hacer más. Y entonces empecé. Pero como que hay muchos tutoriales escondidos y entonces pues no me los encontraba. No conseguía ver toda la información y ya dije bueno creo que aquí necesito ayuda pero hay varias cosas a hacer luego además en su web él tiene como un enlace ahí a que le da si no funciona te manda a un centro de estética pero que me refiero que alguien ya alguien ya ha contactado con él para hacer algo con la IA y tal.
+
+11:28 - alejandro vega
+Sí, Magisfor.
+
+11:30 - Sandra Prades Hausmann
+como magis for de for o f o r? F o r.
+
+11:37 - Digital Workers
+Sí, espera, ¿dónde escribo por aquí?
+
+11:40 - alejandro vega
+Sí.
+
+11:41 - Sandra Prades Hausmann
+Magis for 19. Mira, espera.
+
+11:43 - alejandro vega
+Ah, sí, es el magis for. Sí, magis for 19. Y una 60 de llaqueta ayuda a formular y a manejar.
+
+11:54 - Sandra Prades Hausmann
+El objetivo son de fórmulas magistrales hay que ver los tutoriales la página es que cuando te metes ya solo cuando ves la página y dices madre mía este es un programa de escritorio o sea quiero decir que se instala en el computador no es un programa que está en una página web verdad no te lo instala te da tu autorización compras los los puestos que tú quieras y con eso haces. Puedes luego, creo que te he dejado descargarte uno de prueba para ver, para jugar, pero hay muchas cosas que se pueden hacer mejor. Tenemos un chat de whatsapp con todos los farmacéuticos que usamos esto y todo el día hay dudas sobre el programa. Él podría hacer, si hiciera sesiones, tutoriales y todo es que vamos, Pero... Ya, es que, o sea, hacerme preguntas porque creo que os lo estoy explicando un poco desordenado y entonces igual... No, no.
+
+13:06 - Digital Workers
+Mi duda es si o si las automatizaciones tienen que pasar por este programa o podemos prescindir de este programa. ¿Cuál sería tu idea o cuál es la realidad.
+
+13:22 - Sandra Prades Hausmann
+Vale, yo creo que hay muchas que igual, o sea, ya adelantaremos mucho sin tener que... Claro, yo tampoco sé muy bien, yo que sé, hablo, no sé, los co-workers, tú puedes tener a alguien que cada mañana a tal hora te empiece a imprimir todas las... O a darle a OK a todas las fórmulas que llegan y tú las tengas ya descargadas y impresas por la cuando llegas, me invento, eso ya sería un paso. Aunque para mí hacerlo en papel es ir muy atrás, ¿no? O quizás cambiar la intranet y hacer que las farmacias ya seleccionen el principio activo con desplegables y entonces esa fórmula ya esté como hecha y se tenga que buscar.
+
+14:07 - Digital Workers
+¿Por dónde te entran aquí las fórmulas? ¿Por dónde te entran? ¿A ti te entran fórmulas con el nombre del doctor, el paciente, cliente y la fórmula, ¿no? ¿Por dónde te entran? ¿Por esta plataforma?
+
+14:20 - Sandra Prades Hausmann
+Por mi intranet de mi web de farmaciahausmann.es. ¿La intranet de tu web? Le puedo pedir a mi madre que me dé las contraseñas, pero es muy sencilla, ¿eh? La intranet, o sea, y el, digamos, lo que tienen que rellenar lo hemos puesto nosotros, o sea, la han hecho a medida, con lo cual que si yo le digo, ahora me cambias esto, me cambias lo otro, o que entráis vosotros y lo manipuláis, no hay problema.
+
+14:45 - Digital Workers
+Y esta plataforma, procesas y luego eso lo trasladas a esta plataforma.
+
+14:50 - Sandra Prades Hausmann
+Lo imprimimos en papel y una por una se vuelve a meter en el programa de formulación porque tiene, o sea, el programa de formulación tiene una base de datos de materia prima con sus precios, sus costes, todo. Entonces, claro, tú le das y luego además de clientes, sí, base de datos de clientes que tú entonces cuando cotizas una fórmula se le asigna a ese cliente, tú tienes un recetario, o sea, yo no puedo no usar Magiskor.
+
+15:26 - Digital Workers
+Pero no sé si...
+
+15:28 - alejandro vega
+Pero que yo veo que ustedes repiten la información, o sea, en su intranet y después repiten la información en Magiskor. Sí. Eso es bastante automatizable. Básicamente ya tiene el proceso solamente de hacerlo más rápido.
+
+15:43 - Sandra Prades Hausmann
+No y es que además claro estos son errores o sea si cada fórmula se pasa tres veces estos son errores estamos hablando de medicaciones o sea la farmacia que la coge y que le llega la vuelve a picar en el ordenador primer posible error nosotros lo imprimimos y lo volvemos a picar en el ordenador segundo posible error luego se puede equivocar alguien que la elabore luego la volvemos a repasar otra vez pero puedes no verlo, sabes, vas encadenando uno detrás de otro y cuanto menos movimiento, más seguridad.
+
+16:17 - Digital Workers
+Cuanto menos intervención manual, mejor. ¿Hay posibilidad de hablar con esta persona?
+
+16:23 - alejandro vega
+Si el tema es la parte de la intranet, creo que es fácil porque es una página web, ¿no es cierto? O sea, entonces uno puede ya incluso meter ahí un chat similar al que hicimos para OneBox. Y a través de ese chat que hagan cosas más rápido, ¿no? Como decirle, hey, IA, modifica esto. Obviamente necesita entender el sistema muy bien, como la estructura del sistema que ellos tienen actualmente, como los pasos de datos, la información de cada medicamento, pero pues eso se puede parametrizar. Una vez que el sistema está parametrizado, la IA puede ir más rápido o revisar cosas directamente hablándole como... Bueno es que no conozco la información pero tú le puedes decir como tengo este cliente por favor investiga la fórmula verifica que todo esté bien escrito o guárdalo o modifica tal cosa en vez de que la persona vaya y lo modifique en el formulario, la idea lo modificaría.
+
+17:21 - Sandra Prades Hausmann
+Por ejemplo... A ver, yo creo que sólo, o sea imagínate si estamos analógicos, sólo que consiguiéramos tener yo que sé descargadas y empresas las fórmulas, que eso al final es una tontería, pero es un clic, otro clic, otro clic, por la mañana para empezar. Y luego el proceso de logística de después, que es envolver cada una, entiendo que esto sí, pero automatizar un poco Albarán es ver que las fórmulas que caen se le asignan a cada uno con su envío y entonces el Albarán ya sale solo, no tener que hacer Albarán uno por uno para los envíos, luego quizás también el tema de facturación, poder colgar las facturas, o sea yo tengo todas las facturas en una carpeta y me las asigna cada cliente, solo con eso ya ganaríamos y entonces una vez avanzamos en las partes más sencillas, yo sí que me iría metiendo en el programa, sabes, pero por pasos.
+
+18:15 - alejandro vega
+Realmente lo que dice sí tiene mucho sentido, si no queremos entrar en el programa directamente, se lo comentaba que es mucho más fácil integrarnos con con la intranet. Sí, sí, sí, por eso, por eso. Es posible integrarse con el otro sistema, pero como es un programa de escritorio, o sea, es una ejecutable, requiere instalar otro tipo de IA, o sea, es una IA que funciona como al nivel de computador, similar a OpenCloud y esas cosas que son populares ahora, es que controlan el computador, pero sería, por ejemplo, como se podría hacer desde OpenCloud, como agregarle la capacidad de sistema de manipular.
+
+18:52 - Sandra Prades Hausmann
+Vale, ya te entiendo.
+
+18:54 - alejandro vega
+Manipular el otro sistema, manipular Magiskor, pero con las reglas que ustedes quieren. No sé cómo es, pero por ejemplo podría ir a un Excel, abrirlo y a partir de la información del Excel llenar el formulario. Pero eso sí no es tan automático porque requiere obligatoriamente que abra el programa por una persona lo navegue, ponga la información uno a uno, o sea, sí va a prevenir errores, pero... O sea, es una automatización que no sea moral, por ejemplo, un segundo por estando sin datos, porque tiene que simular lo que es una persona, ir al formulario...
+
+19:34 - Sandra Prades Hausmann
+Vale, ya te entiendo. No, yo igual me centraría más en automatizar más o sencillito, digamos, y luego quizás usar la IA para intentar sacarle más partido a lo que ya tenemos, porque es que yo solo intentar estudiar menos el tutorial o sea si tú consigues que esa web donde está todo colgado una IA se la estudie completa porque yo no sé sacar estadísticas de yo para entender cómo no sé por ejemplo las fórmulas tú hemos dicho las recepcionas las pasas al ordenador sacas una hoja de elaboración y yo ahí en Magisfort ya se acaba todo, en ese programa ya acabo, hago todo fuera y las envío y todo, pero ese programa me permite darle a esa fórmula como validada, darla como enviada, asignársela a uno de los elaboradores, hacer un control de calidad y tenerlo todo digital y no en papel, pero yo solo ponerme a leer los tutoriales de este hombre y estudiarme todo eso para poder hacerlo. Entonces, si consigues que una guía se la estudie entera, pues entonces me dirá, hombre es que todo esto lo puedes hacer de otra forma, puedes avanzar en esto, puedes tenerlo. Igual no saltamos el paso de pasar o hacer una última impresión, o sea, todo queda en digital, se le envían por mail, se pueden adjuntar todas las documentación en esa intranet de los clientes. Bueno, os lo estoy explicando bastante mal, creo, todo.
+
+21:07 - Digital Workers
+No, no, pero sí.
+
+21:08 - Sandra Prades Hausmann
+No, no, no, no. Es mucha información.
+
+21:11 - Digital Workers
+Es un poco bola todo.
+
+21:13 - Sandra Prades Hausmann
+Lo bueno es que lo estamos grabando.
+
+21:16 - Digital Workers
+Y esto lo voy a transcribir, lo voy a meter en Open Cloud o en ChatGPT y entonces va a ordenar. Así que cuanto más digas, más fácil para nosotros. Pero bueno, claro, aquí hay varias opciones. Automatización y luego el análisis de datos, por lo que entiendo, para poder hacer ahí. Claro. A eso, Ale, para meterte bien, porque me da... O sea, tengo las dudas de si nos metemos en Magisk 4, si vamos a poder acceder a toda la información que realmente necesitamos. Porque no sé si nos va a pasar lo mismo que le ha pasado a Sandra. Esa es la duda que yo tengo. Porque debe haber ahí tutoriales perdidos en medio de la web y no sé si vamos a poder acceder.
+
+22:00 - Sandra Prades Hausmann
+¿Tú cómo lo ves? Mira, te digo lo que me dijo Cloud, si quieres.
+
+22:04 - alejandro vega
+Mira, yo te compartí un enlace de una aplicación que yo hice en LinkedIn. Este era un sistema que yo hice de manuales técnicos. Entonces, lo que hacía el sistema era ir a otro tipo de estructura, que eso era, no me acuerdo ni dónde lo leía. Creo que eso era JIRA. Pero JIRA es para que tú creas como etiquette, de soporte técnico. Y el sistema era capaz de ir a todos los tiquetes, leer cómo se habían solucionado diferentes tiquetes, y creaba manuales para que si una persona volvía a correr por el mismo problema, al escribir información detenga ese problema, en vez de crear otro tiquet y de las soluciones, basado en soluciones que ya la gente había hecho. Entonces yo creo que algo así se podría hacer, como un sistema donde literalmente la documentación se vuelve interactiva y mucho más Entonces, por ejemplo, esto se podría hacer para el tema de leer toda la página, entender bien que todas sus descripciones existen. Y ese ya es como una base de conocimiento. Eso es lo que se conoce como una base de datos de, sí, pues, de respuestas, de conocimiento. Y ya con esa base de datos de respuesta se puede utilizar lo que entendió la idea de lo que es un sistema para poder proponer soluciones, ¿no? Entonces, esto se podría trabajar de una manera similar si le utilidad, pues porque serviría para dos cosas, para crear un análisis de conocimiento que la guía guarde y almacene y otra como una interfaz de conversación donde la guía te pueda fácilmente explicar cómo hacer algo de una documentación.
+
+23:34 - Sandra Prades Hausmann
+Es que yo también de cara a sabes lo que hablábamos o sea si aquí pone en la web de Magisfor pone asistente guía que te ayuda a formular y a imaginar y a manejar Magisfor, tú le das a ese botón y te manda al centro de estética, porque dice que era una agencia externa, que no sé quiénes lo llevaban, no sé qué. Pero claro, si tú tuvieras un chatbot al que preguntarle cada dos por tres y a él no creo que le importara y las farmacias lo instalarían, sabes. Si tuvieras a alguien que, oye ¿cómo saco las facturas de hace tres meses o cómo vuelvo a facturar o cómo tal? Entonces ya solo eso, de alguna forma tener acceso a esos tutoriales de una forma ordenada y que entienda lógicamente el proceso que quieres hacer y no decir me he leído el tutorial de elaboración cuando tenía que haberme estudiado el de no sé qué sabes entonces solo eso yo hice como como mucho trozo con cloud y al final me dijo hemos llegado a un punto en el que no sé puedo mandar todo lo que me dijo no pero en plan todo esto nos falta esto nos falta esto no lo tenemos esto sí esto no esto ¿Sabes? Porque fue entendiendo muy bien cómo iba el programa, pero llegó un momento en que ya vio que le faltaba información.
+
+24:55 - alejandro vega
+Sí, es que Cloud es muy general. O sea, Cloud es muy inteligente, pero es un software general. Tiene, digamos, unos límites establecidos, especialmente cuando tú le pides que se conecte a una página web, ¿no? Pues porque él analiza y aparte él intenta ahorrar tokens a lo ser posible. Entonces él prefiere decirle a la persona, no, investiga tú para yo seguir investigando. Pero lo que uno puede hacer es hacer un software específico. Digamos que yo lo que yo podría hacer es un script que no utiliza IA, sino que literalmente extrae todas las páginas HTML de esa página web, o sea, todas las páginas, las que las pone en un índice o las pone como en un glosario y empiezan a leer uno a una y después empiezan a crear conexiones entre la información.
+
+25:40 - Sandra Prades Hausmann
+Bueno, esto ya solo yo pues sería perfecto.
+
+25:43 - alejandro vega
+Lo que tocaría videos, varios de los tutoriales son vídeos porque si son vídeos tengo que procesarlos de forma escura. Creo que no, ya solo estaba pensando yo.
+
+25:54 - Digital Workers
+Pero no importa, también se puede, solo que pues como son vídeos se puede morar un poco más. ¿Tú ese chatbot lo planteas como algo externo a la página?
+
+26:05 - alejandro vega
+Sí, se puede hacer como algo externo.
+
+26:08 - Digital Workers
+No sé si es el tipo que se está jubilando va a querer meterse en un proyecto para incorporar un chat o no sé qué tal, eso me genera dudas.
+
+26:20 - alejandro vega
+Yo guardo la información en una de las datos externas, o sea, no es que vaya a la página a leer otra vez, simplemente yo guardo la información.
+
+26:31 - Sandra Prades Hausmann
+Primero, yo no sé qué coste tiene esto de horas, de trabajo, no tengo una idea. Hay que ver y cuantificar y lo que también me da un poco de miedo es que igual nos metemos y es peor de lo que parecía. Pensando en voz alta. Pero no, yo lo que sí veo, obviamente, o sea, yo por ejemplo, a mí me dices, si me dices según lo que te van a pagar, no, porque esto no sé, el programa no sé cuánto cuesta, pero tú me dices que yo pago la típica cuota como la IA, ¿no?
+
+27:06 - Digital Workers
+Que pagas yo que sé, 20, 30 euros al mes.
+
+27:10 - Sandra Prades Hausmann
+Sí, muchas. Por tener acceso a base a todos estos tutoriales ya explicados, a dudas y que me contestan en un segundo y tal, pues un montón de farmacias como yo dirían que sí.
+
+27:22 - Digital Workers
+Esa es la pregunta. Claro, eso es lo que yo pienso de crear una herramienta que ayude a estas farmacias a acceder a estos tutoriales y tal.
+
+27:32 - Sandra Prades Hausmann
+Sí. ¿Sabes?
+
+27:33 - Digital Workers
+La herramienta para...
+
+27:34 - Sandra Prades Hausmann
+Yo entiendo que yo te lo estoy pidiendo para mí y a mí me presupuestáis lo que sea y tal, o sea, porque no, lo que pasa que sí que luego si le podéis sacar un partido yo creo que igual se le puede, sabes.
+
+27:50 - alejandro vega
+Lo importante es avanzar, yo siempre digo eso, hacer cosas que funcionen. Especialmente en ambientes como tú dices que hay tantos procesos que es difícil incluso saber por dónde empezar.
+
+28:01 - Sandra Prades Hausmann
+Y está como muy rudimentario aquí porque al final también estás jugando con medicaciones específicas y no te quieres salir mucho de lo tradicional que funciona. Da un poco de miedo y respeto también porque haces una medicación mal y tienes un problema. Entonces, al final, si lo que estás haciendo hasta ahora te ha funcionado, o sea, ya Lo que parece que es una tontería, pero los envíos es que envías a una farmacia, al que no era. Ya solo te puede caer un puro de protección de datos porque tú le has mandado una fórmula que ve un paciente y un sabes. Entonces tienes entre manos cositas que no suele pasar nada. Tocamos madera, pero que la que al final te cuesta un poco. O sea, yo sé que a los farmacéuticos les cuesta cambiar porque te da respeto. Pero también es verdad que, ostras, formulación magistral es de las cosas que más margen te da en farmacia. O sea, en farmacia trabajamos con un 30% de margen y la formulación igual tiene un 70%. Entonces, vivir de formulación magistral te da mucha salud financiera al negocio en general. O sea, ¿sabes? Mi farmacia vive por esto.
+
+29:17 - alejandro vega
+Entonces, le puedo sacar un rendimiento. Una duda, pues, perdón, esto es más por el tema, para entender cómo funciona. ¿Realmente las fórmulas son familiales, únicas por persona o eso nunca repite?
+
+29:29 - Sandra Prades Hausmann
+Si se repite, se pueden repetir pero yo la tengo que volver a hacer de nueva. No, claro, obviamente un médico que sabe que le funciona esta fórmula se la prescribe a 10 pacientes al mes pero yo esa fórmula, que igual me lleva 10 veces, la tengo que hacer nueva cada vez. Y va con su número recetario, con su paciente, con su médico, como con un código solo suyo, porque yo eso lo tengo que presentar a sanidad a final de año o sea es súper unitaria aunque yo la repita y aunque yo la haga 300 veces es única para el paciente Es un proceso uno a uno, o sea no existe una forma en el sistema actual de duplicar o almacenarla o consultarla como un elemento. O sea en verdad cuando te metas en el programa verás que las fórmulas ya están, o sea por ejemplo yo que sé, pues crema con vitamina C, pues a mí cuando me llega esto igual me llega pues en vez de 100 gramos de crema 200 y lo cambio y en vez de vitamina C que quieren 10% quieren un 20 vale pues lo cambio. Entonces, cada vez la cambio, pero es la misma, digamos, y cada vez se le asigna un código nuevo porque es específica para ese médico y ese paciente.
+
+30:48 - Digital Workers
+¿Por qué la cambias? Porque si te dicen doscientos y diez, ¿por qué tú dices no?
+
+30:55 - Sandra Prades Hausmann
+Cien y dos. ¿Por qué? Ah, no, porque yo tengo una... Si queréis... Ah, no, me tengo que cambiar de honorario. Pero si queréis, entro y os voy haciendo una fórmula todo el proceso que hago en el programa.
+
+31:11 - Digital Workers
+Para ver un poco, si ya te entiendo. Pero me tengo que ir al ordenador de fuera. Si te cuesta mucho no, si no te esperamos.
+
+31:21 - Sandra Prades Hausmann
+No, me tienes que volver a mandar el enlace al WhatsApp por ejemplo. Te envío ahora. Y me cuelgo de aquí y me voy allí o dejo este abierto y me conecto allí también.
+
+31:34 - Digital Workers
+Sí, sí, te lo envío, te lo envío, aquí lo tienes.
+
+31:42 - Unidentified Speaker
+Vale.
+
+31:42 - Digital Workers
+Pues me voy allí, os veo ahora. Vale, hasta ahora.
+
+31:49 - Unidentified Speaker
+Chao.
+
+31:50 - alejandro vega
+Bueno, está muy interesante pero necesito, necesito dos minutos.
+
+31:56 - Unidentified Speaker
+Sí, claro, tranquilo.
+
+32:45 - Unidentified Speaker
+Muchas gracias.
+
+33:08 - Sandra Prades Hausmann
+No, no, no. No, no, no, no. ¿Quién es? ¿Quién es? Y vamos a ver.
+
+34:41 - Sandra Prades Hausmann
+¿Qué es eso?
+
+35:39 - Sandra Prades Hausmann
+Un poquito más. Www.alimmenta.com No, si no se quiebra más. Listo, ya regresé. Ahora vamos a ir a la parte de abajo. Ahora vamos a ir a la parte de abajo.
+
+37:29 - Sandra Prades Hausmann
+No, no, no, no.
+
+37:46 - Sandra Prades Hausmann
+No, no, no, no.
+
+38:02 - Sandra Prades Hausmann
+Y no te dejes que te quede. Ahora se oye doble, pero... A ver, aquí...
+
+38:30 - Digital Workers
+Madre mía, si es que...
+
+38:34 - Sandra Prades Hausmann
+Ya, porque me estoy oyendo por los dos lados, voy a borrar, voy a poner en silencio aquel. Vale. Ahora aquí, ¿me oís?
+
+38:53 - Unidentified Speaker
+¿Hola?
+
+38:54 - Digital Workers
+Vemos.
+
+38:55 - alejandro vega
+Yo te escucho. Yo te escucho.
+
+38:59 - Sandra Prades Hausmann
+Vale, genial. Pues por aquí me veis por un lado y por allí. Exacto. Vale, entonces. OK, lo siento, ¿eh?
+
+39:12 - Digital Workers
+Perdonarme.
+
+39:13 - Sandra Prades Hausmann
+No, no. A ver, ahora voy a compartir pantalla.
+
+39:24 - Sandra Prades Hausmann
+toda la pantalla.
+
+39:25 - Digital Workers
+De momento en la pantalla vemos como un dedo.
+
+39:29 - Sandra Prades Hausmann
+Ah, mira, ahora, ahora, ahora. Sí, no sé por qué se ve, porque esto no sé dónde está tapado o algo. Sí, sí, sí, exacto.
+
+39:40 - alejandro vega
+Pero bueno, veis algo ahora, ¿no? Sí, sí, sí.
+
+39:44 - Sandra Prades Hausmann
+Yo veo que estás compartiéndolo. Vale. Pasan cosas. Pasan cosas, ahí vamos. Entonces, mira, lo primero, esta es la Intranet, que yo os decía. ¿Vale?
+
+39:55 - Unidentified Speaker
+¿Vale?
+
+39:55 - Digital Workers
+Que aquí llega una forma. Ahí que reduce un poquito.
+
+40:00 - Sandra Prades Hausmann
+¿Lo cierro?
+
+40:01 - Digital Workers
+¿Hago clic? Eso. ¿Así?
+
+40:03 - Unidentified Speaker
+Ahí.
+
+40:03 - Sandra Prades Hausmann
+Genial. Vale. Sí, sí, sí. ¿Veis? Así es como nos llegan las fórmulas, ¿vale? Nos llega pues un número de pedido, una tal, en el estado en el que está, ¿vale? El estado lo cambias tú.
+
+40:23 - Digital Workers
+Claro, lo manipulo yo.
+
+40:25 - Sandra Prades Hausmann
+¿Ariane? ¿Podemos pasar una nueva, por fin?
+
+40:29 - alejandro vega
+¿Coger una? O sea, discúlpame.
+
+40:31 - Sandra Prades Hausmann
+O sea, No es una página web, también es una aplicación de escritorio. Sí, es una aplicación de escritorio. Sí, pero es nuestra. Digamos, nos conectamos desde la web. O desde nuestra web accedemos con un login, creo. Listo. Haz tú una que esté en una pendiente. Vale, esta.
+
+40:55 - Digital Workers
+Vale, vais viendo el proceso para descargar una.
+
+40:59 - Unidentified Speaker
+Sí.
+
+40:59 - Sandra Prades Hausmann
+Entramos. Vale, entonces. Entonces en principio ahora aquí esto lo hemos puesto nosotros, hemos escogido ponerle aquí el nombre, oye todo esto luego lo elimináis de vuestra mente. Médico, número de colegiado, teléfono, información del paciente, muchas cosas no las completas deberían. Luego ellos adjuntan una receta, se me descarga por aquí y la tengo que imprimir cada vez para comprobar que es lo mismo que ellos me ponen.
+
+41:38 - Digital Workers
+Porque esta receta, o sea, una cosa es la receta en papel y luego lo que está en el sistema. ¿Quién lo rellena?
+
+41:49 - Sandra Prades Hausmann
+¿El médico?
+
+41:51 - Digital Workers
+La farmacia que me lo pide a mí.
+
+41:54 - Sandra Prades Hausmann
+O la farmacia que te lo pide a ti. Y muchas veces ni lo rellena. Pasa directamente y...
+
+42:00 - Digital Workers
+La receta y listo. Porque hay veces seguro que la receta y lo que te han puesto no está bien porque hay errores seguro.
+
+42:08 - Sandra Prades Hausmann
+Claro, por eso es el primer error que cuando lo hacen. Por eso también completar esta ficha y hacerle, obligarles a contestar a todo y quizás poner desplegable o hacerlo un poquito más... ¿Sabes? Nos obligaría a tener menos errores después. La farmacia igual se enfada, entre comillas, porque le das más trabajo, pero a la larga es mejor.
+
+42:30 - Digital Workers
+¿Vale? Y te hago una consulta y hacer que el sistema, eso Ale, yo lo he visto que se puede, pero bueno, hay que ver si nosotros podemos, que la persona suba la receta y se escanee de la receta en vuestro sistema.
+
+42:49 - Sandra Prades Hausmann
+Claro, eso yo sé que es una de las cosas que... O sea, me refieres que esto sepa leer lo que pone y lo haga.
+
+42:58 - alejandro vega
+Pues es lo que te había comentado, hay dos formas de hacerlo, interno o externo. Externo es un programa que manipula otro programa e interno es que este programa tuviera vía integral. Sé que si es interno puede ser un poco complicado porque en el más lo hizo por eso quería ser una página web porque soy una página web pues uno ya más o menos entiende cómo modificar como es un programa de escritorio si es posible tener acceso al código fuente y eso no lo pueden modificar pero esto tú piensas que la persona que lo hizo es de total confianza o sea que vamos para él no va a tener problema en nada o sea me va a aconsejar que es mejor pero para mí bien con lo al final vosotros también estáis por eso, ¿sabes?
+
+43:46 - Sandra Prades Hausmann
+En ese sentido...
+
+43:46 - alejandro vega
+Sería bueno porque incluso con él podríamos decirle, nosotros modificamos y de hecho es mejor hacerlo interno porque es más económico, o sea, el uso es más económico, casi gratis, por decirlo de una forma, pero si se hace de forma externa es un poco más costoso porque la IA tiene que ver el sistema, o sea, tiene que hacer más pasos para hacer lo mismo.
+
+44:08 - Digital Workers
+Lo dices, el consumo de tokens, que es muy bajo.
+
+44:11 - alejandro vega
+Si es muy muy bajo, súper bajo, si se hace forma interna es súper bajo. O sea, van a pagar algo pero pagarían como 5, 6, 7 dólares al mes, eso no es nada.
+
+44:25 - Sandra Prades Hausmann
+Entonces aquí cuando cogemos la fórmula, ¿qué hago? ¿Dónde la imprimo? Abajo en ver PDF. Para ver PDF aquí. Esto para cada una de las que entran. Lo que va a hacer igual y entonces ya pues... Ah, mira, ya me adjunta la receta detrás. Perdóname, ¿esa receta dónde la sacaron? O sea, la que está sellada.
+
+44:52 - alejandro vega
+La tengo que adjuntar.
+
+44:54 - Sandra Prades Hausmann
+El médico se la hace y la farmacia la adjunta. Sin receta no me puede pedir ninguna forma.
+
+45:03 - alejandro vega
+fórmula. Ok, entonces alguien la juntó previamente en el sistema.
+
+45:07 - Sandra Prades Hausmann
+La farmacia que me pide la fórmula a mí.
+
+45:10 - Digital Workers
+¿Te envía eso? Sí, el cliente. Un cliente que es la farmacia le pide, porque Sandra trabaja con otras farmacias que le piden fórmulas, como Sandra, las fórmulas, no todas las farmacias le dan fórmulas, entonces esa farmacia le envía los requisitos, lo que necesita más, la receta del paciente que le ha enviado el doctor. ¿No? Entiendo que es así.
+
+45:34 - Sandra Prades Hausmann
+Sí. Vale, vale. Exacto. Vale. Sí, sí. Entonces, yo cuando lo tengo todo en papel, lo cojo y entonces me voy al otro programa, al de Max Ford, que os decía, que es esta maravilla. ¿Vale? Entonces, bueno, tiene mil pestañitas, buscadores y mil de todo.
+
+45:56 - Unidentified Speaker
+¿Vale?
+
+45:56 - alejandro vega
+Sí, es que sé.
+
+45:58 - Sandra Prades Hausmann
+Sí, pero digamos que yo aquí busco... Pues no sé porque la que he impreso no sé qué es, ¿retinol con qué, mamá? Bueno, da igual, digamos que es esta, ¿vale? Triancinolona. Entonces yo vengo aquí y digo, ah, vale, pero me ha dicho lo que os decía, ¿no? 200 gramos. Vale, pues pongo 200 o lo que sea. ¿Vale? Entonces aquí tiene de elaboración de pues de metodología de calidad del prospecto que se adjunta de todo esto luego una pestaña para valorar pues si es del seguro si es por privada lo que sea pues cuando lo valora le asignó un nombre no lo voy a hacer para que no se me grave en él como fórmula hecha vale y me lo lanza al recetario entonces aquí es donde yo le asigno un farmacia, este es el cliente, esto es la farmacia clienta y entonces aquí esto es lo que también se le puede sacar mucho partido, porque yo aquí acabo de completar los datos, le doy ok y lo vuelvo a imprimir, pero yo sé que hay alguna forma en Magisforo de alguna manera en la que me lo puede mandar específicamente seguramente a un elaborador, pues yo que sé, si tengo datos de alta como usuarios a mi madre o a Ariane o a Yoli, pues en su tablet caerles esa fórmula para elaborar y se les va cayendo allí entonces cuando la cogen en la tablet pues le dan, la empiezan a elaborar y entonces ponen ahí los pesos reales, están pesando y ponen pesa 100 y ponen ok no sé qué tal cuando acaban le dan a pues realizada vale entonces la dejan aquí cuando viene alguien cuando viene alguien y la empieza a envolver ver y la pone para enviar, pone enviada y hasta el siguiente paso y entonces en algún sitio deben estar todas estas fórmulas que luego caerán, que me gustaría que cayeran a la intranet que es donde yo vuelvo aquí y entonces a cada una de las fórmulas le digo esta está enviada, esta no, sabes yo por la tarde me vengo digo, enviada o en preparación, cojo todas las que están en preparación y le digo, ahora entro en esta y digo, esta ya la he enviado y le digo, pues ahora ya no está pendiente, está finalizada, ¿sabes? Esto por 100 veces al día, ¿sabes? Y luego pues aquí además que cada intranet, o sea, esto al final se le va grabando al cliente, al cliente farmacia digamos, y yo pues lo tiene en su base de datos pues que además cada decena voy metiéndole las facturas a cada cliente voy haciendo un montón de pasos uno a uno que son un rollo si pongo chacón no farmacia chacón pues esta farmacia pues yo tengo que ir metiendo una a una todas las facturas de cada decena, manuales. Todo esto me evita llamadas y llamadas y llamadas de clientes. La factura de esta decena no la tengo.
+
+49:26 - Digital Workers
+El no se queda en los guantes, tal.
+
+49:29 - alejandro vega
+Ale, ¿cómo lo ves? Sí, estoy viéndolo. Me gustaría saber cuál es, pues, que tú no puedes generar una. ¿Puedes volver otra vez al otro sistema?
+
+49:42 - alejandro vega
+al chungo. Cuando tú terminas eso, ¿tú qué generas?
+
+49:48 - Sandra Prades Hausmann
+Un apunte contable que está en aquí.
+
+49:53 - alejandro vega
+Acabo una.
+
+49:54 - Sandra Prades Hausmann
+No, no, aquí no, espera. Voy a... ¿Cómo es imprimir? ¿Dónde? ¿Si quiero ir como a imprimir? Ah, Se vale. Me genera esta documentación. Yo le tengo puesto lo que quiero imprimir para cada cliente y yo por ejemplo les imprimo una hoja de elaboración que es donde yo marco quién lo ha elaborado, los pesos, pues aquí le pongo el peso real, el no sé qué, pongo cake revisado, luego también sale diferentes hojas, sale un prospecto para el cliente, cliente, sale la etiqueta que también me la imprime.
+
+50:35 - alejandro vega
+O sea, el objetivo de este sistema es generar esa documentación de Magisk Forest, generar esa documentación específicamente. Porque él no está conectado a ninguna base de datos, ¿no es cierto? Él no está conectado a... O sea, él no manda esa información al cliente, no la manda a ninguna. Él solo genera la documentación.
+
+50:57 - Sandra Prades Hausmann
+No, lo bueno es que eso tú lo podrás ver y si quieres tú te metes en nuestro sistema, entras cuando quieras y lo miras, esto lo debe guardar en carpetas específicas de aquí, locales, toda esta documentación pdf, entonces si toda esta documentación cuando pasamos las fórmulas se puede rescatar...
+
+51:13 - alejandro vega
+Es que lo digo, o sea no lo vayas a tomar así tal cual porque no es que sea sencillo pero es que lo que estoy pensando es que si uno logra interpretar que lo que está pasando en el medio, o sea como hacerle algún tipo de de Ingeniería Inversa al sistema y lo único que ustedes necesitan son los documentos, uno podría como intentar saltarse ese paso en algunas ocasiones que el proceso es muy claro, ¿me entiendes? Lo importante es entender, es el resultado del sistema, por eso sería bueno tener como los archivos o poder ver algunos ejemplos porque si uno dice no es necesario Magisfor para hacer algo, por ejemplo, yo lo digo de mi corazón porque no conozco todavía todo el público, pero si es posible saltarse Magisfor en algunos casos no se los salta. Si uno directamente genera la documentación directamente desde la intranet.
+
+52:00 - Digital Workers
+Lo que pasa es que en Magisfor no creo que sea saltable porque en Magisfor no está todo.
+
+52:07 - Sandra Prades Hausmann
+¿Entiendes? ¿Dónde están las fórmulas? Sí, porque aquí están las fórmulas, está la materia prima, están los pacientes porque no los guardamos. Los podríamos guardar también pero está la ficha de elaboración, está lo que os decía del de la contabilidad. Lo que sí que son pasos sencillos, es verdad que eso, Magisfor, esos PDFs los debe mandar a algún sitio porque cuando yo le hago imprimir aquí, si quiero enviarla por mail, que tampoco es fácil, tiene que enviar macro y entonces yo le digo a la farmacia, aceptar, entonces Se me abre esto y aquí hay una carpeta.
+
+52:54 - alejandro vega
+Ahí aparece la carpeta, sí, ahí está.
+
+52:57 - Sandra Prades Hausmann
+Entonces, esta, que además estos archivos no permanecen, o sea, creo que son súper volátiles y se van. Pero aquí te graba todo. Entonces, claro, tú tienes todo esto que si lo pudiera descargar y guardarlo en la intranet, o sea, y luego, pasarlo a nuestra intranet y que cada farmacia tuviera su documentación. Claro, es que esto son llamadas y llamadas y llamadas, ¿sabes?
+
+53:29 - alejandro vega
+Ahora he perdido el prospecto, ahora necesito que me mandes no sé qué. Pues disculpame, ¿puedes seleccionar dónde dice Magispar?
+
+53:38 - Unidentified Speaker
+¿Arriba?
+
+53:38 - Sandra Prades Hausmann
+¿Dónde dice?
+
+53:39 - alejandro vega
+Claro, aquí está todo. Mira, y donde dice PDF podemos o esos son los pdf, hay 12.026... Está vacía. Ah, son temporales, ¿no?
+
+53:52 - Digital Workers
+Se borran, o sea, te destruyen.
+
+53:55 - alejandro vega
+Yo creo que sí.
+
+53:57 - Sandra Prades Hausmann
+Se deben destruir. Aquí los adeudos, por ejemplo, sí que están, creo, porque sí que se graban... Ah, pues no, tampoco. Igual es porque en esta... Escucha, igual esto porque en este ordenador no lo usamos mucho, ¿eh? Como se graba localmente igual en el otro, es como el servidor digamos igual allí sí que hay.
+
+54:21 - alejandro vega
+Sería bueno ver eso, verificar si hay información.
+
+54:24 - Sandra Prades Hausmann
+Si hay algo magispar. Porque los adeudos sí que muchas veces los rescato antes y me sale pero bueno. Y luego lo que os decía es que hay muchas cosas que yo sé que no tengo ni idea de qué se pueden hacer pero estoy segura de que me lo está diciendo mi compi, ahora os dice si se graban o no. Pero mira aquí yo ya le pongo a la farmacia el mensajero o sea que si yo hay alguna forma y esto no me puedo leer el 2300 tutoriales pero si hay alguna forma de que cuando yo le dé a enviado o no lo sé o le pongo aquí un un elaborador o lo que sea me permita es que todo son botones, es que es una locura, es que esto, ves, no sé, ves carpeta compartida y no sé qué, están vacíos Ariadna, pero F está vacío todo, todas esas carpetas son temporales, son temporales. Si las estudiamos sería muy bueno para entender, para intentar descifrar cómo funciona esa generación. Bueno, a ver, tampoco quiero pedir más allá de lo que no se pueda.
+
+55:42 - alejandro vega
+Yo creo que todo se puede, el tema es que es tan difícil.
+
+55:48 - Sandra Prades Hausmann
+No está claro, si no sale a cuenta y es que es más complicado que nada, más vale dejarlo como está. Sí, los adeudos sí que están. Yo empezaría por por intranet y por...
+
+56:04 - Digital Workers
+Sí, vamos de lo fácil a lo difícil, porque así vamos a ir entendiendo la herramienta, vamos a ir entendiendo las necesidades que tenéis. Yo diría de lo fácil, Ale, y ahí nos vamos acercando un poco a lo complejo. Va a ser más fácil para todos para entender el proceso, ¿sabes?
+
+56:21 - Sandra Prades Hausmann
+Sí, claro. Bueno, darle una vuelta, a ver si lo veis, que se puede hacer algo o no.
+
+56:26 - alejandro vega
+¿Tú vas a utilizar la factura? Me gustaría ver la factura. No, la intranet, por favor. ¿De facturación? Sí, me gustaría ver la factura nuevamente.
+
+56:38 - Sandra Prades Hausmann
+Mira, aquí me asigna, pues eso, esta farmacia en el mes de julio ha hecho todas estas fórmulas con el número específico, cada número, con lo que se decía, cada código específico. Luego, si le doy a una, aquí abajo me pone el paciente y todo, estas de aquí ya están facturadas y esta todavía no, facturada y cobrada y está en un giro bancario que ya se ha girado y está todavía no se ha girado porque ya giramos cada 10 días y esto para cada uno.
+
+57:15 - alejandro vega
+Una pregunta, las facturas que están en este computador no se comparten con las que están en el otro computador, no Cada una son independientes.
+
+57:25 - Sandra Prades Hausmann
+Es que solo las hacemos allí. O sea, lo único que se queda grabado y no es temporal es... No, las facturas es que ni siquiera están, las tienes que volver a imprimir cada vez si quieres. O sea, la haces nueva cada vez. Lo único que se guarda es como el archivo de recibos, de líneas para girar al banco. Esto sí se me queda guardado. El archivo sepa como de todos los giros que yo cuelgo en el banco para que giren los recibos a las farmacias. Es lo único que creo que no es temporal.
+
+57:58 - alejandro vega
+¿Pero comparten información en diferentes computadores?
+
+58:00 - Sandra Prades Hausmann
+Están compartiendo al día. O sea, si yo paso una fórmula allí, aquí me aparecerá, porque el número debe ser correlativo. Como las carpetas, yo pensaba eso, pero las carpetas comerciales son temporales. Ya hemos visto que no se graba la lo que se descarga. Yo a cada farmacia que me pide una fórmula, una factura otra vez, la tengo que volver a hacer. Tengo que volver a facturarle, decirle que es una copia y hacer todo el proceso otra vez para enviársela.
+
+58:37 - Digital Workers
+Listo, entendido. Ya me quedó mucho más claro. Pues, Sandra, lo que vamos a hacer es hablar, ahora hablaremos con Ale, entenderemos bien el proceso eso vale lo difícil es una vuelta volvemos a hablar esto es una tarea de consultoría claramente por eso es que ya lo sé más piénsalo hacerme precio decirme que si lo ves y no si tal y hablamos tal de buenísimo esto sería más para septiembre Sí, sí. Vale, genial. Excelente, excelente.
+
+59:17 - Sandra Prades Hausmann
+Perfecto, gracias. Yo qué sé, si necesitáis adelantar algo en verano, yo me conecto y, o sea, tú, tú no, pero yo qué sé, como allí, no sé si...
+
+59:28 - Digital Workers
+¿Cómo van? ¿Cómo te he sobrechado?
+
+59:31 - Sandra Prades Hausmann
+Por eso, por eso, ya charlaremos, pero vamos, que los tiempos me da igual, los marcáis vosotros, vamos.
+
+59:37 - Digital Workers
+Listo. Ya, vale.
+
+59:39 - alejandro vega
+Yo veo cosas muy interesantes, muy interesantes, y creo que sí es perfectamente posible. De hecho, por esa razón quería saberlo de.

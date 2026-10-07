@@ -179,3 +179,138 @@ Two rules that matter when touching the planner:
 - **Twilio** for WhatsApp/SMS
 - **LLM:** configurable via `agent/llm.py` (Bedrock / Anthropic / Gemini)
 - **Debug MCP:** `mcp/server.py` (requires `pip install mcp httpx`)
+
+---
+
+## Planning graph (agent/planning) — separate from the chat graph
+
+A second LangGraph graph keeps each project's task plan consistent with reality:
+it reads documents (WhatsApp exports, transcripts, proposals), the leader's
+planning chat, and schedule incongruences, and returns a PROPOSAL of operations
+(close / update / create / delete / link / block). It never writes: code applies
+a proposal after the leader approves it (`schedule.apply_proposal`).
+
+| File | Role |
+|---|---|
+| `agent/planning/prompts.py` | Behaviour: what counts as done, duplicate, dependency. Tune here. |
+| `agent/planning/nodes.py`, `builder.py` | Nodes and wiring (code logic) |
+| `agent/planning/schedule.py`, `validate.py`, `sources.py` | Deterministic: dates, rules, deltas, redaction |
+| `tests/planning/cases/` | Cases: before.json + input.json + expected.json |
+
+Pipeline: extract_facts (only state-changing facts, chunks in parallel) ->
+consolidate (facts -> topics with their state at the END; <20 facts: no LLM) ->
+reconcile. Code-enforced in reconcile: topics open with no news for 30 days of
+the material and no deadline are "stale" (never created, one question to the
+leader); near-identical new tasks are merged (word Jaccard >= 0.6).
+reconcile = first one `cover` call that walks the topics one by one (covered /
+create / note / ignore), then batches of 15 existing tasks (near-duplicates grouped
+in the same batch; each task needs a review whose verdict matches its operation)
+that see the new tasks too, so a generic task replaced by specific ones is deleted
+pointing at them. Notes are
+things that happened (email, meeting, call, decision, idea): never tasks; on
+approval they are written to `onebox-insights` as type `note` (taskId, noteKind,
+eventDate, relatedPerson, evidence).
+
+MEMBER UPDATES — the core loop of the product (keep it separate from the rest):
+  member chat -> classified items -> daily consolidation -> digest + ONE proposal
+  -> owner approves -> app + Trello.
+* `api/services/member_updates.py` + `api/controllers/updates.py`, frontend
+  `UpdateChatModal.tsx` mounted in Layout (replaces the old CheckinModal form).
+  On login, a member whose update is due (same clock as the check-in:
+  CHECKIN_DAYS=3, or a task overdue / due within 2 days) gets a BLOCKING chat.
+  Prompt `MEMBER_UPDATE`, schema `UpdateTurn` (reply, items, finished): at most
+  2 short questions per turn, items typed done / progress / not_started /
+  blocker / date_change / plan / idea / question / hearsay with certainty
+  (sure / estimated / conditional / low), owner, depends_on, urgent,
+  decision_for_owner. NOTHING in the plan changes here. Members cannot close
+  the chat; the project owner (when they also have tasks) can postpone it
+  ("Ahora no", `isOwner` in `/api/updates/pending`). People without an account
+  are updated by the owner in Replanificación ("Pedro dice que..."); an
+  approved change to someone's tasks counts as their report (clock restarts,
+  `planning_chat._count_as_reports`). Session item
+  `upd#<iso>#<person>` in `onebox-planning`. On close: check-in clock reset;
+  an urgent item notifies the owner at once (`update_urgent`, app + email/WA).
+* `api/services/update_reminders.py` ("hora de actualizar"): hourly, from
+  UPDATE_REMINDER_HOUR_UTC (12) on, once per due period, each member WITH email
+  whose update is due (not the owner) gets an email: prompt `UPDATE_PREP`
+  (schema `UpdatePrep`) prepares 2-3 concrete questions from their open tasks
+  and their last update (follow-ups like "¿ya llegó la cuenta de Azure?"; no
+  task ids; deterministic fallback without LLM). The same questions open the
+  chat in the app (`opening_for`, stored as `prep` in `checkin#<person>`).
+  Replies to the email are not read: the button goes to the app (APP_URL).
+* Simulation on REAL data: `scripts/sim/update_flow.py` (status / make-due /
+  eventbridge / notifications / owner-late). `eventbridge` POSTs
+  `/api/scheduled/dispatch-pending?force=true` (no hour gates, owner included).
+  `EMAIL_OUTBOX=<folder>` in the backend writes emails to files instead of SES.
+  `tasks` lists every participant with their open tasks and the tasks nobody
+  is asked about; `ses` checks the SES account. `scripts/sim/fix_mock_data.py`
+  makes MOCK data consistent (one name per email, assignees added as
+  participants, unassigned open tasks spread over participants with email);
+  dry run by default, `--apply` writes with a backup, `--restore` undoes.
+  The daily digest also lists open tasks without assignee and assignees who
+  are not participants ("Nadie da update de esto").
+* `api/services/updates_consolidation.py`: DETERMINISTIC guard rules over the
+  items (no LLM): no close on hearsay / low certainty; two people disagreeing
+  on a task -> question, no change; conditional dates -> dependency + note, the
+  date does not move; owner-only ideas -> questions; the assignee's word wins;
+  Trello only for cards linked to tasks (done column -> close, due change).
+  Saves ONE proposal (source `updates`, merged into a pending one on the same
+  plan version), posts the digest in the planning chat (`kind:
+  updates_digest`) and notifies the owner (`updates_digest`). Runs daily from
+  `/api/scheduled/dispatch-pending` after UPDATES_DIGEST_HOUR_UTC (22) and on
+  demand (`POST /api/projects/{id}/updates/consolidate`, button "Consolidar
+  updates").
+* `api/services/trello_reflect.py`: on approval (`planning_chat.decide`) the
+  linked board is brought in line: creates -> cards in the project list,
+  updates -> name/desc/due, done/blocked -> moved to the 'Hecho'/'Bloqueado'
+  column if the board has one, deletes -> card archived. A card edited in
+  Trello since the last sync is not overwritten; a card linked by hand and
+  never synced keeps its title (only date and column are written). Trello
+  errors never undo the approval; the result goes in the chat message.
+
+PLANNING CHAT (Intelligence > Replanificación): `api/services/planning_chat.py`
++ `api/controllers/planning.py`, table `onebox-planning` (create it with
+`python scripts/dynamo/create_planning_table.py`). The owner asks ONE thing
+here: replan with context (the message itself, pasted text, a document, the
+Trello board, "re-read all documents"); each context is saved as a project
+attachment; the graph runs in a background job (the page polls
+`/planning/jobs/{id}` for the step) and leaves ONE pending proposal (older ones
+-> superseded). Approve all / some / reject with the buttons (not by chatting);
+an applied proposal stores what it touched and can be reverted while the plan
+has not changed since. The graph's `chat` trigger still exists but the chat no
+longer routes to it.
+
+CHECK-IN form (`api/services/checkin.py`, `POST /api/checkin`): the older
+form version of the update; its clock (`checkin#<person>`), `pending_for_user`
+and `notify_overdue` are reused by the member updates. The hourly
+`/api/scheduled/dispatch-pending` runs `checkin.notify_overdue`: the owner is
+told (app + email/WhatsApp) once per due period about each person
+CHECKIN_GRACE_DAYS=1 past due, including people without an account.
+
+LIVE: every path that analyses material (upload attachment, paste text, create
+project from document / text / WhatsApp / chat) goes through
+`generate_insights_for_project`. That function now writes only OBSERVATION
+insights (summary, client, risks, decisions, metrics, tech issues) and hands the
+tasks to `api/services/planning_live.py`, which runs the graph in a background
+thread. A project's FIRST plan (no tasks yet) is applied directly; otherwise the
+proposal is left pending in the planning chat (notification `plan_proposal`;
+`PLANNING_UPLOADS=apply` applies directly instead). Proposal+events+trace are
+logged to S3 `planning/<projectId>/<ts>.json`. `PLANNING_ENGINE=off` restores
+the old task writer.
+
+CONVERSATIONS (`tests/planning/conversations/`, README there), three kinds:
+`member` (a member gives the update in the app chat: graded per turn -- asks
+what matters, max questions, closes with a summary -- and on the recorded
+items; the plan must not change), `consolidation` (several member chats + the
+Trello board -> digest + proposal: urgent alerts, contradictions, guard rules,
+questions for the owner; then approves and checks the Trello writes) and
+`replan` (the owner replans with context, single turn). Old leader chats are in
+`_archive/`. Run with `python tests/planning/run_conversation.py <name>
+[--upto N] [--dry]` or the MCP tools planning_list_conversations /
+planning_run_conversation / planning_conversation_report. AWS is faked in
+memory, Trello answers from raw REST fixtures; the LLM is real (except --dry).
+Unit test of the loop with a fake LLM: `tests/test_member_updates.py`.
+
+Loop: run a case (`python tests/run_planning_case.py <case>` or the MCP tool
+`planning_run_case`), read `runs/latest/report.md`, discuss the failure with the
+user, change `prompts.py` with approval, run again. Rules in `tests/planning/README.md`.

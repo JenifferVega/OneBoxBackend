@@ -1,0 +1,355 @@
+{
+  "_about": "Lectura de referencia (hecha a mano, texto completo) de los dos documentos del proyecto Farmacia Haussman (proj-b8f8cea7). Sirve para comparar contra lo que produce generate_insights_for_project: mismo esquema de salida que su prompt, mas 'depends_on', 'date_status' y una seccion 'reconciliation' contra el estado actual. Fechas vacias a proposito: ningun documento fija fechas.",
+  "sources": {
+    "transcript": {
+      "file": "Proyecto Automatizaciones Claude Transcript.txt",
+      "date": "2026-07-14",
+      "chars": 47513,
+      "chars_read_by_onebox": 5000
+    },
+    "proposal": {
+      "file": "Proyecto Farmacia Hausmann Fase 1 vs1.pdf",
+      "date": "2026-09-19",
+      "chars": 10927,
+      "chars_read_by_onebox": 0,
+      "note": "No hay insights ni notificacion de esa fecha: el analisis no se ejecuto o fallo en silencio."
+    }
+  },
+  "as_of": "2026-10-05",
+  "project": {
+    "status_real": "Propuesta de Fase 1 (v1) redactada; sin evidencia de aceptacion ni de pago del 30%.",
+    "deliveryDate": "",
+    "deliveryDate_note": "El valor guardado '20226-09-30' es invalido y no sale de ningun documento.",
+    "description": "Consultoria + desarrollo para reducir tareas manuales del flujo administrativo de formulacion magistral de Farmacia Hausmann, centrado en la intranet de farmaciahausmann.es y sin tocar Magisfor (Fase 1, precio cerrado 3.500 EUR)."
+  },
+  "people": [
+    {
+      "name": "Sandra Prades Hausmann",
+      "role": "Cliente, farmaceutica titular, decide",
+      "in_onebox": false
+    },
+    {
+      "name": "alejandro vega",
+      "role": "Responsable tecnico (Digital Workers)",
+      "in_onebox": false
+    },
+    {
+      "name": "Digital Workers",
+      "role": "Lider comercial / cuenta (anfitrion de la reunion)",
+      "in_onebox": false,
+      "note": "Nombre de la cuenta de la videollamada, no de una persona"
+    },
+    {
+      "name": "Cata",
+      "role": "Invitada desde Peru, no se conecto",
+      "in_onebox": false
+    },
+    {
+      "name": "Ariane / Yoli / madre de Sandra",
+      "role": "Equipo de la farmacia (elaboracion, envios)",
+      "in_onebox": false
+    },
+    {
+      "name": "Desarrollador de la web/intranet",
+      "role": "Externo, hizo la intranet a medida; dispuesto a colaborar",
+      "in_onebox": false
+    },
+    {
+      "name": "Autor de Magisfor",
+      "role": "Externo, Valencia/Chile, a punto de jubilarse",
+      "in_onebox": false
+    },
+    {
+      "name": "Ventas.javc",
+      "role": "Dev Backend (unico participante registrado)",
+      "in_onebox": true
+    }
+  ],
+  "summary": "Farmacia Hausmann tiene dos negocios: venta en mostrador y formulacion magistral, que es el de mayor margen (~70% frente a ~30%) y para el que esta autorizada a formular para otras farmacias. Produce 50-100 formulas unicas al dia (paciente, medico, receta y codigo propios) y factura ~700.000 EUR/ano. Las farmacias clientes piden por la intranet a medida de farmaciahausmann.es; Sandra descarga e imprime cada pedido y la receta, y vuelve a teclear todo en Magisfor 19 (programa de escritorio con materias primas, clientes y recetario), que genera hoja de elaboracion, prospecto, etiqueta y documentacion de facturacion. Despues se elabora, se envuelve, se hacen albaranes de envio a mano (~5.000 EUR/mes de mensajeria) y se marca cada pedido como enviado en la intranet uno a uno. Cada decena se facturan y se suben las facturas a la intranet de cada cliente una a una. Cada formula se teclea hasta tres veces, con riesgo de error en medicacion y de proteccion de datos. Los PDFs de Magisfor son temporales; solo persiste el fichero SEPA de giros. La propuesta de Fase 1 (3.500 EUR, pagos 30/50/20) acota el trabajo a la intranet y el flujo administrativo: mapa AS-IS, diseno TO-BE y automatizaciones priorizadas entre recepcion de pedidos, estados, gestion documental y envios. Quedan fuera Magisfor, el asistente IA sobre sus tutoriales y Business Intelligence, como fases o proyectos posteriores.",
+  "project_type_real": "Consultoria y automatizacion del flujo administrativo de formulacion magistral alrededor de la intranet, sin intervenir Magisfor.",
+  "client_profile": "Farmacia Hausmann (Espana), formuladora para terceros: una de ~30 en Espana, ~700.000 EUR/ano, 50-100 formulas/dia. Interlocutora: Sandra Prades Hausmann, farmaceutica sin perfil tecnico, abierta al cambio pero con respeto por el riesgo en medicacion.",
+  "key_insight": "El valor esta en eliminar la doble y triple digitacion entre intranet y Magisfor sin tocar Magisfor: la intranet es modificable (desarrollador colaborador), Magisfor no.",
+  "work_done": [
+    {
+      "text": "Reunion de descubrimiento con Sandra (proceso completo mostrado en pantalla: intranet, Magisfor, facturacion)",
+      "assigned_to": "Digital Workers",
+      "start_date": "2026-07-14",
+      "due_date": "2026-07-14"
+    },
+    {
+      "text": "Propuesta Fase 1 v1 redactada (alcance, fuera de alcance, 3.500 EUR, pagos 30/50/20)",
+      "assigned_to": "Digital Workers",
+      "start_date": "",
+      "due_date": "2026-09-19"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "text": "Presentar la propuesta Fase 1 a Sandra y obtener su aceptacion",
+      "assigned_to": "Digital Workers",
+      "status": "pending",
+      "depends_on": [],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "source": "proposal s.12"
+    },
+    {
+      "id": "t2",
+      "text": "Cobrar el 30% de anticipo (1.050 EUR) antes de iniciar",
+      "assigned_to": "Digital Workers",
+      "status": "pending",
+      "depends_on": [
+        "t1"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "source": "proposal s.12"
+    },
+    {
+      "id": "t3",
+      "text": "Conseguir accesos: intranet, contacto/codigo del desarrollador de la web y ejemplos reales de documentos de Magisfor (incluido el ordenador 'servidor')",
+      "assigned_to": "alejandro vega",
+      "status": "pending",
+      "depends_on": [
+        "t1"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "source": "transcript 14:20, 54:21; proposal s.4"
+    },
+    {
+      "id": "t4",
+      "text": "Analisis funcional y mapa AS-IS del flujo administrativo",
+      "assigned_to": "alejandro vega",
+      "status": "pending",
+      "depends_on": [
+        "t2",
+        "t3"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "source": "proposal 3.1"
+    },
+    {
+      "id": "t5",
+      "text": "Diseno TO-BE: tareas eliminables/automatizables, supervision humana, prioridades, riesgos, dependencias y roadmap",
+      "assigned_to": "alejandro vega",
+      "status": "pending",
+      "depends_on": [
+        "t4"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "source": "proposal 3.2"
+    },
+    {
+      "id": "t6",
+      "text": "Definir con Sandra las automatizaciones a implementar en Fase 1",
+      "assigned_to": "Digital Workers",
+      "status": "pending",
+      "depends_on": [
+        "t5"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "source": "proposal s.4"
+    },
+    {
+      "id": "t7",
+      "text": "Automatizar recepcion de pedidos (deteccion, descarga, clasificacion, validacion de datos obligatorios, cola de trabajo)",
+      "assigned_to": "alejandro vega",
+      "status": "pending",
+      "depends_on": [
+        "t6"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "source": "proposal 4.1",
+      "note": "Candidata: depende de lo decidido en t6"
+    },
+    {
+      "id": "t8",
+      "text": "Automatizar gestion de estados (pendiente, en preparacion, enviado, finalizado; cambios masivos, trazabilidad)",
+      "assigned_to": "alejandro vega",
+      "status": "pending",
+      "depends_on": [
+        "t6"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "source": "proposal 4.2",
+      "note": "Candidata"
+    },
+    {
+      "id": "t9",
+      "text": "Automatizar gestion documental (facturas, albaranes, documentacion por farmacia publicada en la intranet)",
+      "assigned_to": "alejandro vega",
+      "status": "pending",
+      "depends_on": [
+        "t6"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "source": "proposal 4.3",
+      "note": "Candidata; depende de que los archivos generados se puedan recuperar"
+    },
+    {
+      "id": "t10",
+      "text": "Automatizar la parte administrativa de envios (agrupar por farmacia, documentacion, seguimiento, estado)",
+      "assigned_to": "alejandro vega",
+      "status": "pending",
+      "depends_on": [
+        "t6"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "source": "proposal 4.4",
+      "note": "Solo si se confirma viabilidad"
+    },
+    {
+      "id": "t11",
+      "text": "Pruebas con casos reales, validacion con usuarios y puesta en marcha",
+      "assigned_to": "alejandro vega",
+      "status": "pending",
+      "depends_on": [
+        "t7",
+        "t8",
+        "t9",
+        "t10"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "source": "proposal s.5",
+      "note": "Depende solo de las automatizaciones elegidas en t6"
+    },
+    {
+      "id": "t12",
+      "text": "Cobrar el 50% al terminar el desarrollo",
+      "assigned_to": "Digital Workers",
+      "status": "pending",
+      "depends_on": [
+        "t7",
+        "t8",
+        "t9",
+        "t10"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "source": "proposal s.12"
+    },
+    {
+      "id": "t13",
+      "text": "Formacion, documentacion y backlog de mejoras no implementadas",
+      "assigned_to": "alejandro vega",
+      "status": "pending",
+      "depends_on": [
+        "t11"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "source": "proposal s.6"
+    },
+    {
+      "id": "t14",
+      "text": "Cobrar el 20% final tras puesta en produccion",
+      "assigned_to": "Digital Workers",
+      "status": "pending",
+      "depends_on": [
+        "t13"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "source": "proposal s.12"
+    }
+  ],
+  "risks": [
+    "Los PDFs que genera Magisfor son temporales: la automatizacion documental puede no tener de donde leer.",
+    "Sin acceso al codigo ni a la arquitectura de la intranet no se puede dimensionar el desarrollo (lo reconoce la propuesta).",
+    "Dependencia del desarrollador externo de la intranet, que 'no se dedica a esto'.",
+    "Perdida de conocimiento: el autor de Magisfor se jubila pronto.",
+    "Datos de salud de pacientes: un envio o documento a la farmacia equivocada es un incidente de proteccion de datos.",
+    "Expectativas del cliente por encima del alcance ('unicornios'; chatbot y estadisticas fuera de Fase 1).",
+    "Resistencia al cambio del equipo por el riesgo en medicacion."
+  ],
+  "blockers": [
+    {
+      "text": "Sin aceptacion de la propuesta ni anticipo: no se puede iniciar Fase 1",
+      "assigned_to": "Sandra Prades Hausmann",
+      "start_date": "",
+      "due_date": ""
+    }
+  ],
+  "decisions": [
+    "Fase 1 se limita a la intranet y al flujo administrativo; Magisfor no se toca.",
+    "Ir 'de lo facil a lo dificil' (acordado con Sandra en la reunion).",
+    "Integracion con Magisfor, asistente IA de tutoriales y BI quedan como fases/proyectos posteriores.",
+    "Precio cerrado 3.500 EUR; pagos 30% al aceptar, 50% al terminar desarrollo, 20% tras produccion.",
+    "Los tiempos los marca Digital Workers (Sandra); se hablo de arrancar en septiembre."
+  ],
+  "metrics": [
+    "50-100 formulas magistrales unicas al dia",
+    "~700.000 EUR/ano de facturacion",
+    "~5.000 EUR/mes en mensajeria",
+    "Margen ~30% en venta vs ~70% en formulacion",
+    "~30 farmacias formuladoras para terceros en Espana",
+    "Facturacion cada decena (10 dias)",
+    "Fase 1: 3.500 EUR"
+  ],
+  "tech_issues": [
+    "Intranet a medida en farmaciahausmann.es: formularios incompletos, receta adjunta como archivo, estados cambiados a mano uno por uno.",
+    "Magisfor 19 es de escritorio; base compartida entre equipos; documentos generados en carpetas temporales; solo persiste el fichero SEPA.",
+    "Las facturas no se guardan: para una copia hay que regenerarla."
+  ],
+  "opportunities_out_of_scope": [
+    "Asistente IA sobre los ~2.300 tutoriales de Magisfor; potencial producto para otras farmacias (20-30 EUR/mes)."
+  ],
+  "reconciliation": {
+    "tasks": [
+      {
+        "existing_taskId": "ab1f2c05ec994c9b8c105fedd16af449",
+        "text": "Analizar el proceso actual de formulacion magistral...",
+        "action": "replace",
+        "by": "t4",
+        "why": "Equivale al mapa AS-IS, pero el alcance es el flujo administrativo, no la formulacion."
+      },
+      {
+        "existing_taskId": "975818a8413e4f26af6123152e01b792",
+        "text": "Evaluar la viabilidad tecnica...",
+        "action": "replace",
+        "by": "t5",
+        "why": "La viabilidad se decide en el TO-BE."
+      },
+      {
+        "existing_taskId": "e5805e97e50e43c0b7f3bcf945857247",
+        "text": "Definir la arquitectura y el stack (incluyendo cloud)...",
+        "action": "replace",
+        "by": "t6",
+        "why": "No hay decision de stack ni de cloud; lo que toca es elegir automatizaciones."
+      },
+      {
+        "existing_taskId": "4120feba65824b33b8ae6955f0d29a90",
+        "text": "Desarrollar una solucion de automatizacion para la creacion de formulas magistrales unicas",
+        "action": "delete",
+        "why": "Contradice la propuesta: 'introduccion automatica de formulas en Magisfor' esta fuera de alcance."
+      }
+    ],
+    "trello": "Las 4 tarjetas sincronizadas deben seguir la misma accion que su tarea.",
+    "insights": "Hay 2 'summary', 2 'client_profile', 2 'key_insight', 2 'project_characterization': conservar solo los de esta lectura.",
+    "project": "Vaciar deliveryDate invalido; actualizar description; registrar a Sandra y alejandro vega como participantes."
+  }
+}

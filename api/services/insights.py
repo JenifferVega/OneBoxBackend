@@ -52,6 +52,7 @@ def list_insights(uid: str, user_email: str, type: Optional[str] = None) -> list
             'key_insight':             {'badge': 'Key insight',        'badgeColor': 'bg-amber-500/20 text-amber-300 border-amber-500/30',     'icon': '💡', 'iconColor': 'bg-amber-500/20 text-amber-300'},
             'metric':                  {'badge': 'Metric',             'badgeColor': 'bg-lime-500/20 text-lime-300 border-lime-500/30',        'icon': '📈', 'iconColor': 'bg-lime-500/20 text-lime-300'},
             'tech_issue':              {'badge': 'Technical issue',    'badgeColor': 'bg-rose-500/20 text-rose-300 border-rose-500/30',        'icon': '🔧', 'iconColor': 'bg-rose-500/20 text-rose-300'},
+            'note':                    {'badge': 'Note',               'badgeColor': 'bg-slate-500/20 text-slate-300 border-slate-500/30',     'icon': '📝', 'iconColor': 'bg-slate-500/20 text-slate-300'},
         }
         ui = type_map.get(ins_type, type_map['task_created'])
 
@@ -126,6 +127,10 @@ def list_insights(uid: str, user_email: str, type: Optional[str] = None) -> list
             'chipColor': chip_color,
             'createdAt': created,
             'requiresReview': status == 'review',
+            # Planning notes: what happened, linked to a task when known.
+            'taskId': ins.get('taskId', ''),
+            'noteKind': ins.get('noteKind', ''),
+            'eventDate': ins.get('eventDate', ''),
         })
 
     return enriched

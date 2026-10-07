@@ -925,8 +925,121 @@ _CONSENT_TOOLS = {
     "invite_user",
     "delete_task",
     "remove_participant",
+    # Bulk replacement of the participant list: whoever is left out loses
+    # access, and new people may be notified.
+    "update_participants",
 }
 assert _CONSENT_TOOLS <= _WRITE_TOOLS, "a consent tool that is not a write"
+
+
+# Writes that USUALLY stay inside OneBox but sometimes reach a person. They
+# cannot be judged by name: update_task changing a date notifies nobody,
+# update_task blocking a task messages the whole team by WhatsApp and email.
+# So they are judged by what the call would DO to the task as it is now, with
+# the same rule the tasks service uses to decide what to send
+# (api.services.tasks.notification_effects). The prompt asks the planner to
+# confirm these too; this is what makes it true when the planner does not.
+_CONDITIONAL_CONSENT_TOOLS = {"update_task", "create_task"}
+assert _CONDITIONAL_CONSENT_TOOLS <= _WRITE_TOOLS
+
+
+def _task_as_it_is(task_id, results: dict):
+    """The task's current state, from a read already made in this turn.
+
+    _invented_id only lets update_task act on an id that a read (list_tasks)
+    returned in this turn, so the row is almost always already in `results`
+    -- no extra database round trip, and it works the same in dry run.
+    Returns None when it is not there; the caller then assumes the worst.
+    """
+    if not isinstance(task_id, str) or not task_id:
+        return None
+    found = []
+
+    def walk(v):
+        if found:
+            return
+        if isinstance(v, dict):
+            if v.get("taskId") == task_id:
+                found.append(v)
+                return
+            for x in v.values():
+                walk(x)
+        elif isinstance(v, list):
+            for x in v:
+                walk(x)
+
+    walk(results)
+    return found[0] if found else None
+
+
+def _conditional_consent(tool_name: str, params: dict, results: dict,
+                         plan_tools: set) -> list:
+    """What this call would send to a person. Empty = it reaches nobody.
+
+    update_task: the effects the tasks service would trigger, computed against
+      the task's current state -- reassigning to the same person or "blocking"
+      an already blocked task sends nothing and needs no consent.
+    create_task: a task created WITH an assignee notifies them. Exempt when
+      the same plan creates the project: the user has just described the team
+      and its work, and asking per task would block the whole flow.
+    """
+    params = params if isinstance(params, dict) else {}
+    if tool_name == "update_task":
+        from api.services.tasks import notification_effects
+        task = _task_as_it_is(params.get("task_id"), results)
+        if task is None:
+            # Unknown current state: judge as if nothing were set yet.
+            task = {}
+        return notification_effects(task, params.get("assigned_to"),
+                                    params.get("status"))
+    if tool_name == "create_task":
+        if "create_project" in plan_tools:
+            return []
+        who = params.get("assigned_to")
+        if isinstance(who, str) and who.strip():
+            return ["assignment"]
+        if isinstance(who, dict):            # from_step / foreach reference
+            return ["assignment"]
+    return []
+
+
+_EFFECT_TEXT = {
+    "assignment": "the new assignee is notified by email/WhatsApp",
+    "blocked": "EVERY participant of the project is notified by WhatsApp and email",
+}
+
+
+def _references_step(value, steps: set) -> bool:
+    """True if a parameter chains (from_step) to any of `steps`."""
+    if not steps:
+        return False
+    if isinstance(value, dict):
+        if value.get("from_step") in steps or str(value.get("from_step")) in {str(x) for x in steps}:
+            return True
+        return any(_references_step(v, steps) for v in value.values())
+    if isinstance(value, list):
+        return any(_references_step(v, steps) for v in value)
+    if isinstance(value, str) and "from_step" in value:
+        import re
+        return any(int(n) in steps for n in re.findall(r'from_step"?\s*:\s*(\d+)', value))
+    return False
+
+
+def _held_for_consent(tool_name: str, waiting_on: list) -> dict:
+    """A step that was NOT run because an earlier step is awaiting consent.
+
+    Not an error: nothing failed, and a replan cannot fix it. It waits for the
+    same "yes" as the step it follows. Shaped as needs_user_choice so the
+    runner keeps it in the pending goal and the next turn runs it.
+    """
+    return {
+        "success": False,
+        "needs_user_choice": True,
+        "_held_for_consent": waiting_on,
+        "note": (f"{tool_name} was NOT run: it comes after "
+                 f"{', '.join(waiting_on)}, which is waiting for the user's "
+                 f"confirmation. It will run once the user confirms."),
+    }
 
 
 # A write that must not be proposed blind: the value is the READ that has to
@@ -1095,7 +1208,8 @@ def _unchosen_destination(params: dict, state: dict) -> dict | None:
     }
 
 
-def _consent_missing(tool_name: str) -> dict:
+def _consent_missing(tool_name: str, would_do: dict = None,
+                     effects: list = None) -> dict:
     """Shaped like needs_user_choice on purpose.
 
     That shape already travels through this graph: push_tasks_to_trello
@@ -1112,7 +1226,30 @@ def _consent_missing(tool_name: str) -> dict:
             f"neither is the absence of an objection."
         ),
         "_consent_missing": tool_name,
+        # What the call WOULD have done, with references resolved, so the
+        # question to the user carries real names and values instead of
+        # whatever the narrator reconstructs from the conversation.
+        **({"would_do": would_do} if would_do else {}),
+        **({"would_notify": [_EFFECT_TEXT.get(e, e) for e in effects]}
+           if effects else {}),
     }
+
+
+def _would_do(params) -> dict:
+    """Parameters as a short, readable summary (for the confirmation question)."""
+    if not isinstance(params, dict):
+        return {}
+    out = {}
+    for k, v in params.items():
+        if v in (None, "", [], {}):
+            continue
+        txt = v if isinstance(v, str) else json.dumps(v, default=str, ensure_ascii=False)
+        out[k] = txt if len(txt) <= 200 else txt[:197] + "..."
+    return out
+
+
+class _NeedsConsent(Exception):
+    """Internal signal: this step would notify a person and is not authorised."""
 
 
 def _audit_tool_classification() -> None:
@@ -1206,6 +1343,14 @@ def executor_node(state: AgentState) -> dict:
     # the resolver judged that THIS message authorises it.
     consented = (set(state.get("awaiting_consent") or [])
                  if state.get("consent_granted") else set())
+    # Tools this run BLOCKED for lack of consent. Returned as `proposing`:
+    # the narrator is about to ask about them, so they are the proposal.
+    # Without this, a planner that skipped the two-turn pattern produced a
+    # question nobody recorded, and the user's "yes" authorised nothing --
+    # the same tool was blocked again, every turn.
+    asked: list = []
+    blocked_steps: set = set()      # blocked or held: later steps wait on them
+    plan_tools = {s.get("tool") for s in plan}
 
     if debug_mode:
         print("   DEBUG MODE — dry-run active, the database will not be modified")
@@ -1249,21 +1394,55 @@ def executor_node(state: AgentState) -> dict:
             print(f"   BLOCKED — {tool_name} without {required_read} first")
             continue
 
+        # ── Once a step waits for consent, what comes after it waits too ──
+        # Every later WRITE: the user is being asked about the plan, and a
+        # write that runs now could not be taken back by their "no". And any
+        # step chained (from_step) to a step that did not run, because its
+        # input does not exist.
+        if asked and (tool_name in _WRITE_TOOLS
+                      or _references_step(params, blocked_steps)):
+            results[step_num] = _held_for_consent(tool_name, list(asked))
+            tools_by_step[step_num] = tool_name
+            params_by_step.pop(step_num, None)
+            blocked_steps.add(step_num)
+            print(f"   HELD — {tool_name} waits for consent on {', '.join(asked)}")
+            continue
+
         if tool_name in _CONSENT_TOOLS and tool_name not in consented:
             # Not appended to tools_used: it never ran.
-            result = _consent_missing(tool_name)
+            try:
+                preview = resolve_params(params, results)
+            except Exception:
+                preview = params
+            result = _consent_missing(tool_name, _would_do(preview))
             results[step_num] = result
             tools_by_step[step_num] = tool_name
             params_by_step.pop(step_num, None)
+            blocked_steps.add(step_num)
+            if tool_name not in asked:
+                asked.append(tool_name)
             print(f"   BLOCKED — no consent on record for {tool_name}")
             continue
 
+        consent_effects: list = []
+        resolved_params = params          # reset per step (read by the consent branch)
         try:
             # ── Detect foreach in any param ─────────────────────────
             foreach_key = next(
                 (k for k, v in params.items() if isinstance(v, dict) and "foreach" in v and "from_step" in v),
                 None,
             )
+
+            # A foreach cannot be judged item by item before it runs, so it is
+            # judged on its raw parameters: any assignee or "blocked" asks.
+            if (foreach_key and tool_name in _CONDITIONAL_CONSENT_TOOLS
+                    and tool_name not in consented):
+                consent_effects = _conditional_consent(
+                    tool_name,
+                    {k: v for k, v in params.items() if k != foreach_key},
+                    {}, plan_tools)
+                if consent_effects:
+                    raise _NeedsConsent()
 
             # ── Has this exact write already happened in this turn? ──
             # A foreach step is fingerprinted on its RAW params: the per-item
@@ -1310,7 +1489,11 @@ def executor_node(state: AgentState) -> dict:
                 sched_error = None
                 if tool_name == "send_notification" and isinstance(resolved_params.get("schedule"), dict):
                     from agent.schedule import apply_schedule
-                    resolved_params, sched_error = apply_schedule(resolved_params)
+                    from agent.tools.context import _current_timezone
+                    # "at 1pm" means 1pm where the USER is, not where the
+                    # server is: the zone comes from their Settings page.
+                    resolved_params, sched_error = apply_schedule(
+                        resolved_params, tz=_current_timezone())
 
                 print(f"   Params: {json.dumps(resolved_params, default=str)[:200]}")
 
@@ -1333,6 +1516,11 @@ def executor_node(state: AgentState) -> dict:
                 elif validation_error:
                     print(f"   VALIDATION FAILED: {validation_error['error'][:150]}")
                     result = validation_error
+                elif (tool_name in _CONDITIONAL_CONSENT_TOOLS
+                      and tool_name not in consented
+                      and (consent_effects := _conditional_consent(
+                          tool_name, resolved_params, results, plan_tools))):
+                    raise _NeedsConsent()
                 elif debug_mode:
                     result = _simulate_tool(tool_name, resolved_params, session_id)
                     print(f"   [DRY RUN] Simulated result: {json.dumps(result, default=str)[:200]}")
@@ -1365,6 +1553,19 @@ def executor_node(state: AgentState) -> dict:
                 else:
                     result = execute_tool(tool_name, resolved_params)
 
+        except _NeedsConsent:
+            # Same treatment as an always-consent tool: not run, not in
+            # tools_used, not in the write ledger, recorded as the proposal.
+            results[step_num] = _consent_missing(
+                tool_name, _would_do(resolved_params), consent_effects)
+            tools_by_step[step_num] = tool_name
+            params_by_step.pop(step_num, None)
+            blocked_steps.add(step_num)
+            if tool_name not in asked:
+                asked.append(tool_name)
+            print(f"   BLOCKED — {tool_name} would notify "
+                  f"({', '.join(consent_effects)}) and has no consent on record")
+            continue
         except Exception as e:
             print(f"   Unexpected error in step: {e}")
             result = {"error": str(e)}
@@ -1379,6 +1580,20 @@ def executor_node(state: AgentState) -> dict:
                 "step": step_num, "tool": tool_name,
                 "params": resolved_params, "result": result,
             }
+
+        # A scheduled send comes back with scheduled_at in UTC. Said as-is,
+        # the user hears a time five hours off. Give the narrator the local
+        # time next to it.
+        if (isinstance(result, dict) and result.get("scheduled_at")
+                and not result.get("scheduled_at_local")):
+            try:
+                from agent.tools.context import _current_timezone
+                from api.services.users import local_time_label
+                label = local_time_label(result["scheduled_at"], _current_timezone())
+                if label:
+                    result = {**result, "scheduled_at_local": label}
+            except Exception:
+                pass
 
         if dropped_params and isinstance(result, dict):
             result = {**result, "_ignored_params": dropped_params,
@@ -1412,6 +1627,8 @@ def executor_node(state: AgentState) -> dict:
               "results_by_tool": results_by_tool,
               "params_by_step": params_by_step,
               "executed_writes": executed_writes, "status": "validating"}
+    if asked:
+        update["proposing"] = asked
     if debug_mode and simulated_calls:
         existing = state.get("debug_info") or {}
         update["debug_info"] = {**existing, "simulated_calls": simulated_calls}

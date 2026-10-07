@@ -1,0 +1,546 @@
+{
+  "exportVersion": 1,
+  "exportedAt": "2026-10-05T17:53:40Z",
+  "project": {
+    "projectId": "proj-b8f8cea7",
+    "userId": "a4789408-4031-70f2-1d9f-c265b3b0128f",
+    "name": "Farmacia Haussman",
+    "description": "Es un proyecto de automatización de procesos",
+    "type": "Consultoría",
+    "status": "active",
+    "deliveryDate": "20226-09-30",
+    "timing": "",
+    "channels": [
+      "email"
+    ],
+    "participants": [
+      {
+        "name": "Jesus",
+        "role": "PM / Dev Backend",
+        "email": "ventas.javc@gmail.com",
+        "phone": ""
+      },
+      {
+        "name": "Alejandro Vega",
+        "role": "Consultor automatización",
+        "email": "ale.vega@digitalworkers.example",
+        "phone": ""
+      },
+      {
+        "name": "Sandra Prades Hausmann",
+        "role": "Cliente (dueña farmacia)",
+        "email": "sandra@farmacia-hausmann.example",
+        "phone": "+34600000003"
+      }
+    ],
+    "createdAt": "2026-07-14T15:40:54.939019",
+    "trelloBoardId": "6aa8db098cc564ab31cafff7",
+    "planVersion": 2
+  },
+  "tasks": [
+    {
+      "taskId": "fh-recepcion",
+      "text": "Automatizar descarga e impresión de fórmulas desde web",
+      "status": "pending",
+      "assignedTo": "Jesus",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-entrada-datos",
+      "text": "Automatizar entrada de datos de producto, médico, paciente y facturación en el sistema",
+      "status": "pending",
+      "assignedTo": "Jesus",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [
+        "fh-recepcion"
+      ],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-albaranes",
+      "text": "Automatizar generación y gestión de albaranes de envío",
+      "status": "pending",
+      "assignedTo": "Jesus",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-estados",
+      "text": "Automatizar actualización de estados en intranet (cambio a 'enviada')",
+      "status": "pending",
+      "assignedTo": "Jesus",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [
+        "fh-albaranes"
+      ],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-facturas-mail",
+      "text": "Automatizar envío de facturas por email",
+      "status": "pending",
+      "assignedTo": "Jesus",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-facturas-intranet",
+      "text": "Automatizar carga de facturas en intranet de clientes",
+      "status": "pending",
+      "assignedTo": "Jesus",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [
+        "fh-facturas-mail"
+      ],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-formulario",
+      "text": "Evaluar mejora de formulario intranet con campos obligatorios y desplegables",
+      "status": "pending",
+      "assignedTo": "Jesus",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-envios",
+      "text": "Automatizar agrupación de pedidos, generación de documentación y actualización de estado de envíos",
+      "status": "pending",
+      "assignedTo": "Jesus",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-carpetas-magisfor",
+      "text": "Verificar si hay información guardada en carpetas de Magisfor en el servidor",
+      "status": "pending",
+      "assignedTo": "Sandra Prades Hausmann",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-acceso-codigo",
+      "text": "Verificar con desarrollador acceso al código fuente de la intranet",
+      "status": "pending",
+      "assignedTo": "Sandra Prades Hausmann",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-as-is",
+      "text": "Documentar proceso AS-IS completo (información, sistemas, tareas manuales, documentos, errores y tiempos)",
+      "status": "pending",
+      "assignedTo": "Jesus",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [
+        "fh-accesos"
+      ],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-to-be",
+      "text": "Diseñar proceso TO-BE optimizado identificando tareas eliminables, automatizables y prioridades",
+      "status": "pending",
+      "assignedTo": "Jesus",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [
+        "fh-as-is"
+      ],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-pruebas",
+      "text": "Realizar pruebas funcionales, validación con usuarios y gestión de excepciones",
+      "status": "pending",
+      "assignedTo": "Jesus",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [
+        "fh-to-be"
+      ],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-formacion",
+      "text": "Realizar sesión de formación y entregar documentación sobre funcionamiento, errores e incidencias",
+      "status": "pending",
+      "assignedTo": "Jesus",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [
+        "fh-pruebas"
+      ],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-backlog",
+      "text": "Entregar backlog con automatizaciones y mejoras identificadas no implementadas en Fase 1",
+      "status": "pending",
+      "assignedTo": "Jesus",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-pago-30",
+      "text": "Pago 30% inicial (1.050€) a la aceptación de propuesta",
+      "status": "done",
+      "assignedTo": "Sandra Prades Hausmann",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-pago-50",
+      "text": "Pago 50% desarrollo (1.750€) una vez finalizado el desarrollo de Fase 1",
+      "status": "pending",
+      "assignedTo": "Sandra Prades Hausmann",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [
+        "fh-pago-30"
+      ],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "taskId": "fh-pago-20",
+      "text": "Pago 20% final (700€) tras puesta en producción y entrega final",
+      "status": "pending",
+      "assignedTo": "Sandra Prades Hausmann",
+      "startDate": "",
+      "dueDate": "",
+      "dateStatus": "",
+      "dependsOn": [
+        "fh-formacion",
+        "fh-pago-50"
+      ],
+      "blockedReason": "",
+      "parentTaskId": "",
+      "createdBy": "planning",
+      "updatedAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "projectId": "proj-b8f8cea7",
+      "taskId": "fh-accesos",
+      "status": "blocked",
+      "text": "Sandra debe enviar las contraseñas de la intranet (farmaciahausmann.es)",
+      "assignedTo": "Sandra Prades Hausmann",
+      "blockedReason": "esperando contraseñas",
+      "createdBy": "IA",
+      "dependsOn": []
+    }
+  ],
+  "insights": [
+    {
+      "insightId": "2026-10-06T02:54:56.723903#note0101e7a8",
+      "projectId": "proj-b8f8cea7",
+      "projectName": "Farmacia Haussman",
+      "userId": "a4789408-4031-70f2-1d9f-c265b3b0128f",
+      "type": "note",
+      "noteKind": "decision",
+      "title": "Integración directa con Magisfor descartada para Fase 1; se enfoca en intranet solamente",
+      "description": "",
+      "relatedPerson": "Digital Workers",
+      "eventDate": "",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "Proyecto Farmacia Hausmann Fase 1 vs1.pdf",
+          "locator": "Sección 8",
+          "quote": "No se incluye: modificación de Magisfor; modificación de su código fuente; acceso o modificación directa"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "01e7a82c11bc",
+      "status": "created",
+      "createdAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "insightId": "2026-10-06T02:54:56.723903#note0201e7a8",
+      "projectId": "proj-b8f8cea7",
+      "projectName": "Farmacia Haussman",
+      "userId": "a4789408-4031-70f2-1d9f-c265b3b0128f",
+      "type": "note",
+      "noteKind": "decision",
+      "title": "Business Intelligence (dashboards, análisis de márgenes, previsiones) excluido de Fase 1",
+      "description": "",
+      "relatedPerson": "Digital Workers",
+      "eventDate": "",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "Proyecto Farmacia Hausmann Fase 1 vs1.pdf",
+          "locator": "Sección 8",
+          "quote": "No se incluye el desarrollo de sistemas avanzados de análisis de negocio como: dashboards"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "01e7a82c11bc",
+      "status": "created",
+      "createdAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "insightId": "2026-10-06T02:54:56.723903#note0301e7a8",
+      "projectId": "proj-b8f8cea7",
+      "projectName": "Farmacia Haussman",
+      "userId": "a4789408-4031-70f2-1d9f-c265b3b0128f",
+      "type": "note",
+      "noteKind": "decision",
+      "title": "Chatbot especializado en tutoriales de Magisfor excluido de Fase 1; posible fase futura",
+      "description": "",
+      "relatedPerson": "Digital Workers",
+      "eventDate": "",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "Proyecto Farmacia Hausmann Fase 1 vs1.pdf",
+          "locator": "Sección 8",
+          "quote": "No se incluye en esta fase: recopilación masiva de tutoriales; procesamiento de vídeos; chatbot especializado"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "01e7a82c11bc",
+      "status": "created",
+      "createdAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "insightId": "2026-10-06T02:54:56.723903#note0401e7a8",
+      "projectId": "proj-b8f8cea7",
+      "projectName": "Farmacia Haussman",
+      "userId": "a4789408-4031-70f2-1d9f-c265b3b0128f",
+      "type": "note",
+      "noteKind": "info",
+      "title": "Sandra Prades Hausmann es dueña de farmacia; Alejandro Vega y Digital Workers ejecutan automatización",
+      "description": "",
+      "relatedPerson": "Sandra Prades Hausmann",
+      "eventDate": "",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "Proyecto Automatizaciones Claude Transcript.txt (parte 1/5)",
+          "locator": "3:54",
+          "quote": "Yo os cuento un poco lo que está en mi cabeza, pero claro, yo soy farmacéutica"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "01e7a82c11bc",
+      "status": "created",
+      "createdAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "insightId": "2026-10-06T02:54:56.723903#note0501e7a8",
+      "projectId": "proj-b8f8cea7",
+      "projectName": "Farmacia Haussman",
+      "userId": "a4789408-4031-70f2-1d9f-c265b3b0128f",
+      "type": "note",
+      "noteKind": "info",
+      "title": "Desarrollador de Magisfor en Chile casi jubilado; riesgo de perder soporte técnico pronto",
+      "description": "",
+      "relatedPerson": "Sandra Prades Hausmann",
+      "eventDate": "",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "Proyecto Automatizaciones Claude Transcript.txt (parte 1/5)",
+          "locator": "10:08",
+          "quote": "está casi jubilado y en cuatro días ya se jubilará del todo con lo cual perderemos ahí el tal"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "01e7a82c11bc",
+      "status": "created",
+      "createdAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "insightId": "2026-10-06T02:54:56.723903#note0601e7a8",
+      "projectId": "proj-b8f8cea7",
+      "projectName": "Farmacia Haussman",
+      "userId": "a4789408-4031-70f2-1d9f-c265b3b0128f",
+      "type": "note",
+      "noteKind": "decision",
+      "title": "Se decide priorizar automatizaciones sencillas (intranet) antes de Magisfor; proyecto para septiembre",
+      "description": "",
+      "relatedPerson": "Digital Workers",
+      "eventDate": "",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "Proyecto Farmacia Hausmann Fase 1 vs1.pdf",
+          "locator": "Sección 1",
+          "quote": "reducir tareas manuales, repetitivas y susceptibles de error dentro del flujo administrativo"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "01e7a82c11bc",
+      "status": "created",
+      "createdAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "insightId": "2026-10-06T02:54:56.723903#note0701e7a8",
+      "projectId": "proj-b8f8cea7",
+      "projectName": "Farmacia Haussman",
+      "userId": "a4789408-4031-70f2-1d9f-c265b3b0128f",
+      "type": "note",
+      "noteKind": "idea",
+      "title": "Alejandro propone integración interna (5-7$/mes) más económica que externa; requiere acceso a código",
+      "description": "",
+      "relatedPerson": "Alejandro Vega",
+      "eventDate": "",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "Proyecto Automatizaciones Claude Transcript.txt (parte 3/5)",
+          "locator": "44:11",
+          "quote": "Si es muy muy bajo, súper bajo, si se hace forma interna es súper bajo"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "01e7a82c11bc",
+      "status": "created",
+      "createdAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "insightId": "2026-10-06T02:54:56.723903#note0801e7a8",
+      "projectId": "proj-b8f8cea7",
+      "projectName": "Farmacia Haussman",
+      "userId": "a4789408-4031-70f2-1d9f-c265b3b0128f",
+      "type": "note",
+      "noteKind": "info",
+      "title": "Sandra expresa preocupación de que el proyecto sea más complejo de lo que parece inicialmente",
+      "description": "",
+      "relatedPerson": "Sandra Prades Hausmann",
+      "eventDate": "",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "Proyecto Automatizaciones Claude Transcript.txt (parte 3/5)",
+          "locator": "26:31",
+          "quote": "lo que también me da un poco de miedo es que igual nos metemos y es peor de lo que parecía"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "01e7a82c11bc",
+      "status": "created",
+      "createdAt": "2026-10-06T02:54:56.723903"
+    },
+    {
+      "insightId": "2026-10-06T02:54:56.723903#note0901e7a8",
+      "projectId": "proj-b8f8cea7",
+      "projectName": "Farmacia Haussman",
+      "userId": "a4789408-4031-70f2-1d9f-c265b3b0128f",
+      "type": "note",
+      "noteKind": "info",
+      "title": "Presupuesto total de Fase 1 es 3.500€ con pagos en tres hitos",
+      "description": "",
+      "relatedPerson": "Digital Workers",
+      "eventDate": "",
+      "taskId": "",
+      "evidence": [
+        {
+          "source": "Proyecto Farmacia Hausmann Fase 1 vs1.pdf",
+          "locator": "Sección 7",
+          "quote": "TOTAL PRESUPUESTO 3.500€"
+        }
+      ],
+      "source": "planning",
+      "proposalId": "01e7a82c11bc",
+      "status": "created",
+      "createdAt": "2026-10-06T02:54:56.723903"
+    }
+  ],
+  "attachments": [],
+  "notifications": [],
+  "invitations": [],
+  "conversations": [],
+  "_mock": "Proyecto y tareas tomados del export real del 2026-10-05. El texto de los adjuntos se extrae en cada corrida de sources/ con agent.document_parser.extract_text (el mismo extractor del sistema)."
+}

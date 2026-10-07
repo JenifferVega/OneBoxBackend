@@ -187,12 +187,19 @@ def validator_node(state: AgentState, llm) -> dict:
     blocked = [r.get("_consent_missing") for r in results.values()
                if isinstance(r, dict) and r.get("_consent_missing")]
     if blocked:
+        held = [state.get("tools_by_step", {}).get(k, f"step {k}")
+                for k, r in results.items()
+                if isinstance(r, dict) and r.get("_held_for_consent")]
         print(f"   Consent missing for {', '.join(blocked)} -> narrate, no replan")
         return {"status": "narrate", "validation_decision": "CONTINUE",
                 "validation_feedback": (
                     "The user has not authorised " + ", ".join(blocked) + ". "
                     "Nothing was done with it. Ask for explicit confirmation "
-                    "and say exactly what it would do.")}
+                    "and say exactly what it would do, using `would_do` and "
+                    "`would_notify` from its result."
+                    + (" These later steps are waiting for the same "
+                       "confirmation and were not run either: "
+                       + ", ".join(held) + "." if held else ""))}
 
     # ── Work the tool has already named for a LATER turn ───────────
     # A tool that ran, did part of the job and reported `next_step` pointing

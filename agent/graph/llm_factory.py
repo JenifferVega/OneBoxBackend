@@ -244,7 +244,7 @@ def _parse_config(value: str) -> tuple:
 
 
 def _create_llm(provider: str, model: str, temperature: float,
-                max_tokens: int = _MAX_TOKENS):
+                max_tokens: int = _MAX_TOKENS, timeout: int = 60):
     """Creates the provider's chat model (lazy per-provider import)."""
     if provider == "bedrock":
         from langchain_aws import ChatBedrockConverse
@@ -261,7 +261,7 @@ def _create_llm(provider: str, model: str, temperature: float,
             api_key=ANTHROPIC_API_KEY,
             temperature=temperature,
             max_tokens=max_tokens,
-            timeout=60,
+            timeout=timeout,
             max_retries=2,
         )
     if provider == "gemini":
@@ -273,6 +273,7 @@ def _create_llm(provider: str, model: str, temperature: float,
             api_key=GEMINI_API_KEY,
             temperature=temperature,
             max_tokens=max_tokens,
+            timeout=max(timeout, 120),
         )
     raise ValueError(f"Unknown provider: {provider}")
 
@@ -319,7 +320,11 @@ def _available_fallback_providers(primary: str) -> List[str]:
 
 
 def create_llm(node: str = "narrator", env_value: str = "", temperature: float = None,
-               max_tokens: int = _MAX_TOKENS, with_fallbacks: bool = True) -> NodeLLM:
+               max_tokens: int = _MAX_TOKENS, with_fallbacks: bool = True,
+               timeout: int = 60) -> NodeLLM:
+    """`timeout` is per request. The chat graph keeps 60 s; the planning graph
+    asks for more, because reading a 50k-character document and writing the
+    operations takes minutes, and 60 s x 3 attempts timed out every time."""
     """Creates the NodeLLM for a graph node (or an external factory consumer)."""
     if env_value:
         provider, model = _parse_config(env_value)
@@ -329,7 +334,7 @@ def create_llm(node: str = "narrator", env_value: str = "", temperature: float =
     model = model or _DEFAULT_MODELS[provider]
     temp = temperature if temperature is not None else _NODE_TEMPERATURE.get(node, 0.2)
 
-    primary = _create_llm(provider, model, temp, max_tokens)
+    primary = _create_llm(provider, model, temp, max_tokens, timeout)
     fallbacks = []
     # LLM_FALLBACKS=off measures one provider honestly. With fallbacks on, a
     # provider that fails every single call still produces correct answers --
@@ -339,7 +344,7 @@ def create_llm(node: str = "narrator", env_value: str = "", temperature: float =
     if with_fallbacks:
         for p in _available_fallback_providers(provider):
             try:
-                fallbacks.append(_create_llm(p, _DEFAULT_MODELS[p], temp, max_tokens))
+                fallbacks.append(_create_llm(p, _DEFAULT_MODELS[p], temp, max_tokens, timeout))
             except Exception as e:
                 print(f"[llm_factory] fallback {p} not available: {e}")
     # Which provider actually serves each node, recorded at startup. Reading

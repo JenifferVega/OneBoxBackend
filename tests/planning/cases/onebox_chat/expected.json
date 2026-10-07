@@ -1,0 +1,342 @@
+{
+  "_note": "Juicio de Claude sobre el chat completo, a fecha 2026-06-05. Trabajo ABIERTO al final del chat.",
+  "existing": {},
+  "plan_items": [
+    {
+      "id": "seguridad del chat (fuga de datos entre proyectos)",
+      "required": true,
+      "any_of": [
+        [
+          "segur",
+          "chat"
+        ],
+        [
+          "segur",
+          "chatbot"
+        ],
+        [
+          "fuga"
+        ],
+        [
+          "privacidad"
+        ],
+        [
+          "informacion",
+          "otros",
+          "proyectos"
+        ]
+      ]
+    },
+    {
+      "id": "IA que lea los chats y detecte tareas pendientes",
+      "required": true,
+      "any_of": [
+        [
+          "leer",
+          "chat"
+        ],
+        [
+          "lea",
+          "chat"
+        ],
+        [
+          "lectura",
+          "chat"
+        ],
+        [
+          "detect",
+          "tarea"
+        ],
+        [
+          "detecc",
+          "tarea"
+        ],
+        [
+          "identific",
+          "tarea"
+        ],
+        [
+          "detect",
+          "pendient"
+        ]
+      ]
+    },
+    {
+      "id": "deteccion de fechas por la IA",
+      "required": true,
+      "any_of": [
+        [
+          "fecha"
+        ]
+      ]
+    },
+    {
+      "id": "integracion Microsoft / Outlook (Azure)",
+      "required": true,
+      "any_of": [
+        [
+          "microsoft"
+        ],
+        [
+          "outlook"
+        ],
+        [
+          "azure"
+        ]
+      ]
+    },
+    {
+      "id": "revision de seguridad con el experto (semana que viene)",
+      "required": true,
+      "any_of": [
+        [
+          "experto"
+        ],
+        [
+          "ciberseg"
+        ],
+        [
+          "stanford"
+        ],
+        [
+          "standford"
+        ],
+        [
+          "auditor"
+        ]
+      ]
+    },
+    {
+      "id": "presentar evoluciones (5/6)",
+      "required": true,
+      "any_of": [
+        [
+          "present",
+          "evoluc"
+        ],
+        [
+          "present",
+          "avance"
+        ],
+        [
+          "demo"
+        ],
+        [
+          "presentacion"
+        ]
+      ]
+    },
+    {
+      "id": "integracion con Asana",
+      "required": true,
+      "any_of": [
+        [
+          "asana"
+        ]
+      ]
+    },
+    {
+      "id": "integracion con Slack",
+      "required": false,
+      "any_of": [
+        [
+          "slack"
+        ]
+      ]
+    },
+    {
+      "id": "adjunto para la solicitud a Meta",
+      "required": false,
+      "any_of": [
+        [
+          "meta"
+        ]
+      ]
+    },
+    {
+      "id": "version responsive (movil / iPad)",
+      "required": false,
+      "any_of": [
+        [
+          "responsiv"
+        ],
+        [
+          "movil"
+        ],
+        [
+          "celular"
+        ],
+        [
+          "ipad"
+        ]
+      ]
+    },
+    {
+      "id": "login con email / registro manual",
+      "required": false,
+      "any_of": [
+        [
+          "registro"
+        ],
+        [
+          "login"
+        ],
+        [
+          "inicio",
+          "sesion"
+        ],
+        [
+          "logueo"
+        ]
+      ]
+    },
+    {
+      "id": "MVP para cliente en 3 meses",
+      "required": false,
+      "any_of": [
+        [
+          "mvp"
+        ]
+      ]
+    },
+    {
+      "id": "logica del % de avance",
+      "required": false,
+      "any_of": [
+        [
+          "avance"
+        ],
+        [
+          "progreso"
+        ]
+      ]
+    },
+    {
+      "id": "modo claro / oscuro",
+      "required": false,
+      "any_of": [
+        [
+          "oscur"
+        ],
+        [
+          "dark"
+        ]
+      ]
+    },
+    {
+      "id": "coste de Twilio / autorizacion de Google",
+      "required": false,
+      "any_of": [
+        [
+          "coste"
+        ],
+        [
+          "costo"
+        ],
+        [
+          "google",
+          "autoriz"
+        ],
+        [
+          "verificac"
+        ]
+      ]
+    }
+  ],
+  "must_not_create": [
+    {
+      "id": "dominio comprado (10/3)",
+      "any_of": [
+        [
+          "comprar",
+          "dominio"
+        ],
+        [
+          "adquirir",
+          "dominio"
+        ],
+        [
+          "registrar",
+          "dominio"
+        ]
+      ]
+    },
+    {
+      "id": "cuenta AWS creada (26/2)",
+      "any_of": [
+        [
+          "crear",
+          "cuenta",
+          "aws"
+        ],
+        [
+          "crear",
+          "aws"
+        ],
+        [
+          "alta",
+          "aws"
+        ]
+      ]
+    },
+    {
+      "id": "repos GitHub creados y codigo subido (20/3, 14/4)",
+      "any_of": [
+        [
+          "crear",
+          "repo"
+        ],
+        [
+          "subir",
+          "codigo"
+        ],
+        [
+          "github"
+        ]
+      ]
+    },
+    {
+      "id": "conexion WhatsApp hecha (7/4)",
+      "any_of": [
+        [
+          "conectar",
+          "whatsapp"
+        ],
+        [
+          "conexion",
+          "whatsapp"
+        ],
+        [
+          "integrar",
+          "whatsapp"
+        ],
+        [
+          "notificaciones",
+          "whatsapp"
+        ]
+      ]
+    },
+    {
+      "id": "numero Twilio comprado (5/3)",
+      "any_of": [
+        [
+          "comprar",
+          "twilio"
+        ],
+        [
+          "numero",
+          "twilio"
+        ]
+      ]
+    }
+  ],
+  "limits": {
+    "max_creates": 18,
+    "max_questions": 5,
+    "max_notes": 15
+  },
+  "thresholds": {
+    "existing_accuracy": 0.75,
+    "plan_items_recall": 0.7
+  }
+}

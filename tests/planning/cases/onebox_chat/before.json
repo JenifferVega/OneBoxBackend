@@ -1,0 +1,26 @@
+{
+  "_mock": "Proyecto nuevo creado desde texto pegado (chat de WhatsApp exportado en Android). Sin tareas: la primera lectura del sistema.",
+  "exportVersion": 1,
+  "project": {
+    "projectId": "proj-onebox01",
+    "userId": "owner-santi",
+    "name": "OneBox",
+    "description": "Plataforma SaaS de gestión de proyectos con IA que lee conversaciones (WhatsApp, Gmail, Slack) y documentos para detectar tareas, riesgos y decisiones.",
+    "type": "Desarrollo de software",
+    "status": "active",
+    "deliveryDate": "",
+    "channels": ["WhatsApp", "Gmail"],
+    "participants": [
+      {"name": "Santi", "email": "santiago@digitalworkers.online", "role": "Product owner"},
+      {"name": "Jesús Alejandro Vega", "email": "ventas.javc@gmail.com", "role": "Backend / IA"},
+      {"name": "Jeniffer", "email": "jenifferf.funezp@gmail.com", "role": "Frontend / Cloud"}
+    ],
+    "createdAt": "2026-06-05T09:00:00"
+  },
+  "tasks": [],
+  "insights": [],
+  "attachments": [
+    {"projectId": "proj-onebox01", "attachmentId": "2026-06-05T09:00:01#chat", "fileName": "chat_onebox.txt",
+     "createdAt": "2026-06-05T09:00:01", "extension": "txt", "sourceFile": "sources/chat_onebox.txt"}
+  ]
+}

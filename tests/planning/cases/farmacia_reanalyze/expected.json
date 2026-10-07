@@ -1,0 +1,213 @@
+{
+  "description": "Las 4 tareas genericas de julio se sustituyen por los bloques de la propuesta Fase 1; la de 'automatizar la creacion de formulas' se borra por estar fuera de alcance. Sin fechas inventadas. Ver reference.json (lectura humana completa).",
+  "existing": {
+    "ab1f2c05ec994c9b8c105fedd16af449": {
+      "accept": [
+        "update",
+        "delete"
+      ],
+      "note": "pasa a ser el mapa AS-IS"
+    },
+    "975818a8413e4f26af6123152e01b792": {
+      "accept": [
+        "update",
+        "delete"
+      ],
+      "note": "se absorbe en el TO-BE"
+    },
+    "e5805e97e50e43c0b7f3bcf945857247": {
+      "accept": [
+        "update",
+        "delete"
+      ],
+      "note": "no hay decision de stack/cloud"
+    },
+    "4120feba65824b33b8ae6955f0d29a90": {
+      "accept": [
+        "delete"
+      ],
+      "note": "fuera de alcance segun la propuesta (Magisfor / formulas)"
+    }
+  },
+  "plan_items": [
+    {
+      "id": "t1 aceptacion de la propuesta",
+      "required": true,
+      "any_of": [
+        [
+          "acept"
+        ]
+      ]
+    },
+    {
+      "id": "t2 anticipo 30%",
+      "required": false,
+      "any_of": [
+        [
+          "anticipo"
+        ],
+        [
+          "30%"
+        ],
+        [
+          "30 %"
+        ]
+      ]
+    },
+    {
+      "id": "t3 accesos",
+      "required": true,
+      "any_of": [
+        [
+          "acceso"
+        ]
+      ]
+    },
+    {
+      "id": "t4 AS-IS",
+      "required": true,
+      "any_of": [
+        [
+          "as-is"
+        ],
+        [
+          "as is"
+        ],
+        [
+          "proceso actual"
+        ],
+        [
+          "analisis funcional"
+        ]
+      ]
+    },
+    {
+      "id": "t5 TO-BE",
+      "required": true,
+      "any_of": [
+        [
+          "to-be"
+        ],
+        [
+          "to be"
+        ],
+        [
+          "proceso futuro"
+        ],
+        [
+          "proceso optimizado"
+        ]
+      ]
+    },
+    {
+      "id": "t6 definir automatizaciones",
+      "required": true,
+      "any_of": [
+        [
+          "definir",
+          "automatiz"
+        ],
+        [
+          "seleccion",
+          "automatiz"
+        ],
+        [
+          "prioriz",
+          "automatiz"
+        ],
+        [
+          "elegir",
+          "automatiz"
+        ],
+        [
+          "acordar",
+          "automatiz"
+        ]
+      ]
+    },
+    {
+      "id": "t7 recepcion de pedidos",
+      "required": true,
+      "any_of": [
+        [
+          "recepcion",
+          "pedido"
+        ]
+      ]
+    },
+    {
+      "id": "t8 gestion de estados",
+      "required": true,
+      "any_of": [
+        [
+          "estado"
+        ]
+      ]
+    },
+    {
+      "id": "t9 gestion documental",
+      "required": true,
+      "any_of": [
+        [
+          "documental"
+        ]
+      ]
+    },
+    {
+      "id": "t10 envios",
+      "required": true,
+      "any_of": [
+        [
+          "envio"
+        ]
+      ]
+    },
+    {
+      "id": "t11 pruebas y puesta en marcha",
+      "required": true,
+      "any_of": [
+        [
+          "prueba"
+        ],
+        [
+          "testing"
+        ],
+        [
+          "puesta en marcha"
+        ]
+      ]
+    },
+    {
+      "id": "t13 formacion y documentacion",
+      "required": true,
+      "any_of": [
+        [
+          "formacion"
+        ]
+      ]
+    },
+    {
+      "id": "t12/t14 cobros 50/20",
+      "required": false,
+      "any_of": [
+        [
+          "50%"
+        ],
+        [
+          "20%"
+        ],
+        [
+          "pago"
+        ]
+      ]
+    }
+  ],
+  "limits": {
+    "max_creates": 16,
+    "max_questions": 5
+  },
+  "thresholds": {
+    "existing_accuracy": 0.75,
+    "plan_items_recall": 0.7
+  }
+}

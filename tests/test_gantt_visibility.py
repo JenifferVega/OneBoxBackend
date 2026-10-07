@@ -14,7 +14,6 @@ matched nothing because the comparison demanded exact equality.
 No AWS, no LLM.
 """
 import ast
-import re
 import sys
 
 ok = True

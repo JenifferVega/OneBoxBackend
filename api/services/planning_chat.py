@@ -1,0 +1,476 @@
+"""Planning chat (Intelligence > Replanificación): move a whole project at once.
+
+The owner asks for ONE thing here: replan the project with new context --
+pasted text, a document, the project's Trello board, or the message itself
+("Rafa se va, Claudia asume diseño"). The planning graph returns a PROPOSAL.
+Approving / rejecting is done with the proposal's buttons, not by chatting.
+The daily digest of the members' updates (updates_consolidation.py) also
+lands here, with its own proposal. Nothing is written until the leader
+approves all of it or a part; an applied proposal can be reverted.
+
+Storage: table onebox-planning (projectId + itemId)
+    msg#<iso>#<rand>   a chat message
+    prop#<id>          a proposal: status pending | applied | partially_applied |
+                       rejected | reverted | stale | superseded
+Runs take minutes, so each message starts a background job; the page polls
+GET .../planning/jobs/{jobId} for the step it is on.
+"""
+import json
+import threading
+import time
+import uuid
+from datetime import datetime
+from decimal import Decimal
+from typing import List, Optional, Tuple
+
+from boto3.dynamodb.conditions import Key
+from fastapi import HTTPException
+
+from api.services import planning_live
+
+TABLE_NAME = "onebox-planning"
+TODAY = ""          # tests pin the date ("YYYY-MM-DD"); empty = today
+_table = None
+_JOBS: dict = {}
+_JOBS_LOCK = threading.Lock()
+PROPOSAL_KEYS = ("proposalId", "projectId", "basePlanVersion", "trigger", "createdAt", "summary", "counts",
+                 "operations", "questions", "notes", "shifts", "warnings", "unresolved_errors")
+
+
+def table():
+    global _table
+    if _table is None:
+        from api.deps import dynamodb
+        _table = dynamodb.Table(TABLE_NAME)
+    return _table
+
+
+def _now() -> str:
+    return datetime.utcnow().isoformat()
+
+
+def _dumps(x) -> str:
+    return json.dumps(x, ensure_ascii=False, default=lambda o: int(o) if isinstance(o, Decimal) and o == int(o)
+                      else float(o) if isinstance(o, Decimal) else str(o))
+
+
+def _loads(s: str):
+    return json.loads(s or "null", parse_float=Decimal)
+
+
+def _plain(x):
+    """DynamoDB Decimals -> int/float, for JSON responses."""
+    return json.loads(_dumps(x))
+
+
+def _access(uid: str, email: str, project_id: str) -> dict:
+    from api.services.access import has_project_access
+    has, _owner, proj = has_project_access(uid, email, project_id)
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if not has:
+        raise HTTPException(status_code=403, detail="No access to this project")
+    return proj
+
+
+def _items(project_id: str) -> list:
+    out, last = [], None
+    while True:
+        args = {"KeyConditionExpression": Key("projectId").eq(project_id)}
+        if last:
+            args["ExclusiveStartKey"] = last
+        res = table().query(**args)
+        out += res.get("Items", [])
+        last = res.get("LastEvaluatedKey")
+        if not last:
+            return out
+
+
+def _put_message(project_id: str, role: str, content: str, **extra) -> dict:
+    stamp = _now()
+    item = {"projectId": project_id, "itemId": f"msg#{stamp}#{uuid.uuid4().hex[:6]}", "role": role,
+            "content": content or "", "createdAt": stamp, **{k: v for k, v in extra.items() if v not in (None, "")}}
+    table().put_item(Item=item)
+    return item
+
+
+def _proposal_item(project_id: str, prop_id: str) -> dict:
+    item = table().get_item(Key={"projectId": project_id, "itemId": f"prop#{prop_id}"}).get("Item")
+    if not item:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    return item
+
+
+def _set(project_id: str, item_id: str, **fields) -> None:
+    names = {f"#k{i}": k for i, k in enumerate(fields)}
+    values = {f":v{i}": v for i, v in enumerate(fields.values())}
+    table().update_item(Key={"projectId": project_id, "itemId": item_id},
+                        UpdateExpression="SET " + ", ".join(f"#k{i} = :v{i}" for i in range(len(fields))),
+                        ExpressionAttributeNames=names, ExpressionAttributeValues=values)
+
+
+def pending_proposal(project_id: str) -> Optional[dict]:
+    props = [i for i in _items(project_id) if i["itemId"].startswith("prop#") and i.get("status") == "pending"]
+    if not props:
+        return None
+    props.sort(key=lambda i: i.get("createdAt", ""))
+    return props[-1]
+
+
+def save_proposal(project_id: str, proposal: dict, source: str, actor: str = "", log_key: str = "") -> dict:
+    """Store a proposal as THE pending one of the project (older pending ones
+    become 'superseded': only one plan change is open at a time)."""
+    for old in [i for i in _items(project_id) if i["itemId"].startswith("prop#") and i.get("status") == "pending"]:
+        _set(project_id, old["itemId"], status="superseded", decidedAt=_now())
+    compact = {k: proposal.get(k) for k in PROPOSAL_KEYS if k in proposal}
+    pid = proposal.get("proposalId") or uuid.uuid4().hex[:12]
+    item = {"projectId": project_id, "itemId": f"prop#{pid}", "proposalId": pid, "status": "pending",
+            "source": source, "createdAt": _now(), "createdBy": actor,
+            "basePlanVersion": int(proposal.get("basePlanVersion") or 0),
+            "summary": (proposal.get("summary") or "")[:1000], "counts": _loads(_dumps(proposal.get("counts") or {})),
+            "proposal": _dumps(compact), "log": log_key}
+    table().put_item(Item=item)
+    return item
+
+
+def merge_or_save_proposal(project_id: str, proposal: dict, source: str, actor: str = "") -> dict:
+    """Check-ins of several people must not cancel each other: when a pending
+    proposal exists on the same plan version, the new operations and notes
+    are appended to it instead of superseding it."""
+    item = pending_proposal(project_id)
+    if not item or int(item.get("basePlanVersion") or 0) != int(proposal.get("basePlanVersion") or 0):
+        return save_proposal(project_id, proposal, source, actor=actor)
+    cur = _plain(_loads(item.get("proposal")) or {})
+    cur["operations"] = (cur.get("operations") or []) + (proposal.get("operations") or [])
+    cur["notes"] = (cur.get("notes") or []) + (proposal.get("notes") or [])
+    cur["questions"] = (cur.get("questions") or []) + (proposal.get("questions") or [])
+    counts = {}
+    for o in cur["operations"]:
+        counts[o["op"]] = counts.get(o["op"], 0) + 1
+    cur["counts"] = counts
+    summary = ((item.get("summary") or "") + " + " + (proposal.get("summary") or "")).strip(" +")[:1000]
+    cur["summary"] = summary
+    sources = sorted(set((item.get("source") or "").split(" + ")) | {source})
+    _set(project_id, item["itemId"], proposal=_dumps(cur), counts=_loads(_dumps(counts)), summary=summary,
+         source=" + ".join(s for s in sources if s))
+    return {**item, "proposalId": item["proposalId"]}
+
+
+def _public_proposal(item: dict) -> dict:
+    out = {k: item.get(k) for k in ("proposalId", "status", "source", "createdAt", "createdBy", "summary", "counts",
+                                    "decidedAt", "decidedBy", "approved", "basePlanVersion", "appliedPlanVersion")}
+    p = _loads(item.get("proposal")) or {}
+    out.update(operations=p.get("operations") or [], questions=p.get("questions") or [],
+               notes=p.get("notes") or [], warnings=p.get("warnings") or [],
+               trello=_loads(item.get("trello")) if item.get("trello") else None)
+    return _plain(out)
+
+
+def _describe(proposal: Optional[dict]) -> str:
+    if not proposal:
+        return "No encontré cambios que proponer."
+    c = proposal.get("counts") or {}
+    label = {"create": "nuevas", "update": "actualizadas", "close": "cerradas", "delete": "eliminadas",
+             "block": "bloqueadas", "reopen": "reabiertas", "link": "dependencias"}
+    parts = [f"{n} {label.get(k, k)}" for k, n in c.items() if n]
+    txt = "Propuesta: " + (", ".join(parts) or "sin cambios en tareas")
+    if proposal.get("notes"):
+        txt += f", {len(proposal['notes'])} notas"
+    if proposal.get("questions"):
+        txt += f". {len(proposal['questions'])} preguntas para ti"
+    return txt + "."
+
+
+# ── context ─────────────────────────────────────────────────────────────────
+
+def trello_text(uid: str, proj: dict) -> Tuple[str, str]:
+    """(name, text) of the project's Trello board: one line per open card,
+    the list is the status. Read-only: OneBox stays the source of truth."""
+    from api.services import trello as trello_service
+    board = proj.get("trelloBoardId")
+    if not board:
+        raise HTTPException(status_code=400, detail="This project has no Trello board linked")
+    lines = [f"Tablero de Trello del proyecto {proj.get('name', '')} (leído {_now()[:16]}). "
+             "Cada línea: [lista] tarjeta — vence — descripción."]
+    for lst in trello_service.list_board_lists(uid, board):
+        for c in trello_service.list_cards(uid, lst["listId"]):
+            if c.get("closed"):
+                continue
+            desc = " ".join((c.get("desc") or "").split())[:300]
+            lines.append(f"[{lst['name']}] {c['name']}" + (f" — vence {c['due']}" if c.get("due") else "")
+                         + (f" — {desc}" if desc else ""))
+    return f"trello-{_now()[:16].replace(':', '')}.txt", "\n".join(lines)
+
+
+def _store_source(proj: dict, uid: str, email: str, name: str, text: str, raw: Optional[bytes] = None,
+                  ext: str = "txt", content_type: str = "text/plain") -> None:
+    """Every context becomes a project attachment, so later analyses see it too."""
+    from agent.document_parser import upload_to_s3
+    from api.services.documents import save_attachment_record
+    data = raw if raw is not None else text.encode("utf-8")
+    key = upload_to_s3(data, proj["projectId"], name, content_type)
+    save_attachment_record(project_id=proj["projectId"], user_id=proj.get("userId", uid), file_name=name,
+                           file_size=len(data), content_type=content_type, ext=ext, s3_key=key,
+                           extracted_text=text, source="planning-chat", uploaded_by=uid,
+                           uploaded_by_email=(email or "").lower())
+
+
+# ── jobs ────────────────────────────────────────────────────────────────────
+
+def _running(project_id: str) -> Optional[dict]:
+    with _JOBS_LOCK:
+        return next((j for j in _JOBS.values() if j["projectId"] == project_id and j["status"] == "running"), None)
+
+
+def job_status(uid: str, email: str, project_id: str, job_id: str) -> dict:
+    _access(uid, email, project_id)
+    job = _JOBS.get(job_id)
+    if not job or job["projectId"] != project_id:
+        raise HTTPException(status_code=404, detail="Job not found (the server may have restarted)")
+    return {k: job.get(k) for k in ("jobId", "status", "step", "steps", "error", "messageId", "proposalId")} | {
+        "seconds": int(time.time() - job["started"])}
+
+
+def start_message(uid: str, email: str, project_id: str, message: str, context_text: str = "",
+                  file: Optional[Tuple[bytes, str, str]] = None, include_trello: bool = False,
+                  reread_all: bool = False, run_async: bool = True, llm=None) -> dict:
+    proj = _access(uid, email, project_id)
+    message, context_text = (message or "").strip(), (context_text or "").strip()
+    if not message and not context_text and not file and not include_trello:
+        raise HTTPException(status_code=400, detail="Write an instruction or add context")
+    if _running(project_id):
+        raise HTTPException(status_code=409, detail="A replanning run is already in progress for this project")
+    stamp = _now()[:16].replace(":", "")
+    sources: List[Tuple[str, str]] = []
+    if context_text:
+        name = f"contexto-{stamp}.txt"
+        _store_source(proj, uid, email, name, context_text)
+        sources.append((name, context_text))
+    if file:
+        from agent.document_parser import extract_text, validate_file
+        data, fname, ctype = file
+        ok, ext, err = validate_file(data, fname or "", ctype or "")
+        if not ok:
+            raise HTTPException(status_code=400, detail=err)
+        text = extract_text(data, ext)
+        if not text or len(text.strip()) < 20:
+            raise HTTPException(status_code=400, detail="Could not extract text from the document")
+        _store_source(proj, uid, email, fname, text, raw=data, ext=ext, content_type=ctype or "")
+        sources.append((fname, text))
+    if include_trello:
+        name, text = trello_text(uid, proj)
+        _store_source(proj, uid, email, name, text)
+        sources.append((name, text))
+    if not sources and not reread_all:
+        # The only thing this chat does is replan WITH CONTEXT. A message
+        # without attachments is itself the context ("Rafa se va, Claudia
+        # asume diseño y movemos el lanzamiento al 15").
+        if len(message) < 20:
+            raise HTTPException(status_code=400, detail="Explain the change in a few lines or attach context: "
+                                                        "this chat only replans the project with new context")
+        name = f"contexto-{stamp}.txt"
+        _store_source(proj, uid, email, name, message)
+        sources.append((name, message))
+    user_msg = _put_message(project_id, "user", message or "(contexto adjunto)", userId=uid, userEmail=email,
+                            sources=[n for n, _t in sources] or None, rereadAll=reread_all or None)
+    job = {"jobId": uuid.uuid4().hex[:12], "projectId": project_id, "status": "running", "step": "",
+           "steps": [], "started": time.time(), "error": "", "messageId": "", "proposalId": ""}
+    with _JOBS_LOCK:
+        _JOBS[job["jobId"]] = job
+    args = (job, uid, email, proj, message, sources, reread_all, llm)
+    if run_async:
+        threading.Thread(target=_run_job, args=args, daemon=True, name=f"replan-{project_id}").start()
+    else:
+        _run_job(*args)
+    return {"jobId": job["jobId"], "messageId": user_msg["itemId"]}
+
+
+def _run_job(job, uid, email, proj, message, sources, reread_all, llm=None):
+    from agent.planning.runner import run_planning
+    pid = proj["projectId"]
+
+    def step(node):
+        job["step"] = node
+        job["steps"].append(node)
+
+    try:
+        export = planning_live.snapshot(pid, sources, read_all=reread_all)
+        # Replanning with context is the only thing this chat does: approving
+        # or rejecting is done with the buttons of the proposal.
+        job["intent"] = {"kind": "ingest", "instruction": message}
+        res = run_planning(export, "reanalyze" if reread_all else "document", message=message, today=TODAY,
+                           documents=None if reread_all else [n for n, _t in sources],
+                           mode="full" if reread_all else "delta", llm=llm, on_step=step)
+        proposal = res.get("proposal")
+        prop_item = None
+        if proposal and (proposal.get("operations") or proposal.get("notes") or proposal.get("questions")):
+            log = ""
+            try:
+                log = planning_live._log_to_s3(pid, _now(), {"source": "planning-chat", "message": message,
+                                                             "proposal": proposal, "trace": res.get("trace")})
+            except Exception as e:
+                print(f"[planning_chat] S3 log error: {e}")
+            prop_item = save_proposal(pid, proposal, "chat", actor=email or uid, log_key=log)
+            job["proposalId"] = prop_item["proposalId"]
+        job["trace"] = [t.get("node") for t in res.get("trace") or []]
+        text = res.get("answer") or res.get("narration") or _describe(proposal)
+        msg = _put_message(pid, "assistant", text, proposalId=prop_item["proposalId"] if prop_item else None)
+        job["messageId"] = msg["itemId"]
+        job["status"] = "done"
+    except HTTPException as e:       # e.g. a stale proposal: decide() already told the chat
+        job["status"], job["error"] = "done", str(e.detail)[:300]
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        job["status"], job["error"] = "error", str(e)[:300]
+        try:
+            _put_message(pid, "assistant", f"No pude completar la replanificación: {str(e)[:200]}", error=True)
+        except Exception:
+            pass
+
+
+# ── decide / revert ─────────────────────────────────────────────────────────
+
+def decide(uid: str, email: str, project_id: str, prop_id: str, decision: str,
+           op_indexes: Optional[List[int]] = None, _checked: bool = False) -> dict:
+    from agent.planning.schedule import apply_proposal
+    from agent.tools import insights_table, projects_table, tasks_table
+    proj = _access(uid, email, project_id) if not _checked else None
+    item = _proposal_item(project_id, prop_id)
+    if item.get("status") != "pending":
+        raise HTTPException(status_code=409, detail=f"Proposal is {item.get('status')}, not pending")
+    now = _now()
+    if decision == "reject_all":
+        _set(project_id, item["itemId"], status="rejected", decidedAt=now, decidedBy=email or uid)
+        msg = _put_message(project_id, "assistant", "Propuesta rechazada. No se cambió nada.", proposalId=prop_id)
+        return {"status": "rejected", "messageId": msg["itemId"]}
+    proposal = _plain(_loads(item.get("proposal")) or {})
+    before = planning_live.snapshot(project_id)
+    if before is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    current = int((before.get("project") or {}).get("planVersion") or 0)
+    if current != int(item.get("basePlanVersion") or 0):
+        _set(project_id, item["itemId"], status="stale", decidedAt=now)
+        msg = _put_message(project_id, "assistant", "El plan cambió desde que se hizo esta propuesta; "
+                           "pídeme que la recalcule.", proposalId=prop_id)
+        raise HTTPException(status_code=409, detail="The plan changed since this proposal was made")
+    n_ops = len(proposal.get("operations") or [])
+    approved = None if decision == "approve_all" else sorted({int(i) for i in op_indexes or [] if 1 <= int(i) <= n_ops})
+    if approved == []:
+        raise HTTPException(status_code=400, detail="No operations selected")
+    owner = (proj or before["project"]).get("userId", uid)
+    after, events = apply_proposal(before, proposal, approved, actor=email or uid, now=now)
+    counts = planning_live.persist(before, after, proposal, owner, now, tasks_table, insights_table, projects_table)
+    idmap = counts.pop("idmap", {})
+    touched = {e["taskId"] for e in events if e.get("taskId")}
+    old = {t["taskId"]: t for t in before.get("tasks") or []}
+    restore = {tid: old[tid] for tid in touched if tid in old}
+    created = sorted(idmap[t] for t in touched if t in idmap)
+    seen = {i.get("insightId") for i in before.get("insights") or []}
+    note_ids = [i["insightId"] for i in after.get("insights") or [] if i.get("insightId") not in seen]
+    status = "applied" if approved is None or len(approved) == n_ops else "partially_applied"
+    trello = _reflect_in_trello(owner, project_id, old, touched, idmap, created)
+    _count_as_reports(before, touched, now, email or uid)
+    _set(project_id, item["itemId"], status=status, decidedAt=now, decidedBy=email or uid,
+         approved=approved or [], appliedPlanVersion=int((after.get("project") or {}).get("planVersion") or 0),
+         revert=_dumps({"restore": restore, "created": created, "notes": note_ids}), trello=_dumps(trello))
+    text = (f"Aplicado: {counts.get('created', 0)} nuevas, {counts.get('updated', 0)} actualizadas, "
+            f"{counts.get('deleted', 0)} eliminadas, {counts.get('notes', 0)} notas.")
+    from api.services.trello_reflect import summary as trello_summary
+    if trello_summary(trello):
+        text += "\n" + trello_summary(trello)
+    msg = _put_message(project_id, "assistant", text, proposalId=prop_id)
+    return {"status": status, "counts": counts, "messageId": msg["itemId"], "trello": trello}
+
+
+def _count_as_reports(before: dict, touched: set, now: str, actor: str) -> None:
+    """An approved change to someone's tasks counts as their report: the owner
+    updated them (typically people without an account). Their check-in clock
+    restarts, so the owner is reminded again only after another period."""
+    try:
+        from api.services import checkin
+        proj = before.get("project") or {}
+        for person, tasks in checkin.assignments(proj, before.get("tasks") or []):
+            if any(t["taskId"] in touched for t in tasks):
+                checkin._save_state(proj["projectId"], checkin.person_key(person), lastReportAt=now,
+                                    lastReportBy=f"owner:{actor}")
+    except Exception as e:
+        print(f"[planning_chat] check-in reset failed: {e}")
+
+
+def _reflect_in_trello(owner_uid: str, project_id: str, before: dict, touched: set, idmap: dict,
+                       created: list) -> dict:
+    """The approved change, written to the linked Trello board. Never raises:
+    the app already has the change and Trello is a mirror."""
+    try:
+        from agent.tools import projects_table
+        from api.services import trello_reflect
+        proj = projects_table.get_item(Key={"projectId": project_id}).get("Item") or {}
+        if not proj.get("trelloBoardId"):
+            return {"status": "not_linked"}
+        now_tasks = {t["taskId"]: t for t in (planning_live.snapshot(project_id) or {}).get("tasks") or []}
+        ids = [idmap.get(t, t) for t in touched]
+        return trello_reflect.reflect(owner_uid, proj, before, now_tasks, ids, created)
+    except Exception as e:
+        print(f"[planning_chat] Trello reflection failed: {e}")
+        return {"status": "error", "errors": [str(e)[:200]]}
+
+
+def revert(uid: str, email: str, project_id: str, prop_id: str) -> dict:
+    """Put every task the proposal touched back as it was, delete what it
+    created and the notes it wrote. Only the last applied proposal, and only
+    while nothing else changed the plan after it."""
+    from agent.tools import insights_table, projects_table, tasks_table
+    proj = _access(uid, email, project_id)
+    item = _proposal_item(project_id, prop_id)
+    if item.get("status") not in ("applied", "partially_applied"):
+        raise HTTPException(status_code=409, detail="Only an applied proposal can be reverted")
+    current = int(projects_table.get_item(Key={"projectId": project_id}).get("Item", {}).get("planVersion") or 0)
+    if current != int(item.get("appliedPlanVersion") or -1):
+        raise HTTPException(status_code=409, detail="The plan changed after this proposal; it cannot be reverted")
+    data = _loads(item.get("revert")) or {}
+    for tid in data.get("created") or []:
+        tasks_table.delete_item(Key={"projectId": project_id, "taskId": tid})
+    for tid, task in (data.get("restore") or {}).items():
+        tasks_table.put_item(Item=task)
+    owner = proj.get("userId", uid)
+    for nid in data.get("notes") or []:
+        try:
+            insights_table.delete_item(Key={"userId": owner, "insightId": nid})
+        except Exception as e:
+            print(f"[planning_chat] note delete failed {nid}: {e}")
+    now = _now()
+    projects_table.update_item(Key={"projectId": project_id}, UpdateExpression="SET planVersion = :v, lastActivity = :t",
+                               ExpressionAttributeValues={":v": current + 1, ":t": now})
+    _set(project_id, item["itemId"], status="reverted", revertedAt=now, revertedBy=email or uid)
+    msg = _put_message(project_id, "assistant", "Replanificación revertida: el plan volvió a como estaba.",
+                       proposalId=prop_id)
+    return {"status": "reverted", "messageId": msg["itemId"]}
+
+
+# ── read ────────────────────────────────────────────────────────────────────
+
+def get_state(uid: str, email: str, project_id: str) -> dict:
+    proj = _access(uid, email, project_id)
+    items = _items(project_id)
+    msgs = sorted((i for i in items if i["itemId"].startswith("msg#")), key=lambda i: i["itemId"])
+    props = sorted((i for i in items if i["itemId"].startswith("prop#")), key=lambda i: i.get("createdAt", ""))
+    applied = [p for p in props if p.get("status") in ("applied", "partially_applied")]
+    job = _running(project_id)
+    public = [_public_proposal(p) for p in props[-20:]]
+    # Operations on existing tasks carry only the id: send the texts along.
+    from agent.tools import tasks_table
+    from api.services.project_export import _query_all
+    texts = {t["taskId"]: t.get("text", "") for t in
+             _query_all(tasks_table, KeyConditionExpression=Key("projectId").eq(project_id))}
+    return {
+        "messages": _plain([{k: m.get(k) for k in ("itemId", "role", "content", "createdAt", "userEmail",
+                                                    "proposalId", "sources", "error", "kind")} for m in msgs[-100:]]),
+        "proposals": public,
+        "taskTexts": {o["task_id"]: texts[o["task_id"]] for p in public for o in p["operations"]
+                      if o.get("task_id") in texts},
+        "revertible": applied[-1]["proposalId"] if applied else None,
+        "job": {"jobId": job["jobId"], "step": job["step"]} if job else None,
+        "trello": bool(proj.get("trelloBoardId")),
+        "planVersion": int(proj.get("planVersion") or 0),
+    }

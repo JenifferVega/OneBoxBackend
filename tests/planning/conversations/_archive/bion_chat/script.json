@@ -1,0 +1,270 @@
+{
+  "title": "BION · el líder pregunta, reporta por terceros, reasigna, se corrige y deshace",
+  "today": "2026-09-25",
+  "leader": {
+    "name": "Jesus",
+    "email": "ventas.javc@gmail.com"
+  },
+  "turns": [
+    {
+      "from": "leader",
+      "messages": [
+        "como vamos con bion"
+      ],
+      "expect": {
+        "intent": "question",
+        "proposal": "none",
+        "answer_mentions": [
+          [
+            "banner"
+          ],
+          [
+            "url"
+          ],
+          [
+            "post"
+          ],
+          [
+            "video",
+            "youtube"
+          ]
+        ],
+        "answer_mentions_min": 2
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "y lo de meta q"
+      ],
+      "expect": {
+        "intent": "question",
+        "proposal": "none",
+        "answer_mentions": [
+          [
+            "post"
+          ],
+          [
+            "raquel"
+          ],
+          [
+            "reel"
+          ]
+        ],
+        "answer_mentions_min": 1
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "la clau me dijo ayer q ya subio los reels",
+        "y raquel publico 2 posts creo"
+      ],
+      "why": "Ráfaga = un solo avance. 'creo' = duda: no cerrar los posts, preguntar.",
+      "expect": {
+        "intent": "feedback",
+        "proposal": "new",
+        "ops_any": [
+          {
+            "op": [
+              "close",
+              "update"
+            ],
+            "task": [
+              "8a9e9770",
+              "9fc4a8e9"
+            ]
+          }
+        ],
+        "ops_absent": [
+          {
+            "op": "close",
+            "task": "bion-posts"
+          }
+        ],
+        "asks": [
+          [
+            "post"
+          ]
+        ]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "solo 2 faltan otros 3"
+      ],
+      "why": "Responde la pregunta del turno anterior sin repetir el contexto.",
+      "expect": {
+        "intent": [
+          "decide",
+          "feedback"
+        ],
+        "proposal": "edited",
+        "ops_absent": [
+          {
+            "op": "close",
+            "task": "bion-posts"
+          }
+        ],
+        "notes_mentions": [
+          [
+            "post"
+          ]
+        ]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "dale"
+      ],
+      "expect": {
+        "intent": "decide",
+        "decision": {
+          "kind": "approve_all"
+        },
+        "applied": true
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "lo de las landings pasaselo a javi para el viernes"
+      ],
+      "why": "'Javi' = Javier Costa; 'el viernes' = 2026-09-26.",
+      "expect": {
+        "intent": "change",
+        "proposal": "new",
+        "ops": [
+          {
+            "op": "update",
+            "task": "bion-urls",
+            "fields": {
+              "assigned_to": "Javier Costa",
+              "due_date": "2026-09-26"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "no espera el viernes no, el lunes"
+      ],
+      "why": "Corrige la propuesta abierta: la misma propuesta, otra fecha.",
+      "expect": {
+        "intent": "change",
+        "proposal": "edited",
+        "ops": [
+          {
+            "op": "update",
+            "task": "bion-urls",
+            "fields": {
+              "due_date": "2026-09-29"
+            }
+          }
+        ],
+        "ops_absent": [
+          {
+            "op": "update",
+            "task": "bion-urls",
+            "fields": {
+              "due_date": "2026-09-26"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "ok asi"
+      ],
+      "expect": {
+        "intent": "decide",
+        "decision": {
+          "kind": "approve_all"
+        },
+        "applied": true,
+        "plan_state": {
+          "bion-urls": {
+            "assignedTo": "Javier Costa",
+            "dueDate": "2026-09-29"
+          }
+        }
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "esto va lentisimo el cliente no responde nada"
+      ],
+      "why": "Queja, no orden: no crear tareas.",
+      "expect": {
+        "intent": "question",
+        "proposal": "none",
+        "answer_mentions": [
+          [
+            "rafael"
+          ],
+          [
+            "raquel"
+          ],
+          [
+            "cliente"
+          ]
+        ],
+        "answer_mentions_min": 1
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "si mandale algo a rafael"
+      ],
+      "why": "Acción externa: al chat del asistente con destinatario y contenido resueltos.",
+      "expect": {
+        "intent": "action",
+        "proposal": "none",
+        "applied": false,
+        "handoff": {
+          "to": [
+            "rafael"
+          ],
+          "mentions": [
+            [
+              "banner"
+            ],
+            [
+              "url"
+            ],
+            [
+              "video",
+              "youtube"
+            ],
+            [
+              "post"
+            ]
+          ],
+          "mentions_min": 2
+        }
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "uy no, deshaz lo de javier"
+      ],
+      "expect": {
+        "intent": "revert",
+        "plan_state": {
+          "bion-urls": {
+            "assignedTo": "Rafael Sardinha"
+          }
+        }
+      }
+    }
+  ]
+}

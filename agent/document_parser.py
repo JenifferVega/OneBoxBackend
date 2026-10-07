@@ -156,7 +156,7 @@ def extract_text_image(file_bytes: bytes, ext: str) -> str:
     try:
         b64 = base64.b64encode(file_bytes).decode('utf-8')
         mime = ALLOWED_EXTENSIONS.get(ext, 'image/png')
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
         payload = {
             "contents": [{
                 "role": "user",
@@ -169,7 +169,8 @@ def extract_text_image(file_bytes: bytes, ext: str) -> str:
             }],
             "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
         }
-        resp = requests.post(url, json=payload, timeout=60)
+        resp = requests.post(url, json=payload, timeout=60,
+                             headers={"x-goog-api-key": GEMINI_API_KEY})
         if resp.status_code != 200:
             print(f"[document_parser] Gemini Vision error {resp.status_code}: {resp.text[:200]}")
             return ''

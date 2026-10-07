@@ -1,0 +1,1221 @@
+19/10/25, 20:22 - Los mensajes y las llamadas están cifrados de extremo a extremo. Solo las personas en este chat pueden leerlos, escucharlos o compartirlos. *Más información*
+15/10/25, 20:18 - Creaste este grupo
+19/10/25, 21:54 - Alejandro Vega Fullstack AI: <Multimedia omitido>
+19/10/25, 22:14 - Santi: Ok, para entender este sistema lo utilizaríamos para leer documentos adjuntos por ejemplo? Pero no sería el sistema para leer conversaciones?
+19/10/25, 23:15 - Alejandro Vega Fullstack AI: Son documentos de cualquier tipo que puedes agregar , como adjuntos documentaciones tecnicas, manuales o incluso conversaciones descargadas
+19/10/25, 23:20 - Santi: Ok entiendo, muy interesante Jesús!
+19/10/25, 23:39 - Alejandro Vega Fullstack AI: Perdon Santiago estaba haciendo el agente que pueda leer el correo electronico pero la contraseña no me sirve
+19/10/25, 23:40 - Alejandro Vega Fullstack AI: <Multimedia omitido>
+19/10/25, 23:41 - Santi: Perdona, no me acordaba, ahora la cambio
+19/10/25, 23:43 - Santi: [REDACTED]
+19/10/25, 23:46 - Alejandro Vega Fullstack AI: <Multimedia omitido>
+19/10/25, 23:47 - Santi: esta mal el mail
+19/10/25, 23:47 - Santi: es digitalworkerscompany@gmail.com
+19/10/25, 23:49 - Alejandro Vega Fullstack AI: <Multimedia omitido>
+19/10/25, 23:49 - Santi: 0748
+19/10/25, 23:49 - Santi: cambia a movil español
+19/10/25, 23:50 - Alejandro Vega Fullstack AI: hay una plataforma que se llama
+19/10/25, 23:51 - Alejandro Vega Fullstack AI: airtop me permite guardar sesiones para poder hacer scraping del correo electronico pero siempre conectarse a gmail es un poco dificil al automatizarlo debido a los multiples filtros de seguridad que hay
+19/10/25, 23:51 - Santi: y si, entiendo...
+19/10/25, 23:53 - Santi: Habría que pensar un sistema para que los usuarios dieran los permisos necesarios....
+19/10/25, 23:54 - Alejandro Vega Fullstack AI: Una opción es usar la Api de Gmail
+19/10/25, 23:55 - Santi: ok
+19/10/25, 23:56 - Alejandro Vega Fullstack AI: pero igual puedo avanzar con la demo necesitaria el codigo para entrar al correo
+19/10/25, 23:57 - Santi: no he recibido código
+19/10/25, 23:57 - Alejandro Vega Fullstack AI: Necesito poner el numero primero
+19/10/25, 23:58 - Santi: entero?
+19/10/25, 23:58 - Santi: [REDACTED]
+19/10/25, 23:59 - Alejandro Vega Fullstack AI: Ahora si envio un codigo
+19/10/25, 23:59 - Santi: [REDACTED]
+20/10/25, 0:00 - Alejandro Vega Fullstack AI: <Multimedia omitido>
+20/10/25, 0:01 - Santi: no he recibido nada
+20/10/25, 0:02 - Alejandro Vega Fullstack AI: si abre la app de gmail en tu S25 creo que aparece
+20/10/25, 0:02 - Santi: nop
+20/10/25, 0:02 - Santi: nada
+20/10/25, 0:02 - Santi: <Multimedia omitido>
+20/10/25, 0:03 - Santi: vuelve a enviarlo
+20/10/25, 0:04 - Alejandro Vega Fullstack AI: hecho mira en notificaciones
+20/10/25, 0:05 - Santi: nada
+20/10/25, 0:06 - Santi: si quieres hacemos una call y vemos que pasa
+20/10/25, 0:07 - Alejandro Vega Fullstack AI: si puedes de una
+20/10/25, 0:07 - Santi: perfecto, meet
+20/10/25, 0:08 - Santi: tu mail?
+20/10/25, 0:09 - Alejandro Vega Fullstack AI: solucionesitecnologia@gmail.com
+20/10/25, 0:09 - Santi: https://meet.google.com/sao-antv-koe?authuser=0
+20/10/25, 0:10 - Santi: estoy dentro
+20/10/25, 0:19 - Santi: <Multimedia omitido>
+20/10/25, 0:28 - Alejandro Vega Fullstack AI: Creo que si es posible hacerlo de forma remota
+20/10/25, 1:27 - Alejandro Vega Fullstack AI: <Multimedia omitido>
+20/10/25, 2:38 - Alejandro Vega Fullstack AI: <Multimedia omitido>
+20/10/25, 2:39 - Alejandro Vega Fullstack AI: <Multimedia omitido>
+20/10/25, 2:39 - Alejandro Vega Fullstack AI: No puedo leer drive en el momento así que si los documentos o attachments son de google drive esos se procesan de otra forma
+20/10/25, 2:40 - Alejandro Vega Fullstack AI: Ya leyendo la información la IA la puede procesarla para poder hacer lo que quieres, por hoy dejare hasta aca necesito entender un poco mas la estructura de la información antes de meter los agentes de IA que quieres <Se editó este mensaje.>
+20/10/25, 2:41 - Alejandro Vega Fullstack AI: Se eliminó este mensaje.
+20/10/25, 2:57 - Alejandro Vega Fullstack AI: En esta prueba estoy usando mi correo, pero para poc lo probaremos con tu correo, para poder extraer la información solo necesito que hagas login a gmail desde la app.
+20/10/25, 8:50 - Santi: Grande Jesús, vamos dando pasos hacia adelante! Ya me dirás cuando quieres que hagamos el login desde la app de Gmail.
+20/10/25, 16:24 - Alejandro Vega Fullstack AI: Me toco ir a mi empresa a Bogota y cuando pasa eso no tengo acceso a todos mis recursos
+20/10/25, 16:25 - Alejandro Vega Fullstack AI: el siguiente paso es leer los correos en detalle y los attachment para que la IA pueda hacer un resumen de actividades y del mismo modo asistir correctamente en la planeación pero creo que hasta despues del miercoles puedo volver a ver el tema
+20/10/25, 16:26 - Santi: Genial Jesús, gracias por el update, el miércoles retomamos. Yo estaré fuera miércoles y no se si jueves por trabajo, pero podemos hablar.
+20/10/25, 16:28 - Alejandro Vega Fullstack AI: Dale no hay problema la idea es seguir trabajando en la POC y sacarla cuanto antes
+23/10/25, 11:54 - Santi: Crack, mirate saysimple.com
+23/10/25, 14:42 - Alejandro Vega Fullstack AI: Veo que simplifican mucho el acceso
+23/10/25, 14:42 - Alejandro Vega Fullstack AI: Al whatsapp
+23/10/25, 14:42 - Alejandro Vega Fullstack AI: Como para hacer un bot que lea las conversaciones
+23/10/25, 19:44 - Santi: Si, correcto
+23/10/25, 19:45 - Santi: Es parecido a lo que queremos hacer nosotros?
+23/10/25, 19:47 - Santi: Ellos lo enfocan para canalizar peticiones de clientes B2B y B2C.
+23/10/25, 19:48 - Santi: Monetizan por la plataforma y por la configuracion. El coste de los tokens va a cargo del cliente
+23/10/25, 19:59 - Alejandro Vega Fullstack AI: Tiene parte parecido
+23/10/25, 20:00 - Alejandro Vega Fullstack AI: Aunque nosotros no solo queremos la integración
+23/10/25, 20:00 - Alejandro Vega Fullstack AI: Si no generar conocimiento y tener un agente virtual para la organización de tareas
+23/10/25, 20:01 - Santi: Claro, ellos utilizaban, Odoo, Zapier, ChatGpt, Hobspot
+23/10/25, 20:01 - Santi: No se si ese apalancamiento de 3eros es bueno, pero facturan 1mio al año.
+23/10/25, 20:02 - Alejandro Vega Fullstack AI: Se puede buscar hacer lo mismo más económico y maximizar ganancias
+23/10/25, 20:02 - Alejandro Vega Fullstack AI: Todo lo que hice usa llm locales no es necesario tener un proveedor de ia pero si un servidor de ia
+23/10/25, 20:07 - Santi: Hacer lo mismo? No se si ellos lo enfocan como un gestor de conversaciones?
+23/10/25, 20:12 - Alejandro Vega Fullstack AI: Me refiero a la parte de extraer y procesar la información
+23/10/25, 21:06 - Santi: okok
+23/10/25, 21:07 - Santi: Osea, digamos que el core, el concepto sería lo mismo, pero no se si la ejecución, puede ser?
+23/10/25, 22:10 - Alejandro Vega Fullstack AI: podríamos decir que sí pero recuerda que la parte de leer y procesar información es algo muy general
+23/10/25, 22:11 - Alejandro Vega Fullstack AI: aparte say simple es un sistema para manejar y tener un sistema similar a Odoo o slack pero usando whatsapp
+23/10/25, 22:11 - Santi: ok, a ver si mañana podemos tener una call :)
+23/10/25, 22:11 - Alejandro Vega Fullstack AI: no veo inteligencia en la conversación mas alla de la analitica
+23/10/25, 22:11 - Alejandro Vega Fullstack AI: si claro
+23/10/25, 22:11 - Santi: buenisimo
+23/10/25, 22:14 - Alejandro Vega Fullstack AI: esta semana me fue imposible pero la otra sigo con la poc para que el proximo mes este lista
+25/10/25, 0:11 - Santi: Buenas genios, que os parece si nos vemos el lunes y hacemos un estado de situación?
+25/10/25, 0:16 - Alejandro Vega Fullstack AI: ok dale
+27/10/25, 18:54 - Alejandro Vega Fullstack AI: Buenas tardes me comentas cuando podemos reunirnos
+27/10/25, 18:54 - Alejandro Vega Fullstack AI: mañana viajo fuera del país y sera muy parecido a cuando estuve en la oficina ya que no tengo acceso directo a mi pc de escritorio
+27/10/25, 18:54 - Alejandro Vega Fullstack AI: pero hoy podria mostrarte lo avanzado
+27/10/25, 21:50 - Santi: Buenas Jesus, perfecto, si estás en 10' hablamos
+27/10/25, 21:50 - Santi: Disculpa pero era el cumpleaños de mi hija :)
+27/10/25, 22:28 - Alejandro Vega Fullstack AI: felicitaciones
+27/10/25, 22:28 - Alejandro Vega Fullstack AI: ahorita me queda un poquito dificil
+27/10/25, 22:31 - Santi: Cuando podrias?
+27/10/25, 22:31 - Alejandro Vega Fullstack AI: en 2 horas
+27/10/25, 22:36 - Santi: Que pena, estaré muerto. Dime que día puedes y agendamos una hora.
+27/10/25, 22:36 - Alejandro Vega Fullstack AI: voy a estar una semana fuera del país podría al regresar 🙁
+27/10/25, 22:42 - Santi: Uf que duro, bueno dime que día de la semana que viene podrías quedar y agendamos
+27/10/25, 22:57 - Alejandro Vega Fullstack AI: llego hasta el 3 de noviembre
+28/10/25, 10:55 - Santi: Dime entonces tu disponibilidad para el lunes 3 y agendamos call, así nos marcamos una fecha
+28/10/25, 12:41 - Alejandro Vega Fullstack AI: Creo que mi esposa me podría ayudar
+28/10/25, 12:42 - Alejandro Vega Fullstack AI: Y configurar la red local para mostrarte el sistema
+28/10/25, 12:42 - Alejandro Vega Fullstack AI: Mañana o pasado mañana
+28/10/25, 12:53 - Santi: Mañana por mi genial
+28/10/25, 12:54 - Alejandro Vega Fullstack AI: Gracias yo intenti hoy con ella configurarla y si funciona puedo mostrarte mañana
+30/10/25, 1:59 - Alejandro Vega Fullstack AI: Hola Santiago mi esposa pudo crear el puente , creo que si podría mostrarte avances si tienes tiempo
+30/10/25, 7:20 - Santi: Buenos dias Jesus! Que os parece hoy a las 10:30 am?
+30/10/25, 10:18 - Alejandro Vega Fullstack AI: Hola santiago para ti en cuanto es las 10 y medía
+30/10/25, 10:23 - Santi: Hablo hora Colombiana
+30/10/25, 10:24 - Santi: Pero como querais, alla tiene que ser muy pronto :)
+30/10/25, 10:24 - Alejandro Vega Fullstack AI: aca en usa es 5:24 am en colombia creo que es 4:24 am
+30/10/25, 10:24 - Alejandro Vega Fullstack AI: yo estoy en tampa
+30/10/25, 10:26 - Santi: Ok ok, tranki. Si lo haces tu estás ready lo hacemos ahoras
+30/10/25, 10:26 - Santi: Sino me espero a tu mujer. Esta mañana estoy más despejado que por la tarde,
+30/10/25, 10:28 - Alejandro Vega Fullstack AI: vale santiago yo te aviso solo que creo que mi esposa esta durmiendo
+30/10/25, 10:28 - Alejandro Vega Fullstack AI: que hora es donde estas
+30/10/25, 10:32 - Santi: ahora son las 10:30 aca
+30/10/25, 10:32 - Santi: am
+30/10/25, 14:50 - Alejandro Vega Fullstack AI: Hola Santi ya mi esposa esta conectada me avisas si tienes tiempo
+30/10/25, 14:51 - Santi: Tengo call en 10' acabo y os digo
+30/10/25, 14:51 - Alejandro Vega Fullstack AI: de una gracias
+30/10/25, 15:45 - Santi: Buenas!!
+30/10/25, 15:45 - Santi: Jeniffer  como lo tienes para la call?
+30/10/25, 15:46 - Jeniffer Onebox: hooa buenas si claro aqui estoy
+30/10/25, 15:49 - Santi: Este es tu mail? 
+jenifferf.funezp@gmail.com
+30/10/25, 15:50 - Jeniffer Onebox: Si señor
+30/10/25, 15:50 - Santi: https://meet.google.com/xrj-qiub-hzb?authuser=0
+30/10/25, 15:51 - Alejandro Vega Fullstack AI: voy
+30/10/25, 15:52 - Santi: Estoy!
+30/10/25, 16:21 - Santi: Te queremos de vuelta!
+30/10/25, 16:29 - Alejandro Vega Fullstack AI: Perdon se me murió el pc
+30/10/25, 16:30 - Alejandro Vega Fullstack AI: ya estoy volviendo
+30/10/25, 16:38 - Santi: Me tuve ir Jesús!
+30/10/25, 16:39 - Santi: Mañana si tienes un hueco retomamos
+30/10/25, 16:55 - Alejandro Vega Fullstack AI: Vale
+3/11/25, 22:46 - Santi: Buenas Jesús! Estais para una call?
+3/11/25, 22:47 - Jeniffer Onebox: Hola buenas tardes Santiago, Jesus, ahorita está volando de Estados Unidos a Bogotá, ya tocaría mañana que nos podamos reunir
+3/11/25, 22:47 - Santi: Perfecto Jeniffer, gracias por el aviso, mañana nos juntamos!
+4/11/25, 17:45 - Alejandro Vega Fullstack AI: Hola Santiago ya estoy en colombia
+4/11/25, 17:46 - Alejandro Vega Fullstack AI: esta semana avanzare con la demo para que veamos el siguiente paso
+4/11/25, 17:56 - Santi: Buenas Jesus genial, si quieres nos juntamos hoy y acabamos de ver lo del otro dia. Como tu veas.
+4/11/25, 18:02 - Alejandro Vega Fullstack AI: claro
+4/11/25, 21:53 - Santi: Buenas Jesus, como te va hacer una call en 30'
+4/11/25, 21:53 - Alejandro Vega Fullstack AI: bien
+4/11/25, 22:23 - Alejandro Vega Fullstack AI: me mandas la llamada porfavor
+4/11/25, 22:24 - Santi: Pasame tu mail please
+4/11/25, 22:29 - Alejandro Vega Fullstack AI: solucionesitecnologia@gmail.com
+4/11/25, 22:34 - Santi: https://meet.google.com/ati-xvnw-rcu?authuser=0
+4/11/25, 22:34 - Santi: Estoy dentro
+4/11/25, 22:40 - Alejandro Vega Fullstack AI: El lunes veamos la siguiente parte del poc
+4/11/25, 22:40 - Alejandro Vega Fullstack AI: Que es la capacidad de la IA para leer los correos
+4/11/25, 22:41 - Santi: Excelente Jesus
+10/11/25, 5:36 - Alejandro Vega Fullstack AI: Hola Santiago le hice hasta bastante tarde estoy haciendo un agente que sea capaz de navegar el correo y al mismo tiempo mantener conversaciones avance bastante pero no he termino , mañana te comento si lo alcanzo a terminar para la reunión del lunes si no te voy a pedir un poco mas de tiempo
+10/11/25, 7:30 - Santi: Excelente Jesus, quedo atento
+11/11/25, 0:44 - Jeniffer Onebox: Hola Santiago te adjunto la propuesta
+11/11/25, 0:44 - Jeniffer Onebox: <Multimedia omitido>
+11/11/25, 0:44 - Jeniffer Onebox: Me comentas cualquier cosa
+11/11/25, 7:28 - Santi: Genial chicos, me lo podeis pasar en horas? Si ese numero puede ser en usd mejor. Grcsss
+11/11/25, 9:54 - Santi: Buenas, mirar he revisado vuestra cotización, calculo unas 180 horas aprox de proyecto. Si en lugar de 4600€ son 4600usd lo podemos pasar hoy mismo. Pediré un 20% por avanzado a ver que me dicen.
+11/11/25, 10:10 - Alejandro Vega Fullstack AI: Hola Santiago disculpame parece que estamos en horarios distintos me levante de casualidad
+11/11/25, 10:10 - Santi: jajajaja
+11/11/25, 10:10 - Santi: estás mu loco
+11/11/25, 10:11 - Santi: Como lo ves lo que pasarlo a dolares?
+11/11/25, 10:11 - Alejandro Vega Fullstack AI: tu crees que podemos dejarlo en 5000 cerrados ?
+11/11/25, 10:11 - Santi: dolares?
+11/11/25, 10:11 - Alejandro Vega Fullstack AI: si
+11/11/25, 10:11 - Santi: yo creo que si
+11/11/25, 10:13 - Alejandro Vega Fullstack AI: si me parece bien es un Mvp lo importante es tener como un flujo conversacional demostrable
+11/11/25, 10:13 - Santi: dale buenisimo
+11/11/25, 10:13 - Alejandro Vega Fullstack AI: pero necesito ver los precios de el sistema de reconocimiento de voz de aws
+11/11/25, 10:14 - Alejandro Vega Fullstack AI: a las 7 o 8 am de aca que es como 3 o 4 horas miro bien eso
+11/11/25, 10:14 - Santi: dale tranki
+11/11/25, 10:14 - Santi: De momento presnetamos la propuesta a ver que nos dicen
+11/11/25, 10:14 - Alejandro Vega Fullstack AI: esto no lo digo por que suba los precios si no por que pensando en el cliente siempre se quiere un sistema que no valga tanto mes a mes por sis servicios
+11/11/25, 10:14 - Alejandro Vega Fullstack AI: dale de una
+11/11/25, 10:14 - Santi: Tranki, eso cuando se haya aprobado
+11/11/25, 10:15 - Alejandro Vega Fullstack AI: Ok
+11/11/25, 17:20 - Alejandro Vega Fullstack AI: <Multimedia omitido>
+11/11/25, 17:22 - Alejandro Vega Fullstack AI: sigo trabajando en la poc, los agentes siempre tienen su nivel de reto pero ya tengo algo que mostrar pero me falta mas para que interprete bien los correos
+11/11/25, 17:23 - Santi: Tranki, esto ya lo envie esta mañana. Please para temas que no sea OneBox por otro canal así no mezclamos 😅
+11/11/25, 17:24 - Santi: Ok, cuando podemos ver algo? Estoy ansioso...
+11/11/25, 17:25 - Alejandro Vega Fullstack AI: que hora es donde te encuentras , olvido la diferencia horaria
+11/11/25, 17:25 - Santi: jajaja, en España, son las 5:25pm
+11/11/25, 17:27 - Alejandro Vega Fullstack AI: aqui son las 11 y media
+11/11/25, 17:28 - Alejandro Vega Fullstack AI: veamolo mañan a a las 2 pm tuyas y yo me conecto a las 7 am
+11/11/25, 17:43 - Santi: Impecable Jesus!
+11/11/25, 17:46 - Santi: Acabo de enviaros invite. 7:15am he convocado
+12/11/25, 12:48 - Alejandro Vega Fullstack AI: Buenos días santiago
+12/11/25, 12:48 - Alejandro Vega Fullstack AI: Entonces nos vemos en 25 minitos
+12/11/25, 12:52 - Santi: Perfecto
+12/11/25, 13:16 - Santi: https://meet.google.com/fef-fjvh-jut?authuser=0
+12/11/25, 13:17 - Santi: Buenas Jesus, estoy dentro
+12/11/25, 13:18 - Alejandro Vega Fullstack AI: voy
+12/11/25, 13:47 - Alejandro Vega Fullstack AI: dame un momento
+12/11/25, 13:47 - Alejandro Vega Fullstack AI: siempre contigo me pasa lo mismo
+12/11/25, 13:47 - Alejandro Vega Fullstack AI: el cable no esta cargando no me fije
+12/11/25, 13:48 - Santi: puedes cargarlo?
+12/11/25, 13:48 - Santi: así definimos pasos
+12/11/25, 13:48 - Alejandro Vega Fullstack AI: estoy buscando otro cable
+12/11/25, 13:48 - Alejandro Vega Fullstack AI: creo que el que tenia se daño solo dame dos min
+12/11/25, 13:48 - Santi: dale
+12/11/25, 20:23 - Santi: Buenas Jesus, cuando puedas please enviame el link para linkear mi gmail. Graciasss
+12/11/25, 20:24 - Alejandro Vega Fullstack AI: Verdad Santiago que estas en un horario totalmente distinto
+12/11/25, 20:24 - Alejandro Vega Fullstack AI: ahorita estoy con otras cosas y quiero hacerle unas mejoras
+12/11/25, 20:24 - Alejandro Vega Fullstack AI: mañana en la mañana lo tienes disponible por ahi tus dos o 3
+12/11/25, 20:25 - Santi: Excelente Jesus, gracias
+14/11/25, 14:38 - Santi: Buenas chicos, para la call de hoy, nos presentamos como equipo de Digital Workers
+14/11/25, 14:38 - Jeniffer Onebox: hola santi
+14/11/25, 14:38 - Jeniffer Onebox: listo
+14/11/25, 14:38 - Alejandro Vega Fullstack AI: Ik
+14/11/25, 14:38 - Alejandro Vega Fullstack AI: Ok
+14/11/25, 15:01 - Santi: Os meteis?
+15/11/25, 15:51 - Santi: <Multimedia omitido>
+15/11/25, 15:52 - Jeniffer Onebox: Hola Santi , listo hoy revisaré todo el documento y te voy comentando gracias por el trabajo
+16/11/25, 18:51 - Santi: Chicos, me genera dudas de si sabemos bien el resultados de lo que queremos obtener con Onebox. Por favor darle una vuelta y si teneis duda lo hablamos, os adjunto varios casos de uso y un Dashboard final: https://docs.google.com/document/d/1QcfcI351YZ4oxpDISfoKWiyYvYY8Hwj-8ucKpYydZss/edit?tab=t.0
+16/11/25, 18:53 - Santi: Por favor cualquier duda lo hablamos, pero creo  que es un proyectazo que si lo sabemos sacar nos esperan días de gloria. Esta semana haré un documento para asentar el proyecto.
+16/11/25, 19:41 - Jeniffer Onebox: Claro que si Santiago mañana a más tardar te doy una respuesta y como procederíamos
+16/11/25, 19:41 - Jeniffer Onebox: Te agradezco mucho la confianza
+21/11/25, 18:25 - Santi: Hola genios, hay algún avance del proyecto que querais compartir?
+21/11/25, 18:26 - Alejandro Vega Fullstack AI: Hola Santiago no mucho el fin de semana voy a trabajarle al sistema para reconocer mejor la información
+21/11/25, 18:26 - Alejandro Vega Fullstack AI: he estado trabajando pero aun no tengo algo sustancial que mostrarte
+24/11/25, 19:38 - Alejandro Vega Fullstack AI: Hola Santiago sigo trabajando en esa parte
+24/11/25, 19:39 - Alejandro Vega Fullstack AI: pero una vez la acabe tendria creo que el 70% del backend listo
+24/11/25, 19:49 - Santi: Que buenísima noticia Jesús, no sabes las ganas que tengo de ver los avances
+24/11/25, 19:50 - Santi: Cuando nos volvamos a juntar, espero sea esta semana hablamos de como nos vinculamos
+29/11/25, 4:26 - Jeniffer Onebox: <Multimedia omitido>
+29/11/25, 4:26 - Jeniffer Onebox: esto es parte del proceso para crear lo que se conoce como knowledge graph
+29/11/25, 4:26 - Jeniffer Onebox: un knowledge graph es superior a una base de datos vectorial
+29/11/25, 4:26 - Jeniffer Onebox: que es lo que se te mostro en la primera version
+29/11/25, 23:38 - Santi: Mil gracias Jennifer, buenisimas noticias. Te hago una consulta, con esta tecnologia nos servira tmb para procesar conversaciones  ya sean de Mails, Whatpps, etc...?
+1/12/25, 12:25 - Santi: Buenos días chicos! Cuando podais please darme una devolución a mi pregunta para saber donde estamos, gracias!
+1/12/25, 13:48 - Jeniffer Onebox: Hola buenos días Santi , discúlpame no había visto el mensaje <Se editó este mensaje.>
+1/12/25, 13:49 - Jeniffer Onebox: Esta tecnología permite leer documentos a una velocidad mucho más rápida que cualquier otro servicio
+1/12/25, 13:49 - Jeniffer Onebox: Externo <Se editó este mensaje.>
+1/12/25, 13:50 - Jeniffer Onebox: El grafo permite almacenar y descubrir información
+1/12/25, 13:50 - Jeniffer Onebox: Pero manteniendo las relaciones
+1/12/25, 13:50 - Jeniffer Onebox: Como
+Por ejemplo qué cosa pertenece a que sujeto
+1/12/25, 13:51 - Jeniffer Onebox: Hemos estado bastante ocupados pero si lo hemos avanzado solo es que ese punto es el más avanzado del sistema
+1/12/25, 15:33 - Santi: Buenas Jeniffer, suena muy bien!!! Me parece excelente el trabajo, importante lo que dices.
+1/12/25, 15:36 - Santi: ¿El grafo y el sistema que estáis montando también pueden procesar conversaciones en texto (emails, chats de WhatsApp/Slack, mensajes de clientes, etc.) o solo documentos con OCR?
+1/12/25, 16:35 - Alejandro Vega Fullstack AI: puede procesar cualquier cosa que sea texto
+1/12/25, 16:36 - Alejandro Vega Fullstack AI: la idea es leer texto descubrir relaciones y así la IA le quede bastante sencillo rapido leer y procesar información
+1/12/25, 16:40 - Santi: Me parece muy top Jesús, cuando crees que podemos hacer una prueba?
+1/12/25, 16:44 - Alejandro Vega Fullstack AI: Estoy probandolo , estoy haciendo dos demos uno con documentos, otro con productos y cuando funcione uso el mismo sistema para correos
+1/12/25, 16:46 - Santi: Excelente Jesús, quedo antento
+1/12/25, 16:46 - Alejandro Vega Fullstack AI: Acuerdate que yo no hago las cosas por fuerza bruta intento hacer sistemas que cuesten lo menos posible
+1/12/25, 16:46 - Alejandro Vega Fullstack AI: mantenerlo ya que mi idea funciona si emviara parrafo por parrafo a una IA y esta extraiga la información, esta sería la opción facil pero sería muy costosa
+3/12/25, 7:26 - Alejandro Vega Fullstack AI: <Multimedia omitido>
+3/12/25, 7:26 - Alejandro Vega Fullstack AI: Este es un clasificador de texto rapidisimo se demora 5 segundos en clasificar el texto de 15 documentos pdf algunos con hasta 20 paginas, resalta el texto relevante y utilizando este texto ya puedo establecer que es lo mas importante que debo observar para que la IA lo interprete <Se editó este mensaje.>
+3/12/25, 7:28 - Alejandro Vega Fullstack AI: Con esto creare el knowledge graph o en pocas palabras la memoria persistente de la IA por que recordara como se relaciona cada información y no necesita ir a los archivos para extraer los detalles una y otra vez
+3/12/25, 7:29 - Alejandro Vega Fullstack AI: y entenderia como se relacionan los datos de diferentes fuentes
+3/12/25, 7:57 - Santi: Brutal el avance Jesus, os felicito!
+3/12/25, 7:57 - Santi: Entiendo que si la entrada en lugar de ser PDFs es texto puro (emails, WhatsApps, Slack, chats, etc.), el proceso sería el mismo, verdad?
+3/12/25, 7:57 - Santi: Es decir, el sistema leería el mensaje, extraería las entidades y relaciones, y lo añadiría al grafo igual que con los documentos.
+3/12/25, 7:58 - Santi: Solo quiero confirmar que podemos alimentar el grafo con conversaciones de distintas fuentes sin cambios grandes en vuestro pipeline.
+3/12/25, 7:58 - Santi: Gracias equipo, está quedando increíble
+3/12/25, 8:04 - Alejandro Vega Fullstack AI: si así es precisamente uso documentos similares para las pruebas por que aunque es otro tema el contexto de buscar información de diferentes fuentes es el mismo
+3/12/25, 8:04 - Alejandro Vega Fullstack AI: lo importante es encontrar formas economias y rapidas de extraer la información relevante
+5/12/25, 16:03 - Santi: Buenas chicos, os paso por donde podría ir el front/ https://one-box-56098317.base44.app
+9/12/25, 10:38 - Santi: Buenas chicos, os adjunto link de la página de Bases44 para que entendais hacia donde queremos ir: https://app.base44.com/apps/6936ece04ddb2cc726a89e8f/editor/preview/Home
+9/12/25, 10:38 - Santi: Cualquier cosa lo hablamos
+9/12/25, 10:39 - Alejandro Vega Fullstack AI: Hola Santiago hoy estoy trabajando en la madrugada, he estado bastante ocupado pero ya casi salgo de esto para concentrarme en nuestros proyectos
+9/12/25, 10:43 - Alejandro Vega Fullstack AI: pero basicamente todo el aprendizaje del mes es como usar IA grandes para entrenar IA pequeña mas rapida mas eficiente
+9/12/25, 10:43 - Alejandro Vega Fullstack AI: y esto no es algo muy hablado así que creo que al hacer el sistema si proponemos algo diferente
+9/12/25, 10:44 - Santi: Yo por lo que estoy investigando, no creo que nadie este encarando este tema como lo estamos haciendo nosotros
+9/12/25, 10:53 - Alejandro Vega Fullstack AI: hay algo llamado nested learning y agentes evolutivos yo debo hacer una tesis
+9/12/25, 10:53 - Alejandro Vega Fullstack AI: lo haré de eso realmente ahí esta el truco no usar la IA como una maquina de fuerza bruta si no como una forma de hacer cosas de forma inteligente
+9/12/25, 11:02 - Santi: Exactamente, ese es el camino
+9/12/25, 11:04 - Alejandro Vega Fullstack AI: Ahorita estoy haciendo un agente que recuerde decisiones pasadas y puede parecer algo simple pero así se organiza mucho la información
+9/12/25, 11:05 - Alejandro Vega Fullstack AI: como por ejemplo si puso teclados en una categoria gaming no lo ponga en una categoria gamer , como dije parece simple pero al simplificar el numero de categorias se simplifica el tamaño de la base de datos y las relaciones entre datos y la información es mas simple y clara
+9/12/25, 11:05 - Alejandro Vega Fullstack AI: y facil de acceder cuando el agente la necesite
+9/12/25, 11:12 - Santi: esto es brutal, esque va por ahí lo que estamos construyendo.
+9/12/25, 11:13 - Santi: Totalmente, es la manera de poder seguir un proyecto de la forma más fácil posible. La clave es que alguien te ordene, te haga la vida más fácil.
+10/12/25, 16:12 - Santi: Chicos, cuando hablamos y vemos por donde vamos con el proyecto?
+10/12/25, 16:13 - Alejandro Vega Fullstack AI: Hola Santiago he estado muy ocupado pero el fin de semana
+10/12/25, 16:13 - Alejandro Vega Fullstack AI: me comprometo a mostrarte avances
+10/12/25, 16:13 - Alejandro Vega Fullstack AI: lo ultimo que hice fue el paso anterior a la identificación de entidades
+10/12/25, 16:13 - Alejandro Vega Fullstack AI: ya cuando tenga las entidades siento que va a hacer facil
+10/12/25, 16:14 - Alejandro Vega Fullstack AI: lo que creo que podemos hacer es ya teniendo en cuenta que tenemos la conexión a gmail
+10/12/25, 16:14 - Alejandro Vega Fullstack AI: podemos empezar a hacer la conexión a otras plataformas
+10/12/25, 16:14 - Santi: Ok ok te entiendo, y si clave tema entidades para poder identificar quien interactua en los proyectos
+10/12/25, 16:14 - Santi: ok, lo vemos semana que viene
+10/12/25, 16:15 - Alejandro Vega Fullstack AI: de pronto voy un poco lento pero si tengo presente que en enero lo queremos mostrar
+10/12/25, 16:19 - Alejandro Vega Fullstack AI: Con lo que estoy haciendo siento que estpy a punto de crear sistemas capaces de entrenarse a si mismo y aprender con el tiempo, precisamente esa es mi actividad actual ya que haciendo eso viendo que funciona tendría una base muy buena para lo que estamos haciendo
+10/12/25, 16:24 - Alejandro Vega Fullstack AI: y tambien tenos un poco de paciencia mañana nos estamos mudando de casa
+10/12/25, 16:25 - Santi: Es que Onebox va hacia alli, me parece brutal que coincida lo que estás haciendo con lo que estamos contrusyendo
+10/12/25, 16:26 - Alejandro Vega Fullstack AI: para contarte en detalle tengo un sistema con miles de productos
+10/12/25, 16:33 - Alejandro Vega Fullstack AI: hay tantas combinaciones de productos
+10/12/25, 16:33 - Alejandro Vega Fullstack AI: que por mas que intento hacer un sistema de busqueda
+10/12/25, 16:33 - Alejandro Vega Fullstack AI: y un sistema de recomendación funcional
+10/12/25, 16:33 - Alejandro Vega Fullstack AI: aunque cada vez es mejor siempre hay algun detalle que se me salta
+10/12/25, 16:33 - Alejandro Vega Fullstack AI: por ejemplo las impresoras tienen modelos, si busco el modelo debería aparecer la impresora
+10/12/25, 16:34 - Alejandro Vega Fullstack AI: la comida tiene gramos si busco por gramos debería aparecer la comida
+10/12/25, 16:34 - Alejandro Vega Fullstack AI: hay tantas combinaciones de propiedades que me di cuenta que debo para y hacer otra cosa
+10/12/25, 16:34 - Alejandro Vega Fullstack AI: mi idea es ahora leer con una IA todo el catalogo de productos extraer las características que importan de cada uno
+10/12/25, 16:35 - Alejandro Vega Fullstack AI: y despues similar cientos de miles de busquedas y recomendaciones donde la IA genera reglas y esas reglas extraerlas a un sistema mucho mas simple que sea rapidisimo
+10/12/25, 16:35 - Alejandro Vega Fullstack AI: y así cambia completamente la forma de hacer cosas
+10/12/25, 16:38 - Santi: Tiene todo el sentido lo que dices. El problema no es que falten datos, sino que hay demasiadas combinaciones posibles y es imposible anticiparlas todas a mano.
+10/12/25, 16:38 - Santi: Creo que el enfoque de IA que comentas es justo el correcto:
+primero leer el catálogo completo, normalizar y entender qué atributos importan realmente en cada tipo de producto (modelo, gramos, compatibilidades, etc.), y a partir de ahí dejar que la IA simule búsquedas reales y extraiga patrones/reglas útiles.
+10/12/25, 16:39 - Alejandro Vega Fullstack AI: si los patrones pueden ser movidos a otro tipo de estructura llamados arboles de decisión
+10/12/25, 16:39 - Alejandro Vega Fullstack AI: es como si el llm generara una conexión persistente en memoria
+10/12/25, 16:39 - Alejandro Vega Fullstack AI: de esa forma ya no hace falta usar un llm que es inteligente pero lento
+10/12/25, 16:40 - Alejandro Vega Fullstack AI: y este principio aplica a cualquier tipo de estructura de datos, base de datos, texto plano
+10/12/25, 16:41 - Alejandro Vega Fullstack AI: Lo unico que necesitas es una maquina potente
+10/12/25, 17:19 - Santi: Imagino, te veo muy metido Jesus. Vamos a hacer algo grande
+10/12/25, 17:35 - Alejandro Vega Fullstack AI: Gracias
+10/12/25, 17:35 - Alejandro Vega Fullstack AI: El mismo principio lo use en el sistema de baloncesto
+10/12/25, 17:35 - Alejandro Vega Fullstack AI: ya que no detectaba bien el balon se arreglo al usar una IA para entrenar otra IA
+10/12/25, 17:35 - Alejandro Vega Fullstack AI: manialmente habria sido un problema grande
+10/12/25, 17:42 - Santi: Y seguro que es mucho mas escalable, pero a lo mejor la curva de aprendizaje al principio es mas lenta y luego va solo
+10/12/25, 17:50 - Alejandro Vega Fullstack AI: asi es
+14/12/25, 21:29 - Alejandro Vega Fullstack AI: Hola santiago
+14/12/25, 21:31 - Alejandro Vega Fullstack AI: Nuestro proceso de mudanza prácticamente ya se hizo
+14/12/25, 21:31 - Alejandro Vega Fullstack AI: Fueron muchas cosas y mas de 5 horas de viaje esta semana volvere a concentrarme en lo importante para que veamos avances
+14/12/25, 21:40 - Santi: Buenas noticias Jesús espero que el cambio sea para bien!  Os habeis ido a otra población o os habeis cambiado de casa?
+14/12/25, 21:42 - Alejandro Vega Fullstack AI: Si cambiamos de un sitio muy frio a un sitio calientw
+14/12/25, 21:42 - Alejandro Vega Fullstack AI: Caliente
+14/12/25, 21:49 - Santi: Dnd stais ahora? Cartagena?
+14/12/25, 22:16 - Alejandro Vega Fullstack AI: No mas cerca
+14/12/25, 22:16 - Alejandro Vega Fullstack AI: Pasamos de cerca de la capital a otro departamento llamado tolima
+14/12/25, 23:32 - Santi: No lo conozco, lo miraré ;)
+15/12/25, 0:01 - Alejandro Vega Fullstack AI: Gracias
+15/12/25, 0:01 - Alejandro Vega Fullstack AI: Esas mudanzas siempre son bastabte agotadoras
+15/12/25, 0:08 - Santi: Imagino chicos, espero que os vaya muy bien en esta nueva aventura
+15/12/25, 1:06 - Jeniffer Onebox: Muchas gracias
+23/12/25, 22:04 - Santi: Que tal equipo!!! Como va la nueva casa?
+23/12/25, 22:11 - Alejandro Vega Fullstack AI: Hola Santiago un proceso bastante desgastante pero
+23/12/25, 22:11 - Alejandro Vega Fullstack AI: ya organice escritorios y demas y me acostumbro a trabajar con mas calor
+23/12/25, 22:12 - Alejandro Vega Fullstack AI: estoy trabajando preciso en esos avances
+23/12/25, 22:46 - Santi: Yo soy mas de calor que de frio :)
+23/12/25, 22:46 - Santi: Como van los avances de Onebox <Se editó este mensaje.>
+23/12/25, 22:47 - Santi: Creeis que en Enero tendremos una primera version?
+23/12/25, 22:47 - Alejandro Vega Fullstack AI: si claro
+23/12/25, 22:48 - Alejandro Vega Fullstack AI: debemos tenerlo
+23/12/25, 23:14 - Santi: ❤️
+24/12/25, 21:37 - Jeniffer Onebox: <Multimedia omitido>
+24/12/25, 21:38 - Jeniffer Onebox: <Multimedia omitido>
+24/12/25, 21:39 - Jeniffer Onebox: Con esto yo creo que ya lo podemos aplicar a correos eletronicos pero para ahora si hacer el MVP se necesita diferentes conexiones no solo
+24/12/25, 21:40 - Jeniffer Onebox: al correo si no otras fuentes ya sea whatsap o slack canales que tengas y podamos conectarnos para leer y extraer informacion
+24/12/25, 21:42 - Jeniffer Onebox: <Multimedia omitido>
+25/12/25, 14:46 - Jeniffer Onebox: Feliz navidad
+25/12/25, 14:47 - Alejandro Vega Fullstack AI: Feliz navidad santiago que sea el mejor año de todos
+25/12/25, 15:36 - Santi: <Multimedia omitido>
+25/12/25, 15:37 - Santi: Jeniffer me lo miro luego que dsd ayer estamos cn celebraciones y quiero verlo con calma!  Gracias
+25/12/25, 16:20 - Alejandro Vega Fullstack AI: <Multimedia omitido>
+25/12/25, 16:20 - Alejandro Vega Fullstack AI: Muy hermosa tu familia te mando una foto de la nuestra
+25/12/25, 16:20 - Alejandro Vega Fullstack AI: <Multimedia omitido>
+25/12/25, 17:39 - Santi: Divinos chicos!! Gran familia! ♥️
+25/12/25, 17:43 - Jeniffer Onebox: Gracias
+6/1/26, 13:08 - Santi: Chicos!!!! Feliz Año nuevo!!! Espero que hayais pasado unas buenas fiestas!! Os deseo todo lo mejor para este 2026, y muchos éxitos con el proyecto que estamos trabajando juntos!! 🚀🚀🚀
+6/1/26, 13:11 - Alejandro Vega Fullstack AI: Muchas gracias Santiago espero que hallan sido excelentes dias de descaso
+9/1/26, 6:14 - Alejandro Vega Fullstack AI: Hola santiago necesitamos organizar y ordenar los siguientes pasos
+9/1/26, 7:55 - Santi: Me pare bien Jesus, organicemos una llamada, que disponibilidad teneis?
+19/1/26, 14:06 - Alejandro Vega Fullstack AI: Hola equipo @⁨Jeniffer Onebox⁩  Empezamos el proyecto formalmente en la parte del front end y un exitoso poc , para que el poc sea exitoso necesitamos que todas las conversaciones se hagan por correo, esto es obligatorio y debe cumplirse al menos que halla una emergencia 
+ santiago@digitalworkers.online
+ventas.javc@gmail.com
+jenifferf.funezp@gmail.com
+
+Aqui estan los correos donde sera la comunicacion, acabo de revisar mi correo y ya hay un correo con asunto One box Project entonces ese usaremos 
+
+Todas las comunicaciones deben hacerse mandando una copia a todos los involucrados, eso es todo por ahora, alguna duda por correo
+19/1/26, 14:32 - Santi: Excelente Jesús, vamos por más!
+23/2/26, 20:31 - Santi: Ya estoy en la call
+23/2/26, 20:32 - Jeniffer Onebox: Hola Santiago un minuto y entro !
+23/2/26, 20:32 - Santi: Perfecto!
+23/2/26, 20:32 - Alejandro Vega Fullstack AI: perdon aun sigo en mi reunion salgo en 15
+24/2/26, 20:30 - Alejandro Vega Fullstack AI: Hola
+24/2/26, 20:31 - Alejandro Vega Fullstack AI: entonces si vamos a implementar twilio para manejar notificaciones
+24/2/26, 20:31 - Alejandro Vega Fullstack AI: y creo que necesitamos hacer ya un ambiente real en aws para one box no se santiago si ya manejas uno
+24/2/26, 20:44 - Jeniffer Onebox: Si lo manejan que me creen el usuario y me den los permisos así
+24/2/26, 20:45 - Jeniffer Onebox: Hago la migración del sistema
+24/2/26, 20:55 - Santi: Estoy de acuerdo
+24/2/26, 20:55 - Santi: No manejo ninguno, crear uno please
+24/2/26, 20:55 - Santi: Y crear acceso a todos
+24/2/26, 20:57 - Alejandro Vega Fullstack AI: toca crearlo con un correo bajo tu dominio
+24/2/26, 21:06 - Santi: Dale, hay que pensar un dominio primero
+24/2/26, 21:37 - Alejandro Vega Fullstack AI: Yo creo que ya tienes uno
+24/2/26, 21:37 - Jeniffer Onebox: Si
+24/2/26, 21:38 - Jeniffer Onebox: Podría ser con ese o al menos que quieras otro nuevo y con ese hacer la instancia
+24/2/26, 21:48 - Santi: Tengo el de digitalworkers.online
+24/2/26, 21:49 - Santi: Si quereis lo podemos hacer con este y luego migrarlo cuando tengamos el definitivo
+24/2/26, 21:49 - Santi: Como lo veis?
+24/2/26, 21:49 - Alejandro Vega Fullstack AI: La verdad no se si se puede migrar tu que dices Jenny tu si trabajas muy seguido con aws
+24/2/26, 21:50 - Santi: Por eso lo digo....
+24/2/26, 21:50 - Alejandro Vega Fullstack AI: yo creo que si se puede
+24/2/26, 21:51 - Santi: si es facil ok, pero sino, hay que pensar un dominio para el proyecto
+24/2/26, 21:51 - Alejandro Vega Fullstack AI: Santiago otra cosa los costos de la app son economicos pero no se si puedas pedir creditos de aws o podemos poner una tarjeta tu sabes para poner tener todo corriendo
+24/2/26, 21:52 - Santi: obvio claro
+24/2/26, 21:52 - Alejandro Vega Fullstack AI: Yo correre mientras estemos en staging antes de produccion todos los modelos de forma local
+24/2/26, 21:52 - Santi: perfecto
+24/2/26, 21:52 - Santi: si podemos hacer un estimado de costos aprox seria genial
+24/2/26, 21:53 - Alejandro Vega Fullstack AI: Eso lo podemos hacer ahora pero en este instante con pruebas como 10 dolares mensuales asi tirando algo
+24/2/26, 21:54 - Alejandro Vega Fullstack AI: y lo digo por que se usa S3, Lambdas, cognito, dynamo
+24/2/26, 21:54 - Alejandro Vega Fullstack AI: lo pesado lo estamos haciendo de forma local pero el backend como tal esta en aws
+24/2/26, 21:56 - Alejandro Vega Fullstack AI: <Multimedia omitido>
+24/2/26, 21:59 - Santi: A mi me parece perfecto
+24/2/26, 22:00 - Santi: Os paso por mail unas vista generadas para ordenar el proyecto, ya me direis que os parece
+24/2/26, 22:00 - Santi: Jesús coordinemos un día para dar de alta en AWS
+24/2/26, 22:01 - Alejandro Vega Fullstack AI: Si de hecho planeemos la reunion ya que estamos en timezones distintos creo que es las 10 pm para ti ya no molesto mas por hoy
+24/2/26, 22:14 - Santi: Tranki, podemos quedar mañana mejor, dime horario, yo por la tarde estoy libre
+24/2/26, 22:16 - Alejandro Vega Fullstack AI: tambien me gustaría que jenifer este disponible ahorita estamos en ciudades separadas entonces apenas ella nos confirme ponemos fecha
+24/2/26, 22:19 - Jeniffer Onebox: Yo puedo después
+24/2/26, 22:19 - Jeniffer Onebox: De las 3
+24/2/26, 22:24 - Santi: ok, serían las 9pm en España, si estais ok, agendamos para mañana a las 9pm hora España
+24/2/26, 22:25 - Alejandro Vega Fullstack AI: Bueno si señor
+24/2/26, 22:25 - Alejandro Vega Fullstack AI: Entonces el plan es configurar la cuenta de aws y darnos permisos
+25/2/26, 21:11 - Santi: Estais?
+25/2/26, 21:15 - Santi: Estoy en la call
+25/2/26, 21:15 - Santi: https://meet.google.com/ciz-mcku-naz?authuser=0
+25/2/26, 21:16 - Jeniffer Onebox: Hola Santi
+25/2/26, 21:16 - Jeniffer Onebox: Si señor un segundo
+25/2/26, 21:18 - Jeniffer Onebox: ya estoy en la sala
+25/2/26, 21:19 - Jeniffer Onebox: @⁨Santi⁩
+25/2/26, 21:25 - Santi: Estoy cenando chicos
+25/2/26, 21:25 - Santi: Perdon
+25/2/26, 21:26 - Santi: Si podeis en 30' genial
+25/2/26, 21:26 - Santi: Sino miremos mañana
+25/2/26, 21:26 - Jeniffer Onebox: No tranquilo , mañana con calma lo miramos y dejamos los permisos configurados
+25/2/26, 21:37 - Alejandro Vega Fullstack AI: Pense que la reunion era 3 y media
+25/2/26, 21:38 - Santi: Yo tmb 😂
+25/2/26, 21:39 - Santi: Y cuando vi la notificacion sali corriendo
+25/2/26, 21:58 - Alejandro Vega Fullstack AI: Bueno ya mañana lo hacemos
+25/2/26, 22:25 - Santi: Que hora os iria bien? Mañana sobre las 7pm tengo una reunion y volvere tarde. Ideal hacerlo entre las 3 pm y 5 pm hora española
+25/2/26, 22:31 - Jeniffer Onebox: Sí claro a esa hora está bien
+26/2/26, 15:01 - Santi: Chicos, estoy en la call
+26/2/26, 15:02 - Alejandro Vega Fullstack AI: Buenos dias Santiago
+26/2/26, 15:03 - Alejandro Vega Fullstack AI: pense que la reunión era mas tarde a esta hora estoy lleno de reuniones
+26/2/26, 15:03 - Santi: ok
+26/2/26, 15:03 - Alejandro Vega Fullstack AI: dejame ver que puedo hacer un segundo
+26/2/26, 15:30 - Santi: Estoy Jeniffer
+26/2/26, 15:32 - Jeniffer Onebox: Ya los pudiste crear ?
+26/2/26, 15:32 - Jeniffer Onebox: Y la de aws también ?
+26/2/26, 15:33 - Santi: No la de AWS no
+26/2/26, 15:33 - Jeniffer Onebox: Crea ese por favor
+26/2/26, 15:33 - Jeniffer Onebox: Ya que es con tus datos y ,a cuenta que creaste
+26/2/26, 15:35 - Santi: <Multimedia omitido>
+26/2/26, 15:35 - Santi: o de pago
+26/2/26, 15:35 - Jeniffer Onebox: Si el gratis
+26/2/26, 15:35 - Jeniffer Onebox: Ya luego ponemos la tarjeta bajo consumo
+26/2/26, 15:44 - Santi: Ya esta Jeniffer
+26/2/26, 15:45 - Santi: https://meet.google.com/ciz-mcku-naz?authuser=0
+26/2/26, 15:45 - Santi: esto dentro
+26/2/26, 15:57 - Santi: [REDACTED]
+26/2/26, 15:58 - Santi: https://191027238118.signin.aws.amazon.com/console
+26/2/26, 16:02 - Santi: <Multimedia omitido>
+27/2/26, 12:46 - Jeniffer Onebox: Buen día Santi , me recuerdas por favor cuál es la plataforma de pago ?
+27/2/26, 12:49 - Santi: WIZE
+27/2/26, 12:49 - Santi: sinó dime tu como te iría mejor cobrar
+27/2/26, 12:54 - Jeniffer Onebox: Revisaré si wize tiene opciones de envío a Colombia , la otra sería por western unión
+27/2/26, 12:55 - Santi: Buenas Jeniffer, yo estoy enviando a colaboradores colombianos con Wize
+27/2/26, 12:55 - Jeniffer Onebox: Ah listo perfecto 👌
+27/2/26, 12:55 - Jeniffer Onebox: Ya te mando ahorita el correo entonces gracias 🙏
+27/2/26, 21:06 - Santi: <Multimedia omitido>
+27/2/26, 21:07 - Jeniffer Onebox: Hola Santi
+27/2/26, 21:07 - Jeniffer Onebox: Si señor
+27/2/26, 21:11 - Santi: <Multimedia omitido>
+27/2/26, 21:11 - Santi: <Multimedia omitido>
+27/2/26, 21:26 - Jeniffer Onebox: Gracias Santi voy a revisar
+27/2/26, 22:49 - Jeniffer Onebox: listo ya recibi el envio mil gracias Santi
+27/2/26, 22:50 - Jeniffer Onebox: como te dije estare trabajando para poder incluir los servicios a aws pero antes hare las mejjoras
+27/2/26, 22:50 - Jeniffer Onebox: para ver si de pronto puedes alcanzar a mostrar
+27/2/26, 22:50 - Jeniffer Onebox: un sistema mucho mas avazado
+27/2/26, 22:50 - Jeniffer Onebox: avanzado
+27/2/26, 23:06 - Santi: Excelente Jennifer
+2/3/26, 20:03 - Santi: Buenas chicos!! Como vienen los avances? Aqui en el MWC estoy hablando del proyecto y la gente esta muy expectante
+2/3/26, 20:04 - Jeniffer Onebox: Hola Santi buen día, cómo estás ? bien el día de hoy voy a hacer una actualización de los cambios que hablamos la semana pasada y más tardecito o mañana ser posible. Voy a estar empezando a subir algunas cosas ya a la nube de AWS <Se editó este mensaje.>
+2/3/26, 21:45 - Alejandro Vega Fullstack AI: yo creo que es prioritario lo de twilio
+2/3/26, 21:54 - Santi: Lo que digais, no me meto. Pero estaria bueno tener visibilidad
+3/3/26, 19:01 - Alejandro Vega Fullstack AI: Hola Santiago vamos a comprar un numero de twilio
+3/3/26, 19:01 - Alejandro Vega Fullstack AI: creeria que lo mejor es hacerlo con un numero de extension española
+3/3/26, 19:29 - Santi: Excelente
+3/3/26, 19:30 - Santi: Si quereis podemos utilizar el mio
+3/3/26, 19:41 - Jeniffer Onebox: Toca un número nuevo Santi, porque este número va a ser consumido como una API, entonces no podemos vincularlo a tu número porque si no tú ya no puedes utilizar tu número de manera normal
+3/3/26, 19:43 - Santi: Ok perfecto que necesitamos?
+3/3/26, 19:45 - Alejandro Vega Fullstack AI: solo confirmar si deseas que el numero de españa esta bien
+3/3/26, 19:45 - Alejandro Vega Fullstack AI: o prefieres otro pais
+3/3/26, 19:45 - Santi: España esta bien
+3/3/26, 19:46 - Alejandro Vega Fullstack AI: listo perfecto
+4/3/26, 16:54 - Santi: Chicos, cuando hacemos una call para saber como esta el proyecto, tecnologias que hemos utilizaso en el front y en el back...en que punto nos encontrams. Ayer tuve conversaciones muy buenas pero me falta data del proyecto.
+4/3/26, 16:59 - Alejandro Vega Fullstack AI: Claro esperemos que jenifer conteste y planeamos la reunion
+4/3/26, 16:59 - Santi: Dale
+4/3/26, 17:00 - Jeniffer Onebox: Hola , ya te mando el update de cómo está el sistema actualmente
+4/3/26, 22:57 - Alejandro Vega Fullstack AI: En este momento no tienen numero de españa
+4/3/26, 22:57 - Alejandro Vega Fullstack AI: en twilio
+4/3/26, 22:57 - Alejandro Vega Fullstack AI: toca esperar a mañana
+4/3/26, 22:57 - Alejandro Vega Fullstack AI: si deja comprar uno de usa
+4/3/26, 23:00 - Santi: Okey Alejandro, gracias por el update. Mañana lo vemos.
+5/3/26, 8:03 - Santi: Buenas Jeniffer, cuando puedas please envía el update. <Se editó este mensaje.>
+5/3/26, 8:04 - Santi: Por otro lado, se está hablando mucho del MCP, si podemos hacer un esquema de la estructura que tiene nuestro desarrollo genial. Eso quizá Alejandro podrías dar luz a la arquitectura, etc...
+5/3/26, 10:54 - Jeniffer Onebox: Hola Santi , sí qué pena contigo ya terminó la arquitectura y te la paso con el update !
+5/3/26, 10:55 - Jeniffer Onebox: Regálame dos horas
+5/3/26, 11:53 - Alejandro Vega Fullstack AI: Nosotros podemos hacer un agente mcp
+5/3/26, 11:53 - Alejandro Vega Fullstack AI: Pero debido a que este requiere conexiones
+5/3/26, 11:53 - Alejandro Vega Fullstack AI: El usuario si debe pasar por una api tradicional
+5/3/26, 15:32 - Alejandro Vega Fullstack AI: Buenos dias Santiago
+5/3/26, 15:32 - Alejandro Vega Fullstack AI: toca un numero de estados unidos
+5/3/26, 15:32 - Alejandro Vega Fullstack AI: estan pidiendo validacion de identidad si pedimos uno de españa no la estan dejando tan facil
+5/3/26, 15:33 - Alejandro Vega Fullstack AI: como es de prueba usaremos uno de usa
+5/3/26, 16:29 - Santi: si claro ningún problema
+9/3/26, 21:02 - Santi: Chicos estoy en la call
+9/3/26, 21:05 - Alejandro Vega Fullstack AI: voy
+9/3/26, 21:21 - Alejandro Vega Fullstack AI: https://www.godaddy.com/es/domainsearch/find?isc=GDWELCOME&domainToCheck=oneboxmanager
+9/3/26, 21:41 - Alejandro Vega Fullstack AI: <Multimedia omitido>
+9/3/26, 21:41 - Alejandro Vega Fullstack AI: estamos hablando de 100 usuarios
+9/3/26, 21:47 - Alejandro Vega Fullstack AI: conectar cuentas es costoso
+9/3/26, 21:47 - Alejandro Vega Fullstack AI: tal vez sea un buen argumento
+9/3/26, 21:47 - Alejandro Vega Fullstack AI: de  venta
+9/3/26, 21:47 - Alejandro Vega Fullstack AI: si lo podemos hacer mas barato
+9/3/26, 21:51 - Alejandro Vega Fullstack AI: Yo creo que lo ideal seria usar creditos gratuitos de aws pero si por ahi nos cuesta 20 al mes
+9/3/26, 21:51 - Alejandro Vega Fullstack AI: tener la app en el servidor corriendo
+9/3/26, 21:51 - Jeniffer Onebox: Jesus ahorita tenemos
+9/3/26, 21:51 - Alejandro Vega Fullstack AI: si te parece vamos mitad y mitad
+9/3/26, 21:51 - Jeniffer Onebox: 100 dólares de créditos tocaría ver
+9/3/26, 21:51 - Jeniffer Onebox: Cuántos se consume el sistema al mes
+9/3/26, 21:55 - Santi: <Multimedia omitido>
+9/3/26, 21:58 - Alejandro Vega Fullstack AI: asi es
+9/3/26, 21:58 - Alejandro Vega Fullstack AI: estimado para 100 usuarios
+9/3/26, 21:58 - Jeniffer Onebox: En *aws era lo de los créditos
+9/3/26, 22:00 - Alejandro Vega Fullstack AI: aqui estamos hablando de cosas distintas 
+
+1. Precio estimado para 100 cuentas 
+2. Cuanto vale tener la app corriendo en internet
+9/3/26, 22:00 - Alejandro Vega Fullstack AI: la tabla que mande es solo acerca de la integracion de correos
+9/3/26, 22:23 - Santi: Entiendo, pero si estamos estimando que  en la fase Poc/Mvp lo utilizaran unos 100 usuarios, el coste por mes serian 157,5?
+9/3/26, 22:32 - Alejandro Vega Fullstack AI: Si usando la api de ellos
+9/3/26, 22:34 - Santi: Mucho dinero, es la única opción?
+9/3/26, 22:45 - Alejandro Vega Fullstack AI: la otra opcion es nosotros
+9/3/26, 22:45 - Alejandro Vega Fullstack AI: hacerlo nosotros por invitacion como hablamos
+9/3/26, 22:52 - Santi: Y si no es Amazon, no hay otra forma? Pregunto. Pq me cuesta creer que sea tan caro.
+9/3/26, 22:52 - Alejandro Vega Fullstack AI: no estoy hablando de amazon
+9/3/26, 22:52 - Alejandro Vega Fullstack AI: esta hablando de conectar 100 cuentas de gmail para acceder a su historial de correo
+9/3/26, 22:52 - Santi: Google?
+9/3/26, 22:52 - Santi: Okok
+9/3/26, 22:52 - Alejandro Vega Fullstack AI: si correcto amazon por ahi unos 20 al mes
+9/3/26, 22:53 - Santi: Vale, pues hagamos por invitacion para empezar y luego verems
+9/3/26, 22:54 - Santi: Pero analizar bien pq si cn 100 usuarios son 157usd con 100.000?
+9/3/26, 22:54 - Santi: La clave de todo es que sea escalable
+10/3/26, 10:40 - Santi: Alejandro, esto me dice claude, quizá es un stopper pero podemos decir que si quieren conectar gmail tienen que tener workspace, no le daría más vueltas. Tenemos otros canales. Por cierto hemos valordado conectar outlook/microsoft?
+10/3/26, 10:40 - Alejandro Vega Fullstack AI: Buenos días
+10/3/26, 10:40 - Alejandro Vega Fullstack AI: igualmente opciones hay no las mas comodas para el usuario pero si enfoquemonos en hacer integraciones
+10/3/26, 10:41 - Santi: Buo giorno o buenas noches
+10/3/26, 10:41 - Alejandro Vega Fullstack AI: respecto a outlook debo investigar como conectarlo
+10/3/26, 10:41 - Alejandro Vega Fullstack AI: Son las 4 y 40 am aca
+10/3/26, 10:41 - Santi: okok
+10/3/26, 10:41 - Alejandro Vega Fullstack AI: jeje
+10/3/26, 10:41 - Alejandro Vega Fullstack AI: toca levantarse temprano para aprovechar el día
+10/3/26, 10:41 - Santi: yaya por eso!
+10/3/26, 10:41 - Santi: jajaja
+10/3/26, 10:42 - Alejandro Vega Fullstack AI: Yo creo que por ahora hagamos las conexiones y asi entendemos cuales son las faciles cuales no y apartir de ahi creamos la solucion para mi lo importante es hacer las cosas
+10/3/26, 10:42 - Santi: y si totalmente, vamos a las conexiones faciles y empecemos a utilizar la herramienta
+10/3/26, 10:42 - Santi: y luego ya vendrán las demas
+10/3/26, 10:45 - Alejandro Vega Fullstack AI: si desean gmail se hace manualmente como jenifer hizo con su cuenta y con la tuya
+10/3/26, 10:45 - Alejandro Vega Fullstack AI: al final de cuentas creo que eso es lo valioso primero la solución y luego el conocimiento
+10/3/26, 10:45 - Alejandro Vega Fullstack AI: saber integrar tambien se puede vender
+10/3/26, 10:58 - Santi: Vamos para adelante, integremos lo más facil, slack, y luego veamos otros canales de comunicaciones, whatpp...
+10/3/26, 10:59 - Alejandro Vega Fullstack AI: yo creo que whatsaap si es importante
+10/3/26, 10:59 - Alejandro Vega Fullstack AI: para mostrar
+10/3/26, 10:59 - Alejandro Vega Fullstack AI: que el sistema sea capaz de mandar notificaciones me parece realmente muy importante
+10/3/26, 11:00 - Alejandro Vega Fullstack AI: y tambien podemos hacer slack pero necesitamos una instancia real no se si manejas una o quieres que creemos una de prueba
+10/3/26, 11:03 - Santi: clave te diria
+10/3/26, 11:03 - Santi: que quieres decir?
+10/3/26, 11:04 - Santi: por otro lado tema dominio, miraste algo?
+10/3/26, 11:04 - Alejandro Vega Fullstack AI: si compra el dominio lo que te comente ayer es suficiente
+10/3/26, 11:04 - Alejandro Vega Fullstack AI: para pensar que camino tomar
+10/3/26, 11:04 - Alejandro Vega Fullstack AI: consigue el domino en hostinger porfavor
+10/3/26, 11:04 - Alejandro Vega Fullstack AI: Y respecto a slack
+10/3/26, 11:04 - Alejandro Vega Fullstack AI: si ya tienes una cuenta de slack que te interese conectar
+10/3/26, 11:04 - Alejandro Vega Fullstack AI: o con jenifer podemos crear una de prueba
+10/3/26, 11:28 - Santi: Tengo una cuenta en slack creo luego te la paso
+10/3/26, 11:46 - Santi: Ya tenemos oneboxmanager.com
+10/3/26, 11:47 - Alejandro Vega Fullstack AI: super
+10/3/26, 11:48 - Alejandro Vega Fullstack AI: apenas se levante mi esposa empezamos a mirar como subir la app con el dominio
+10/3/26, 16:53 - Santi: <Multimedia omitido>
+10/3/26, 16:53 - Alejandro Vega Fullstack AI: si eso no deberia pasar
+11/3/26, 11:34 - Santi: Buenos días! Como ha ido esto, habeis podido mirar algo?
+11/3/26, 11:35 - Alejandro Vega Fullstack AI: S
+11/3/26, 11:36 - Alejandro Vega Fullstack AI: Jenifer va a estar en eso hoy necesitamos el acceso al hostinger
+11/3/26, 11:59 - Santi: Te lo paso
+11/3/26, 12:00 - Santi: usuario:santiago@digitalworkers.online
+11/3/26, 12:00 - Santi: [REDACTED]
+11/3/26, 12:12 - Alejandro Vega Fullstack AI: Gracias
+11/3/26, 18:16 - Santi: Chicos, mi cuenta en slack es  
+santiago@digitalworkers.online
+11/3/26, 18:16 - Alejandro Vega Fullstack AI: tu tienes canal de digital workers
+11/3/26, 18:16 - Alejandro Vega Fullstack AI: me puedes invitar ? o a jenifer ?
+11/3/26, 18:16 - Santi: si claro
+11/3/26, 18:18 - Santi: os invité a los dos
+11/3/26, 18:19 - Alejandro Vega Fullstack AI: Muchas gracias en la tarde reviso eso
+11/3/26, 22:12 - Jeniffer Onebox: Hola equipo, necesito ayuda
+11/3/26, 22:12 - Jeniffer Onebox: con el codigo de verificacion Santi porfa
+11/3/26, 22:12 - Jeniffer Onebox: <Multimedia omitido>
+11/3/26, 22:21 - Santi: [REDACTED]
+15/3/26, 11:03 - Santi: Buenas chicos, que quereis que os de, de mi canal de GitHub: digitalworkerscompany-source es mi usuario <Se editó este mensaje.>
+15/3/26, 14:10 - Jeniffer Onebox: Buenos días Santi , necesito tu correo de gmail para poder conectarlo a la API
+15/3/26, 14:10 - Jeniffer Onebox: Recuerda que toca hacer este registro para las personas que quieran usar el sistema
+15/3/26, 14:51 - Santi: Santiago@digitalworkers.online
+15/3/26, 14:51 - Santi: Si, pero yo me centraria en las integraciones que son mas faciles a nivel usabilidad
+15/3/26, 15:15 - Alejandro Vega Fullstack AI: Jenifer creo que tu subiste el codigo a un repo o estoy equivocado si no se ha subido a un repo toca hacerlo y agregar el usuario de santiago a ese repo
+15/3/26, 15:16 - Jeniffer Onebox: No se ha subido a un repositorio está en aws
+15/3/26, 15:16 - Alejandro Vega Fullstack AI: Bueno entonces yo creare el repo en github
+15/3/26, 15:16 - Jeniffer Onebox: Ok
+16/3/26, 20:52 - Santi: Chicos, pregunta en que Hosting está la web?
+16/3/26, 20:52 - Santi: Lo digo para hacerme la cuenta de gmail
+16/3/26, 20:53 - Santi: https://www.oneboxmanager.com que ganas de empezar a ver lo que estamos creando...
+16/3/26, 20:53 - Alejandro Vega Fullstack AI: esta en aws
+16/3/26, 20:56 - Alejandro Vega Fullstack AI: si esta semana vamos a trabajar en las siguientes fases incluyendo
+16/3/26, 20:56 - Alejandro Vega Fullstack AI: lo de whatsap
+16/3/26, 21:02 - Santi: impecable
+17/3/26, 12:00 - Santi: Buenas chicos, Jeniffer, tienes toda la info necesaria para hacer la vinculación de cuentas?
+17/3/26, 13:14 - Alejandro Vega Fullstack AI: Que pena santiago aca hay dos cosas 
+
+1. Que puedas probar el sistema 
+2. Configurar whatsapp
+17/3/26, 13:14 - Alejandro Vega Fullstack AI: Ella ya te comenta acerca de lo de whats pero para probar el sistema solo necesitamos un correo gmail de momento
+17/3/26, 13:15 - Alejandro Vega Fullstack AI: yo me acuerdo que tu me pasaste uno para la primera demo que hice pero no recuerdo como era
+17/3/26, 13:15 - Jeniffer Onebox: Usaremos la versión trial de twilio mientras solucionamos el tema del número de WhatsApp
+17/3/26, 13:16 - Jeniffer Onebox: Necesitamos hacer toda la vinculación de la app a tu nombre ya te digo qué documentación normalmente piden para este proceso
+17/3/26, 13:16 - Jeniffer Onebox: Y es algo que tú mismo me ayudaras ayudarás a cargar es tema de versificación de identidad
+17/3/26, 14:42 - Santi: Dale perfecto, a vuestra disposición
+17/3/26, 14:42 - Santi: El mail te lo he compartido por Slack, dime si ese sirve
+17/3/26, 15:36 - Alejandro Vega Fullstack AI: Si jenny revisa el slack es este projectmanagerai2026@gmail.com
+18/3/26, 10:01 - Santi: Eliminaste este mensaje.
+18/3/26, 10:01 - Santi: Que necesitais?
+18/3/26, 10:05 - Santi: https://github.com/Oneboxmanager
+18/3/26, 11:33 - Jeniffer Onebox: Hola santi
+18/3/26, 11:34 - Jeniffer Onebox: Para añadirme como colaborador
+18/3/26, 11:34 - Jeniffer Onebox: Al repositorio
+18/3/26, 11:34 - Jeniffer Onebox: Ya te paso mi usuario
+18/3/26, 11:34 - Jeniffer Onebox: Necesito un repo para el front y uno para el back
+18/3/26, 11:37 - Santi: Cuando puedas me lo pasas
+19/3/26, 17:26 - Jeniffer Onebox: Hola Santi
+19/3/26, 17:26 - Jeniffer Onebox: Perdona la demora
+19/3/26, 17:26 - Jeniffer Onebox: En contestar
+19/3/26, 17:28 - Jeniffer Onebox: JenifferVega
+19/3/26, 17:28 - Jeniffer Onebox: adjunto tambien la foto del perfil
+19/3/26, 17:29 - Jeniffer Onebox: <Multimedia omitido>
+19/3/26, 17:29 - Alejandro Vega Fullstack AI: Se eliminó este mensaje.
+19/3/26, 17:29 - Jeniffer Onebox: y mi correo kotomivega@gmail.com
+19/3/26, 17:29 - Alejandro Vega Fullstack AI: ventas.javc@gmail.com o sumaikun
+19/3/26, 17:30 - Alejandro Vega Fullstack AI: si tienes dudas https://www.youtube.com/watch?v=ixUo24znMjA
+19/3/26, 17:30 - Alejandro Vega Fullstack AI: este video de un minuto te muestra como hacerlo
+19/3/26, 17:30 - Santi: excelente chicos, graciaas
+19/3/26, 17:31 - Alejandro Vega Fullstack AI: si ahi podemos subir el codigo de todos los proyectos que hagamos
+20/3/26, 16:02 - Jeniffer Onebox: Hola Santi, me confirmas porfa si creaste los repositorios porfa
+20/3/26, 16:03 - Santi: Nop! Perdon
+20/3/26, 16:03 - Jeniffer Onebox: cuando tengas tiempo me avisas para subir lo que he trabajado
+20/3/26, 16:04 - Jeniffer Onebox: tambien terminare la configuracion pendiente que tengo del whatsap
+20/3/26, 16:04 - Alejandro Vega Fullstack AI: Necesitas una guia o algo para los repos ?
+20/3/26, 16:06 - Santi: Done!!
+20/3/26, 16:06 - Santi: Ya estais los dos
+20/3/26, 16:11 - Alejandro Vega Fullstack AI: El lunes por tardar ya deberiamos tener lo de whatsap
+20/3/26, 16:11 - Alejandro Vega Fullstack AI: y podriamos mirar la conexion con slack tambien
+20/3/26, 16:11 - Santi: Excelente chicos
+20/3/26, 16:12 - Santi: Me han dicho que Gmail ha sacado una funcionalidad parecia a lo que queremos hacer pero solo para ordenar mails.
+20/3/26, 16:12 - Jeniffer Onebox: ay Santiago , me pasaste el correo con extension gmail?
+20/3/26, 16:12 - Jeniffer Onebox: no lo veo
+20/3/26, 16:12 - Santi: puse el que tu me pasaste
+20/3/26, 16:13 - Santi: kotomivega@gmail.com
+20/3/26, 16:13 - Santi: <Multimedia omitido>
+20/3/26, 16:13 - Alejandro Vega Fullstack AI: Creo que no hace falta que el cree los repos si estamos en el mismo workspace
+20/3/26, 16:14 - Santi: está bien hecho o hace falta algo más?
+20/3/26, 16:16 - Jeniffer Onebox: no hablo del correo que
+20/3/26, 16:16 - Jeniffer Onebox: quedara vinculado al sistema para que puedas entrar
+20/3/26, 16:19 - Santi: es con extension de gmail
+23/3/26, 18:07 - Santi: Buenas chicos, como venimos con este tema?
+23/3/26, 18:07 - Santi: Tenemos whatps?
+23/3/26, 18:08 - Jeniffer Onebox: Buen día Santi
+23/3/26, 18:08 - Jeniffer Onebox: Todavía estoy en la configuración , por horas de la tarde te doy el update
+23/3/26, 18:09 - Jeniffer Onebox: Necesito hacer unas pruebas antes de confirmarte
+23/3/26, 18:09 - Santi: Dale genial, quedo atento
+24/3/26, 4:37 - Jeniffer Onebox: <Multimedia omitido>
+24/3/26, 9:54 - Santi: <Multimedia omitido>
+24/3/26, 13:36 - Jeniffer Onebox: Buen dia Santiago, ya me dejo ingresar !
+24/3/26, 13:37 - Jeniffer Onebox: necesito revisar un caso y termino
+24/3/26, 14:00 - Jeniffer Onebox: Hola Santi , estoy presentando un bloqueo a nivel del uso Amazon bedrock dentro de claude solicitan que uno mande un formulario de uso ya que como se hizo la migración lo toma como primera vez entonces estoy intentando solicitar unos tokens pero tampoco deja
+24/3/26, 14:01 - Jeniffer Onebox: Con el bloqueo del modelo me queda difícil terminar las pruebas y más que lo uses yo estoy pendiente de probar el sistema dentro de una hora para ver si Amazon nos habilitó ya el uso del llm y
+24/3/26, 14:01 - Jeniffer Onebox: Te escribiré por aquí , disculpa las molestias y la demora
+24/3/26, 14:15 - Santi: Perfecto Jeniffer, quedo atento
+24/3/26, 21:38 - Santi: que tal Jeniffer, se solucionó el problema?
+24/3/26, 21:39 - Jeniffer Onebox: Hola Santi, hace una hora revise y no tuve novedad
+24/3/26, 21:40 - Jeniffer Onebox: regalame 5 minutos y miramos si ya esta activo
+24/3/26, 22:04 - Jeniffer Onebox: <Multimedia omitido>
+24/3/26, 22:04 - Jeniffer Onebox: <Multimedia omitido>
+24/3/26, 22:04 - Jeniffer Onebox: todavia sigue bloqueado, esperemos porfavor unas 4 horas mas
+24/3/26, 22:51 - Santi: ok, chicos mirar Openclaw, os paso un pantallazo de un emprendedor de Argntina afincado en España, es un tipo muy crack. mirar lo que dice que hace OpenClaw aunque lo compare con Claude Cowork. Mi pregunta es, donde estamos trabajados si ya existe la tecnología para hacerlo. 
+As a CEO, my most valuable data is scattered across email, WhatsApp, Slack, and dozens of documents. I need an AI that can pull all of that together, think about it, and proactively tell me what matters. Not wait for me to ask.
+With OpenClaw I built a full AI Chief of Staff in a few days. It syncs my Gmail, WhatsApp, and Slack into a local database with full text search. When someone sends a PDF, a Word doc, or even a voice note on WhatsApp, the system automatically extracts the text and makes it searchable.  It tracks projects, pending decisions with owners and deadlines, team members, and a timeline of every significant event. When I tell it we made a decision it automatically proposes database updates, changes project status, resolves open items, creates milestones. I approve each action with a click.
+
+The real power is autonomy. I have a cron job that runs every 4 hours, reviews all new emails and WhatsApp messages, evaluates whether each initiative advances our core strategy, and sends me a strategic assessment via Telegram. I wake up and the analysis is already there.
+
+Cowork cannot do any of this. No persistent storage between sessions. Cannot send you messages, emails, or alerts. Cannot run autonomously on a schedule. It can read your Gmail and browse the web while you sit there watching it, but the moment you close the window everything stops.
+
+The fundamental problem is architectural. Cowork runs as a session that exists only while you're using it. OpenClaw runs as a platform where agents operate independently on your behalf 24/7. For a CEO who needs an AI that works while you sleep, that difference is everything.
+
+I built the whole system using Claude Code, which is Anthropic's best product by far. The irony is that Claude is an incredible AI but Cowork puts it in a box where it can't reach its potential. OpenClaw lets it run free.
+24/3/26, 22:53 - Alejandro Vega Fullstack AI: Viendolo asi estamos haciendo algo similar a openclaw
+24/3/26, 22:57 - Santi: No me importa porque Openclaw es un opensource y para hacer eso hay que saber hacerlo, la clave es que es una necesidad real y eso es importante. Nosotros vamos a poner una capa encima para facilitar al usuario que pueda tener un seguimiento de sus proyectos de una manera muy fácil.
+24/3/26, 22:57 - Santi: Pero siento que estamos trabados
+24/3/26, 22:58 - Alejandro Vega Fullstack AI: estamos construyendo una arquitectura
+24/3/26, 22:59 - Alejandro Vega Fullstack AI: pero si tenemos direccion
+24/3/26, 23:00 - Alejandro Vega Fullstack AI: hemos tenido dificultades por los accesos a los recursos
+24/3/26, 23:09 - Alejandro Vega Fullstack AI: pero eso lo hemos avanzado considero que lo mas importante es tener la conexion con slack y ya tendriamos un sistema listo para pruebas y empezar a comunicar
+24/3/26, 23:11 - Santi: Mi pregunta, se puede utilizar la tecnologia de Openclaw para hacer un Mvp?
+24/3/26, 23:26 - Alejandro Vega Fullstack AI: toca entenderla bien estaba leyendo el codigo
+24/3/26, 23:27 - Alejandro Vega Fullstack AI: es algo grande
+24/3/26, 23:27 - Alejandro Vega Fullstack AI: es un proyecto bastante robusto claro que se puede
+24/3/26, 23:28 - Santi: Lo hablamos
+24/3/26, 23:28 - Alejandro Vega Fullstack AI: si seguro despues de este paso que hacemos con onebox miramos como incorporarnos o conectarnos con openclaw
+24/3/26, 23:28 - Alejandro Vega Fullstack AI: creo que eso seria potente
+24/3/26, 23:30 - Santi: Mirar lo que ha hecho Hubspot
+24/3/26, 23:30 - Santi: <Multimedia omitido>
+24/3/26, 23:31 - Alejandro Vega Fullstack AI: nunca tuve experiencia con ellos
+24/3/26, 23:31 - Alejandro Vega Fullstack AI: pero es interesante que usen la IA
+24/3/26, 23:32 - Santi: Se ha cnvertido n l primer crm cn conexion directa a Claude. Lo que digo es que no tngamos miedo. Hagamos algo que la gnte pueda utilizar facilmnte
+24/3/26, 23:32 - Santi: Si, jugada maestra para no quedarse fuera
+24/3/26, 23:33 - Alejandro Vega Fullstack AI: yo creo que llevaban bastante tiempo haciendolo lo importante es poner anthropic como partner oficial
+24/3/26, 23:33 - Alejandro Vega Fullstack AI: no es lo mismo un equipo de IA a un equipo de IA de claude
+24/3/26, 23:33 - Alejandro Vega Fullstack AI: lo que estamos haciendo le tengo fe pero ya que somos un equipo en proceso de credimiento es normal ir paso a paso
+24/3/26, 23:34 - Alejandro Vega Fullstack AI: no teniamos ninguna solucion de antemano y todo el aprendizaje de onebox se puede enfocar a hacer otros agentes
+24/3/26, 23:35 - Santi: Totalmnte Ale, yo creo que estamos empezando un camino que nos puede llevar a cotas muy interesantes.
+24/3/26, 23:45 - Alejandro Vega Fullstack AI: y nuestra solucion es cloud
+24/3/26, 23:45 - Alejandro Vega Fullstack AI: un agente como servicio como decias
+24/3/26, 23:50 - Santi: Correcto ;)
+25/3/26, 14:16 - Jeniffer Onebox: Buenos dias Santi, parece que el problema es a nivel de amazon y voy a mandar un ticket para que me ayuden a solucionar el problema mientras usare una api key de claude para seguir avanzando
+25/3/26, 14:34 - Santi: Excelente Jeniffer
+25/3/26, 21:54 - Jeniffer Onebox: Hola Santi, trabajando todavia en la conexion
+25/3/26, 21:54 - Jeniffer Onebox: <Multimedia omitido>
+25/3/26, 21:54 - Jeniffer Onebox: <Multimedia omitido>
+25/3/26, 23:01 - Jeniffer Onebox: <Multimedia omitido>
+25/3/26, 23:14 - Santi: Genia total, gracias por el esfuerzo y por rendirse
+26/3/26, 23:08 - Santi: Buenas chicos! Como venimos?
+26/3/26, 23:08 - Jeniffer Onebox: Hola Santi como vas, Jesus alejandro me esta ayudando con las pruebas con otros usuarios
+26/3/26, 23:09 - Jeniffer Onebox: una pregunta su merced me dio el correo con extension gmail? solo encontre el de ventas que es el de jesus sin eso no podrias probar el sistema, whatsap esta integrado tambien en la version test
+26/3/26, 23:09 - Jeniffer Onebox: ahora en un momento que pase una prueba te explico como seria para que pruebes con el whatsap y con el sistema
+26/3/26, 23:10 - Santi: Dale genial, el mail que te pasé fue este: projectmanagerai2026@gmail.com
+26/3/26, 23:10 - Santi: Es correcto?
+26/3/26, 23:13 - Alejandro Vega Fullstack AI: <Multimedia omitido>
+26/3/26, 23:14 - Jeniffer Onebox: si señor, ya lo integro
+27/3/26, 19:54 - Santi: Como viene el proyecto chicos?
+27/3/26, 19:55 - Alejandro Vega Fullstack AI: Hola Santiago estamos haciendo pruebas y nuevas caracteristicas ya el sistema esta conectado con el backend tambien
+27/3/26, 20:16 - Alejandro Vega Fullstack AI: vamos a implementar la caracteristica de que no hace falta que linkees tu cuenta para tener acceso a proyectos ya conectados por otras personas
+27/3/26, 20:16 - Alejandro Vega Fullstack AI: eso es muy importante para la experiencia de usuario
+27/3/26, 20:19 - Jeniffer Onebox: Si eso estaba hablando el día de hoy con Jesus como se manejarían esas conexiones ya le solicito que vuelva a probar
+27/3/26, 20:20 - Santi: Excelente chicos
+27/3/26, 22:01 - Alejandro Vega Fullstack AI: <Multimedia omitido>
+27/3/26, 22:01 - Alejandro Vega Fullstack AI: esto me parece un feature bastante potente
+27/3/26, 22:01 - Alejandro Vega Fullstack AI: ya que la gente al ingresar podra ver proyectos reales
+27/3/26, 22:01 - Alejandro Vega Fullstack AI: creo que lo unico que falta es el servicio que lee los adjuntos
+27/3/26, 22:02 - Alejandro Vega Fullstack AI: solo que eso tal vez va a tocar ponerlo con limitaciones ya que leer zips y eso de forma masiva esta complejo
+7/4/26, 9:49 - Santi: Buon giorno equipo, estuve missing pero lo necesitaba, si podeis hablar hoy genial, así nos ponemos al día y vemos donde estamos. Quiero entender si estamos estancados y si necesitamos ayuda o si es un tema externo evaluar alternativas.
+7/4/26, 15:54 - Alejandro Vega Fullstack AI: Buenos dias Santiago ,  se han hecho pequeñas mejoras para que al usar Gemini el agente omita mejor el spam y encuentre mejor los correos relacionados a proyectos
+7/4/26, 15:54 - Alejandro Vega Fullstack AI: la conexion a whatsap ya esta
+7/4/26, 15:54 - Alejandro Vega Fullstack AI: ya tenemos idea de como hacerlo con slack pero no es lo mismo un slack corporativo que un slack de cuenta personal
+7/4/26, 15:54 - Alejandro Vega Fullstack AI: pero podria integrarse asi
+7/4/26, 16:34 - Santi: Excelente Ale, cuando querais hablamos
+7/4/26, 17:00 - Alejandro Vega Fullstack AI: Jenifer esta en oficina
+7/4/26, 17:00 - Alejandro Vega Fullstack AI: voy a preguntarle si puede atender
+7/4/26, 17:20 - Jeniffer Onebox: Hola buen día Santiago !
+7/4/26, 17:22 - Jeniffer Onebox: Ya he podido avanzar bastante en el tema del S pam que ha sido un poco difícil estoy evaluando la opción de usar Google notificaciones para que el sistema pueda actualizar los proyectos en tiempo real en el Dashboard
+7/4/26, 17:38 - Santi: Buenas Jennifer!! Todo me parece genial, pero quiero ver el sistema funcionando. Cuando podemos verlo
+7/4/26, 17:38 - Jeniffer Onebox: El sistema está corriendo ya
+7/4/26, 17:38 - Jeniffer Onebox: Puedes hacer login todavía hay un delay con el tema del
+Token
+7/4/26, 17:39 - Jeniffer Onebox: https://www.oneboxmanager.com/
+7/4/26, 17:39 - Jeniffer Onebox: Regístrate
+7/4/26, 17:39 - Jeniffer Onebox: Has sesión con el correo que me mandaste
+7/4/26, 17:39 - Jeniffer Onebox: Debes aceptar que es una app no registrada
+7/4/26, 17:40 - Santi: ok! Pero pregunta, pero como gestiona los proyectos, lo puedo linkear a Onebox?
+7/4/26, 17:40 - Jeniffer Onebox: ahorita el leera los ultimos 20 correos que tengas anexados
+7/4/26, 17:40 - Jeniffer Onebox: y creara los proyectos
+7/4/26, 17:41 - Jeniffer Onebox: todavia hay un tema con el spam que intento solucionar y un tema de notificaciones para qe el sistema
+7/4/26, 17:41 - Jeniffer Onebox: reciba estos mensajes y cree los proyectos en vez de hacerlo cada hora
+7/4/26, 17:43 - Santi: Sería ideal Jeniffer, quedar una hora y hacerme un onboarding y ver como funciona
+7/4/26, 17:43 - Jeniffer Onebox: Listo si señor
+7/4/26, 17:44 - Jeniffer Onebox: Ya te confirmo
+7/4/26, 17:44 - Jeniffer Onebox: Y te lo explico de igual forma te haré un video para que lo vallas viendo mientras
+8/4/26, 10:10 - Santi: Buenos días Jeniffer, a ver si hoy podemos hacer la call
+8/4/26, 12:17 - Santi: He entrado en la web y solo te permite linkear con gmail y acto seguido te bloquea porque no tenemos los permisos. Lo que debería ser a nivel de usabilidad es empezar con el proyecto, que herramientas vamos a utilizar, gmail, slack, whatpp, etc... y luego preguntar por las conexiones.
+8/4/26, 13:41 - Alejandro Vega Fullstack AI: El tema santiago es que nuestro corres gmail
+8/4/26, 13:42 - Alejandro Vega Fullstack AI: Para poder linkear proyectos hay restricciones
+8/4/26, 13:42 - Alejandro Vega Fullstack AI: No puedes hablar de proyectos sin hacer alguna conexión primero
+8/4/26, 13:43 - Alejandro Vega Fullstack AI: Si se agrega slack se da más facilidad pero si toca reunirnos para ver eso en detalle
+8/4/26, 13:43 - Alejandro Vega Fullstack AI: Aca hay una confusión
+8/4/26, 13:46 - Santi: Por eso hace dias que digo de reunirnos, porque hay que entender bien el proyecto. Ya lo comenté en su día como tenían que ser los pasos. Primero rellenas el proyecto y luego dices que herramientas vas a utilizar en el proyecto. No tiene sentido decir que herramientas utillizas si todavia no sabes que proyecto vas a hacer.
+8/4/26, 14:54 - Alejandro Vega Fullstack AI: Entiendo si el tema del onboarding es muy importante si yo creo que eso es lo mas importante a trabajar ahora
+8/4/26, 15:14 - Santi: ok, cuando agendamos?
+8/4/26, 15:14 - Alejandro Vega Fullstack AI: Yo puedo en dos horas
+8/4/26, 15:14 - Alejandro Vega Fullstack AI: o incluso podria ya
+8/4/26, 15:15 - Alejandro Vega Fullstack AI: pero en media hora me ocupo
+8/4/26, 15:23 - Jeniffer Onebox: @⁨Santi⁩ me confirmas porfa
+8/4/26, 15:23 - Jeniffer Onebox: Si podrías ahorita
+8/4/26, 15:23 - Jeniffer Onebox: O a qué horas
+8/4/26, 15:33 - Santi: Buenas Jennifer, en 30' podrías?
+8/4/26, 15:33 - Jeniffer Onebox: Sí claro
+8/4/26, 15:59 - Alejandro Vega Fullstack AI: si algo me invitan
+8/4/26, 16:04 - Alejandro Vega Fullstack AI: movieron mi daily 30 minutos
+8/4/26, 16:04 - Jeniffer Onebox: Nos confirmas porfa @⁨Santi⁩
+8/4/26, 16:05 - Santi: estoy
+8/4/26, 16:07 - Santi: Agendamos para ahorA?
+8/4/26, 16:07 - Jeniffer Onebox: Si porfavor
+8/4/26, 16:10 - Santi: https://meet.google.com/eic-twpm-wty?authuser=0
+14/4/26, 5:30 - Jeniffer Onebox: Buen dia equipo, he subido el codigo del front End y el Backend a github , leos añadi como colaboradores para que acepten y puedan ir viendo ahi lols cambios que estare haciendo
+14/4/26, 5:30 - Jeniffer Onebox: les llego la notificacion a los correos
+14/4/26, 7:56 - Santi: Perfecto Jeniffer
+20/4/26, 15:02 - Jeniffer Onebox: Buen dia Santi, ya esta el formulario actualizado en la interfaz
+20/4/26, 15:03 - Jeniffer Onebox: y ya crea los proyectos , estoy solucionando un problema con la creacion de insights, hoy en la tarde te doy update de eso especifico
+20/4/26, 15:03 - Jeniffer Onebox: mientras te mando fotos y me dices si necesitas que cambie algo
+20/4/26, 15:03 - Jeniffer Onebox: <Multimedia omitido>
+20/4/26, 15:03 - Jeniffer Onebox: <Multimedia omitido>
+20/4/26, 15:03 - Jeniffer Onebox: <Multimedia omitido>
+20/4/26, 15:03 - Jeniffer Onebox: <Multimedia omitido>
+20/4/26, 15:03 - Jeniffer Onebox: <Multimedia omitido>
+20/4/26, 15:03 - Jeniffer Onebox: o si tienes alguna sugerencia adicional , gracias
+20/4/26, 19:33 - Santi: Buenas Jennifer, me gusta mucho lo que veo, vamos bien, me gustan los primeros pasos, y la lógica que estamos implementando
+20/4/26, 19:35 - Santi: Me gusta la usabilidad de elegir entre Whatpp o Gmail y lo ágil que cambia de vista
+20/4/26, 19:35 - Santi: Tmb me gusta mucho la barra de progeso del proyecto
+20/4/26, 19:35 - Santi: y los SLAs
+20/4/26, 22:35 - Jeniffer Onebox: Súper ! Hoy estaré trabajando en el update del insight y también para agregar correos de participantes en el formulario
+20/4/26, 22:35 - Jeniffer Onebox: Gracias por tu feedback
+21/4/26, 0:59 - Santi: Excelente
+27/4/26, 14:08 - Santi: Tengo una duda, no hemos visto las vistas de estas subpantallas en donde encontraremos las tareas pendientes, o las tareas hechos con la IA...
+27/4/26, 14:10 - Jeniffer Onebox: Si ese era uno de los problemas que se iban a arreglar esta semana
+27/4/26, 14:10 - Jeniffer Onebox: Todavía no he actualizado el proyecto por eso no se han visto los cambios el día de hoy
+27/4/26, 14:10 - Jeniffer Onebox: Haré la actualización y te mandaré el update del sistema vale
+27/4/26, 14:14 - Santi: <Multimedia omitido>
+27/4/26, 14:56 - Alejandro Vega Fullstack AI: Buenos dias Santiago , bueno me falto mandar un correo electronico pero yo le aconseje a jenifer aplazar la integracion con teams
+27/4/26, 14:56 - Alejandro Vega Fullstack AI: para concentrarnos en la plataforma y en la integracion con asana en pocas palabras la integracion con teams iria al final para no desgastar tiempo de configuracion con azure
+27/4/26, 15:02 - Santi: Ok, y el tema notificaciones ya está solucionado?
+27/4/26, 15:03 - Jeniffer Onebox: Si señor , el día de hoy quedará en la actualización
+28/4/26, 4:09 - Jeniffer Onebox: <Multimedia omitido>
+28/4/26, 4:10 - Jeniffer Onebox: <Multimedia omitido>
+28/4/26, 4:10 - Jeniffer Onebox: <Multimedia omitido>
+28/4/26, 4:15 - Jeniffer Onebox: <Multimedia omitido>
+28/4/26, 4:16 - Jeniffer Onebox: <Multimedia omitido>
+28/4/26, 4:16 - Jeniffer Onebox: <Multimedia omitido>
+28/4/26, 4:18 - Jeniffer Onebox: <Multimedia omitido>
+28/4/26, 4:18 - Jeniffer Onebox: <Multimedia omitido>
+28/4/26, 4:20 - Jeniffer Onebox: se programan las notificaciones si el numero esta vinculado en el proyecto
+28/4/26, 4:20 - Jeniffer Onebox: y debe cumplir con el segundo requerimiento que si al menos 1 alerta SLA existe en el proyecto actual (tarea bloqueada o vencida) <Se editó este mensaje.>
+28/4/26, 4:21 - Jeniffer Onebox: el sistema manda la notificacion
+28/4/26, 4:21 - Jeniffer Onebox: se mandan cada 24 horas actualmente
+28/4/26, 4:21 - Jeniffer Onebox: para poder agregar esta parte necesitamos usar el sistema de twilio de la version trial
+28/4/26, 4:22 - Jeniffer Onebox: y yo te explico como usarlo cuando estes haciendo la prueba
+28/4/26, 4:26 - Jeniffer Onebox: cabe mencionar que tambien funciona el canal de whatsap como se te mostro en capturas anteriores
+28/4/26, 4:26 - Jeniffer Onebox: para hacer los requerimientos directamente desde ese medio
+28/4/26, 4:27 - Jeniffer Onebox: solamente que la logica ahi un poco ya que ahi necesitamos tener una interracion primero por parte dle usuario y mandarle el formato de como deberia solicitar la creacion de este nuevo proyecto y los canales que quisiera usar y asi sucesivamente
+28/4/26, 10:13 - Santi: Chicos, a nivel de UI lo veo genial la verdad, me gusta mucho, no se si es posible elegir entre pantalla clara y pantalla oscura. Por otro lado, sin usabilidad real me cuesta mucho ver las funcionalidades. Entiendo Jesus que no quieres ahora hacer las integraciones de Whapt, Gmail, Teams... pero sin testear la herramienta con casos reales no se si vamos a obtener el producto que queremos. Esa es mi duda y mi miedo. Entiendo que esta semana y principios de la que viene se trabajará en la integración con Asana.
+
+Es posible tener un coste estimado de la integración con Twlio, que tenemos que hacer para que google nos autorice. Lo digo para tenerlo en el pipeline y ir viendo posibilidades. Gracias chicos, estamos haciendo una gran herramienta.
+28/4/26, 10:23 - Santi: Se lo acabo de enviar a Jesus, pero lo comento por aquí: Quiero que un usuario pueda pegar texto de una conversación de WhatsApp directamente en OneBox y que el agente detecte tareas, riesgos y genere resumen. ¿Eso funciona hoy tal como está? No se si en la arquitectura se han contemplado los Rags, para leer, vectorizar textos...
+28/4/26, 10:35 - Santi: Como podría ser:
+- Usuario crea proyecto en OneBox
+- Copia conversación de WhatsApp o Gmail
+- La pega en OneBox
+- El agente detecta tareas, riesgos, decisiones
+- Se generan en el dashboard
+29/4/26, 5:06 - Alejandro Vega Fullstack AI: Perdon no contextar aca pero como te comente en el otro chat la idea es que se puedan subir archivos
+30/4/26, 14:14 - Alejandro Vega Fullstack AI: Contestar
+4/5/26, 15:40 - Jeniffer Onebox: Buen dia, en la tarde estara la nueva actualizacion del sistema el cual incluye poder adjuntar documentos y que el sistema pueda crear en la la lectura de el el proyecto, tambien quedara habilitado el canal de whatsap de twiliio y un instructivo para que puedan hacer pruebas desde el sistema
+4/5/26, 15:41 - Jeniffer Onebox: adicionalmente te voy a mandar un documento con el tema de google y otro con el tema de meta
+4/5/26, 15:42 - Jeniffer Onebox: esto el sistema ya lo hace, lo unico que si la persona no es clara con el proyecto el sistema le va a pedir informacion adicional o que sea lo mas extenso y preciso posible con el sistema
+4/5/26, 19:39 - Santi: Entiendo, esto sería copiar y pegar y lo que esta tarde ya va a funcionar va a ser la subida de documentos?
+4/5/26, 19:40 - Jeniffer Onebox: Si señor
+4/5/26, 19:51 - Santi: <Multimedia omitido>
+4/5/26, 19:52 - Santi: no se cual es mi usuario...no se que hacer, quizá estaría bien tener la opcion de poner mail tmb
+4/5/26, 19:52 - Alejandro Vega Fullstack AI: Por el momento solo esta habilitado la opcion de auth with google
+4/5/26, 19:52 - Alejandro Vega Fullstack AI: no hay registro manual en este instance
+4/5/26, 19:53 - Alejandro Vega Fullstack AI: es facil de poner solo que toca configurar y se le dio prioridad a otras cosas
+4/5/26, 19:53 - Santi: ok
+4/5/26, 19:53 - Alejandro Vega Fullstack AI: si iniciaste sesión con google queda con oauth que es la forma mas sencilla de iniciar sesión
+4/5/26, 19:53 - Santi: como hago para entrar
+4/5/26, 19:53 - Alejandro Vega Fullstack AI: que pasa si le das continue with google ?
+4/5/26, 19:54 - Santi: ya está es con projectmanager
+4/5/26, 19:55 - Santi: <Multimedia omitido>
+4/5/26, 19:56 - Alejandro Vega Fullstack AI: Creo que todo el flujo se hizo pero realmente no se que ya se subio ya le pregunto a ella creo que esta almorzando
+4/5/26, 19:58 - Jeniffer Onebox: Está una actualización
+4/5/26, 19:58 - Jeniffer Onebox: Pendiente
+4/5/26, 19:58 - Santi: ok, pero de las 3 opciones que puedo testear?
+4/5/26, 19:58 - Jeniffer Onebox: Las dos segundas porfavor
+4/5/26, 19:58 - Jeniffer Onebox: La primera no está actializada la de copiar y pegar
+4/5/26, 19:59 - Santi: ok
+4/5/26, 20:10 - Santi: <Multimedia omitido>
+4/5/26, 20:15 - Santi: ok, perfecto ahora ya podemos empezar a hablar de lo que tenemos y de su funcionamiento real
+4/5/26, 20:17 - Santi: <Multimedia omitido>
+4/5/26, 20:19 - Santi: <Multimedia omitido>
+4/5/26, 20:25 - Jeniffer Onebox: Listo entiendo
+4/5/26, 20:26 - Jeniffer Onebox: Listo
+4/5/26, 20:36 - Santi: Os paso un ejemplo que lo que me ha tirado Chatgpt cuando le he subido una conversación de un proyecto, es clave que nosotros podamos hacer lo mismo: si el cliente quiere un resumen del proyecto o algo parecido, para entender: 🧠 PROYECTO LES – RESUMEN COMPLETO
+🚀 Inicio del proyecto
+
+Se define como:
+
+“nuevo proyecto nuevas energías”
+
+Acceso:
+WordPress (/wp-admin)
+Proyecto sobre web ya existente (no desde cero)
+🧩 Trabajo realizado (lo importante)
+🔧 1. Reorganización y mejora de la web
+Reorganización de la home
+Eliminación de contenido obsoleto
+Eliminación del vídeo antiguo
+Redirección de contenido desactualizado
+
+👉 Ejemplo:
+
+Novedades redirigidas a LinkedIn
+🎨 2. Mejora UX/UI
+Ajustes de estructura
+Limpieza de contenido
+Replanteo de navegación
+
+👉 Literal:
+
+“Mejora de UX/UI (Experiencia de Usuario e Interfaz)”
+
+🧱 3. Nuevas secciones / propuestas
+Desarrollo de Comité España y Portugal
+Se hicieron 2 versiones de página:
+/comites-les-espana-y-portugal/
+/comites-les-espana-y-portugal-2/
+
+👉 Esto es clave: hubo trabajo de propuesta UX, no solo ejecución.
+
+🔄 4. Actualización técnica
+Actualización de plugins (limitada por el sistema)
+Ajustes sobre lo que el hosting permite
+⚠️ Bloqueos / dependencias del cliente
+
+Esto es MUY importante para entender el proyecto:
+
+Falta de contenido actualizado:
+Junta directiva (duda si está actualizada)
+Beneficios de socio → contenido con 9 años
+Publicaciones → últimas de 2022
+Videoteca → sin contenido nuevo
+Falta de testimonios
+
+👉 Todo esto frena el avance
+
+🧠 Tipo de proyecto (muy claro)
+
+👉 No es desarrollo puro
+👉 Es:
+
+🔥 “Optimización + actualización + limpieza + UX”
+Web ya hecha
+Cliente con contenido desactualizado
+Trabajo centrado en:
+estructura
+claridad
+actualización
+propuesta visual
+⏱️ Horas y coste
+Aproximadamente:
+10 horas
+Precio:
+~14.5€/hora
+
+👉 Proyecto pequeño / medio, no grande
+
+🧪 Iteraciones con cliente
+Se envían cambios
+Cliente responde con comentarios
+Se sigue iterando
+
+👉 Ejemplo:
+
+“No hace falta plugin de seguridad… hacen backup diario”
+
+🔐 Problemas técnicos
+Problemas de acceso (contraseñas cambiadas)
+Reset de credenciales
+Gestión de usuarios
+🧠 Insight clave (esto es oro para ti)
+
+Este proyecto NO es:
+
+❌ Desarrollo desde cero
+❌ Proyecto grande de producto
+
+Es:
+
+👉 “cliente institucional con web vieja que necesita orden y actualización”
+4/5/26, 20:39 - Santi: <Multimedia omitido>
+4/5/26, 20:39 - Jeniffer Onebox: Vale ya reviso ese bug que este generándose ahí
+4/5/26, 20:40 - Jeniffer Onebox: Todavía falta una actualización que hacer
+4/5/26, 20:40 - Santi: ok
+5/5/26, 0:09 - Jeniffer Onebox: <Multimedia omitido>
+5/5/26, 0:09 - Jeniffer Onebox: hice una prueba del ejemplo que tomaste y se mejoro el uso de la analitica de la Ia
+5/5/26, 0:09 - Jeniffer Onebox: sigo haciendo pruebas
+5/5/26, 0:09 - Jeniffer Onebox: en diferentes escenarios
+5/5/26, 6:26 - Santi: Perfecto Jeniffer grcs
+5/5/26, 14:57 - Santi: <Multimedia omitido>
+5/5/26, 14:57 - Santi: Por otro lado, no veo los proyectos que cargué ayer
+5/5/26, 14:58 - Jeniffer Onebox: Hola Santi , esa vista todavía estaba en espera por que era como un apartado que se tenía dentro del sistema , tengo que quitarlo por qué ya no tiene relevancia
+5/5/26, 14:59 - Jeniffer Onebox: Puedes mandarme pantallazo porfavor y reviso ahorita
+5/5/26, 15:03 - Santi: <Multimedia omitido>
+5/5/26, 15:04 - Jeniffer Onebox: Ya reviso que pasó , seguramente quedó oculto por la actualización que hice ayer
+5/5/26, 15:04 - Santi: Comentario, yo no pondría tarea pendiente: Completada porque puede llevar a confusión, simplemente poner competada y en el mismo color verde para que se vea bien.
+5/5/26, 15:10 - Santi: <Multimedia omitido>
+5/5/26, 15:10 - Santi: Pero esto ya empieza a tener otro color
+5/5/26, 15:11 - Santi: Veo por eso tema % de avance, habría que pensar bien como lo medimos o que señales le damos para que el % tenga lógica.
+5/5/26, 15:11 - Santi: Quizá hasta no tener todo el material decirle al sistema que el avance del proyecto es 0%
+5/5/26, 15:28 - Jeniffer Onebox: Sí claro esa es la idea
+5/5/26, 15:28 - Jeniffer Onebox: Listo hago ese cambio
+5/5/26, 15:28 - Jeniffer Onebox: Hoy me siento con Jesús y evaluamos esa parte
+5/5/26, 17:39 - Santi: <Multimedia omitido>
+5/5/26, 17:40 - Jeniffer Onebox: Si eso estaba viendo ayer de hecho modifiqué varias cosas que si me hacían más redundancia
+5/5/26, 17:40 - Jeniffer Onebox: El título si puede estar redundante lo quitaré
+5/5/26, 17:40 - Jeniffer Onebox: En dos horas empezaré los cambios
+5/5/26, 17:40 - Jeniffer Onebox: Por qué si le meto la mano y estás en el sistema puede que te salgan errores
+5/5/26, 17:46 - Santi: okok, tranki ya termino
+6/5/26, 10:02 - Santi: Buenas Jeniffer, veo que al final no pudisteis actualizar la web con los cambios puede ser? Por otro lado, estaría bueno hacer una call y ver status de situación, estamos en semana 3 y estaría bien saber donde estamos y hacia donde vamos. Grcsss
+6/5/26, 14:10 - Jeniffer Onebox: Buen día Santi , he estado trabajando en ellos
+6/5/26, 14:10 - Jeniffer Onebox: Pero no he actualizado el proyecto
+6/5/26, 14:10 - Jeniffer Onebox: Hoy día haré la actualización
+6/5/26, 14:10 - Jeniffer Onebox: Ya te confirmo para ver si podemos hacer la call malana
+6/5/26, 14:10 - Jeniffer Onebox: Mañana
+6/5/26, 14:11 - Santi: Perfecto Jeniffer graciasss
+7/5/26, 18:16 - Jeniffer Onebox: Buen dia Santi, el dia de hoy estoy full con trabajo y reuniones, podriamos dejar la reunion mañana 8 de la mañana colombia
+7/5/26, 18:17 - Jeniffer Onebox: y hoy dejo actualizado otros cambios que hice para que mires mas las correcciones que me pediste
+7/5/26, 18:29 - Santi: Perfecto Jeniffer, agendamos para mañana
+7/5/26, 18:31 - Santi: Ale estará?
+7/5/26, 18:31 - Jeniffer Onebox: si señor
+7/5/26, 19:06 - Alejandro Vega Fullstack AI: si ahi estare
+7/5/26, 19:07 - Santi: Os he enviado a los dos la invite
+8/5/26, 15:43 - Alejandro Vega Fullstack AI: En este momento lo mas importante es evaluar la inteligencia del sistema asi sea copiando y pegando la informacion manualmente
+8/5/26, 15:43 - Alejandro Vega Fullstack AI: creo que ese es el mejor camino
+8/5/26, 15:44 - Alejandro Vega Fullstack AI: Cuando la inteligencia sea robusta , que la informacion venga de un canal de integracion solo es tramite
+8/5/26, 16:08 - Santi: Perfecto
+10/5/26, 13:10 - Santi: <Multimedia omitido>
+10/5/26, 13:11 - Santi: Por otro lado, entiendo que todavía no se ha llevado a cabo la actualización, ya me direis cuando se produce, gracias!
+10/5/26, 13:45 - Jeniffer Onebox: Buenos días Santi, si en efecto no se ha actualizado la última versión
+10/5/26, 13:46 - Jeniffer Onebox: Por eso sigues viendo el bug , todavía me faltan unos cambios que hacer antes de lanzar la actualización
+11/5/26, 15:04 - Jeniffer Onebox: Buen día Santi , el día de hoy queda la actualización en la página
+12/5/26, 6:44 - Jeniffer Onebox: Buen dia Santi, ya se hizo la actualizacion con respecto al ultimo tema conversado
+12/5/26, 6:46 - Jeniffer Onebox: en este punto puedes hacer prueba de las funcionalidades del sistema , ahora la segunda parte es la deteccion del agente de acciones(PENDIENTES) que creen las tareas en ASANA asigne al desarrollador vinculado al proyecto y este mandara la notificacion automatica al desarrollador vinculado
+12/5/26, 6:47 - Jeniffer Onebox: mañana estare trabajando en la segunda parte , hasta entonces podrias ir probando el sistema por si ves algun detalle adicional antes de hacer la integracion con Asana
+12/5/26, 11:18 - Santi: Hola Jeniffer, excelentes noticias, voy a probar el agente y te voy diciendo, pero es un punto clave las automatizacionesç
+12/5/26, 11:19 - Santi: Te hago una consulta,  ¿el agente va a requerir confirmación del usuario antes de crear la tarea, o va a actuar completamente solo? Lo vemos, dependerá de la fiabilidad, pero quizás al prinicipio un ok del owner del proyecto puede estar bien.
+12/5/26, 11:20 - Santi: Cuando decimos desarrollador, decimos cualquier participante del proyecto entiendo. Ahora solo se puede utilizar Asana? Quedo a la espera de que me envíes la documentación para poder hacer las integraciones con Gmail, Whatpp, Microsoft, Zoom...
+12/5/26, 11:26 - Santi: <Multimedia omitido>
+12/5/26, 11:27 - Santi: <Multimedia omitido>
+12/5/26, 11:28 - Santi: <Multimedia omitido>
+12/5/26, 12:08 - Santi: <Multimedia omitido>
+12/5/26, 23:50 - Jeniffer Onebox: Buen dia Santi, ya revise tus comentarios los estoy revisando puntualmente
+12/5/26, 23:50 - Jeniffer Onebox: con respecto al tema del muchacho que conoce de proyect manager recuerda que si su correo no lo tengo yo no lo registro entonces ahi hay un bug por asi decirlo de gente no vinculada donde aprecen los correos generales, eso lo arreglare con unos permisos pero
+12/5/26, 23:50 - Jeniffer Onebox: necesitaria saber si el va a acceder al sistema me des su correo para yo añadirlo
+13/5/26, 7:58 - Santi: Buenas Jeniffer! Pues no lo sabia, pero te comento que pudo entrar
+13/5/26, 9:04 - Santi: Pd: si quereis lo hablamos en la call de esta semana, entender como estamos montando la web, los cimientos y ver las cmplejidades que tiene y que podemos hacer.
+13/5/26, 12:36 - Jeniffer Onebox: Hola Santiago , dificultades como tal no hay hasta el momento
+13/5/26, 12:38 - Jeniffer Onebox: Solamente que estamos logeando con cognito entonces eso no tiene restricción alguna con usuarios nuevos lo único es que no leerá el registro de mensajes de la persona al no estar conectado ala API de gmail digamos que en esa parte es donde puedes notar como ese pequeño error pero en general no hay problemas con la página
+13/5/26, 12:38 - Jeniffer Onebox: Ni con más herramientas ni la infraestructura
+13/5/26, 12:39 - Jeniffer Onebox: Con estos casos que digamos no es algo que yo tenía contemplado en el registro que una persona que no estuviera registrada en la API pudiera acceder
+13/5/26, 12:39 - Jeniffer Onebox: Hoy hago otra actualización con ese pequeño error específico
+13/5/26, 12:42 - Santi: Entiendo Jeniffer, claro no es un tema de logeo es un tema de que nosotros cuando nos logeamos queremos que chupe informacion de Gmail no?
+13/5/26, 12:43 - Jeniffer Onebox: Si señor , actualmente es una de las condiciones que tiene el sistema más sin embargo voy a hablar con con Jesus para ver cómo podemos abordar esta parte en la integración del sistema actual
+13/5/26, 12:49 - Santi: Si, yo tal y como está lo quitaría y haría un logueo normal con máxima seguridad, porque hoy por hoy no tenemos integraciones, entonces vincular el logueo a una integracion que no tenemos no lo veo.
+13/5/26, 12:52 - Jeniffer Onebox: Pues digamos que al final si es una integración que ya tiene el sistema , en lo personal no lo quitaría solamente reforzaría el login por que los correos es la otra entrada de actualización de los proyectos solamente que en este momento se priorizó la creación de ellos atravez de la interfaz
+13/5/26, 12:58 - Santi: Como querais, lo hablamos
+14/5/26, 16:57 - Santi: Chicos, please pasarme vuestra disponibilidad para hacer una call mañana, no podría hacer más tarde de las 4 :)
+14/5/26, 17:09 - Alejandro Vega Fullstack AI: tu estas en madrid verdad
+14/5/26, 17:31 - Santi: Barcelona Jesus,
+14/5/26, 17:32 - Alejandro Vega Fullstack AI: tus 4 serian las 9 aca , si creo que podria
+14/5/26, 17:32 - Alejandro Vega Fullstack AI: te gusta el futbol ?
+14/5/26, 17:39 - Santi: Tu no serás del Madrid verdad?
+14/5/26, 17:39 - Santi: Poq es la 2nda vez que me preguntas si soy del Madrid...
+14/5/26, 17:40 - Alejandro Vega Fullstack AI: jaja, no a mi me gusta es el bayern
+14/5/26, 17:41 - Santi: Te gusta el Bayern porque juega Luis Diaz, sino te gustaría el Barsa :)
+14/5/26, 17:42 - Alejandro Vega Fullstack AI: me gustaba el madrid por james y cristiano el barsa por messi entre los dos no se
+14/5/26, 17:42 - Alejandro Vega Fullstack AI: aunque se que el barca es mejor equipo
+14/5/26, 17:42 - Alejandro Vega Fullstack AI: actualmente
+14/5/26, 17:43 - Alejandro Vega Fullstack AI: es un equipazo
+14/5/26, 17:43 - Alejandro Vega Fullstack AI: solo es de malas con el atletico
+14/5/26, 18:04 - Santi: Esta bien esta bien, te entiendo ;)
+14/5/26, 18:05 - Santi: Bueno mañana a las 4pm tenemos call. Solo podrá ser de 30' , si podeis a las 3:45pm mejor por las dudas
+18/5/26, 15:00 - Santi: Buenos días chicos, como ha ido el fin de semana?
+18/5/26, 15:01 - Santi: Jeniffer te has podido recuperar?
+18/5/26, 15:01 - Jeniffer Onebox: Buenos días Santiago , gracias por preguntar ayer ya estaba mejor
+18/5/26, 15:02 - Jeniffer Onebox: Estaba pensando si de pronto me dio algún COVID por qué estaba muy mal toda la semana
+18/5/26, 15:02 - Jeniffer Onebox: Pero ya hoy mucho mejor con gripa leve hay mucho trabajo que hacer
+18/5/26, 15:02 - Jeniffer Onebox: Y necesito ponerme al día
+18/5/26, 15:03 - Santi: Bueno me alegra oír eso! 💪🏻
+18/5/26, 15:05 - Santi: Pregunta, en 1 hora estareis disponibles para tener la call con Eloi?
+18/5/26, 15:26 - Jeniffer Onebox: Sí claro en media hora ? Faltan actualizaciones pero podríamos ver lo que está y los próximos pasos así como comentaste
+18/5/26, 15:48 - Santi: si si en 15' la idea es que conozcais a Eloi, es el PM y nos va a ayudar a sacar el proyecto adelante, es clave porque es sabe mucho de esto
+18/5/26, 15:48 - Santi: el compromiso es que en 3 meses tengamos un mvp para poder presentarlo a un cliente y hacer nuestra primera venta
+18/5/26, 15:49 - Jeniffer Onebox: Listo sí claro
+18/5/26, 15:49 - Jeniffer Onebox: Creo que si será muy importante su participación y feedback de todo
+18/5/26, 15:56 - Santi: Jesus estará no?
+18/5/26, 16:00 - Jeniffer Onebox: si señor
+18/5/26, 17:25 - Santi: Buenas Jeniffer, acabo de subir el chat de what en Oneboxmanager y no veo que se haya ejecutado bien el texto
+18/5/26, 17:45 - Jeniffer Onebox: Me regalas una fotografía porfavor
+18/5/26, 17:45 - Jeniffer Onebox: De cómo se generó
+18/5/26, 17:47 - Santi: <Multimedia omitido>
+18/5/26, 17:47 - Santi: <Multimedia omitido>
+18/5/26, 17:47 - Santi: <Multimedia omitido>
+18/5/26, 17:48 - Jeniffer Onebox: Listo ya reviso que pasó gracias 🙏
+19/5/26, 7:44 - Santi: Buenas Jeniffer, cuando puedas please rellenemos el trello
+19/5/26, 12:02 - Santi: <Multimedia omitido>
+19/5/26, 13:35 - Santi: <Multimedia omitido>
+19/5/26, 15:58 - Santi: <Multimedia omitido>
+19/5/26, 16:15 - Jeniffer Onebox: Buen dia  Santi, todo esto tambien lo añadire al trello
+19/5/26, 16:15 - Jeniffer Onebox: y vere punto a punto
+19/5/26, 17:03 - Santi: <Multimedia omitido>
+21/5/26, 14:08 - Santi: Buenas chicos!
+21/5/26, 14:09 - Santi: Jeniffer, me falta el adjunto para poder enviar la solicitud a Meta
+21/5/26, 14:10 - Santi: Por otro lado, habrás visto los comentarios de Eliot, el proyecto está tomando otra dimensión, queremos sacar el MVP y el nivel de exigencia ha subido, es un proyecto que va a marcar un antes y un después, vamos a por todas
+21/5/26, 14:28 - Jeniffer Onebox: Buenos días Santi , ya en un momento reviso no sé por qué no se adjunto
+21/5/26, 14:28 - Jeniffer Onebox: Si señor así sea !
+21/5/26, 18:38 - Santi: Buenas Jeniffer, acuerdate de enviarme mail con el adjunto y dime si has visto los comentarios del Trello
+21/5/26, 20:07 - Jeniffer Onebox: si señor ya los estoy corrigiendo y vere si unos aplican
+22/5/26, 8:16 - Santi: Eliminaste este mensaje.
+22/5/26, 10:48 - Santi: Por otro lado, entiendo que hoy habrá actualizaciones?
+22/5/26, 15:03 - Santi: Chicos, acabo de mover la call 15'
+22/5/26, 15:04 - Jeniffer Onebox: Buen dia Santi
+22/5/26, 15:04 - Jeniffer Onebox: si señor estoy trabajando en las actualizaciones ahorita estoy haciendo pruebas funcionales
+22/5/26, 15:04 - Jeniffer Onebox: si claro no hay problema
+22/5/26, 16:16 - Santi: https://meet.google.com/psb-vzcp-qan?authuser=0
+22/5/26, 16:17 - Alejandro Vega Fullstack AI: solo demen 1 minuto
+22/5/26, 16:17 - Santi: te esperamos
+25/5/26, 20:39 - Alejandro Vega Fullstack AI: Hola Santiago
+25/5/26, 20:40 - Alejandro Vega Fullstack AI: creo que vamos a tener que darle flexibilidad al plan de esta semana en mi caso
+25/5/26, 20:40 - Alejandro Vega Fullstack AI: ya que debo ir a la oficina toda la semana y cuando estoy en oficina es mas dificil que pueda hacer estas cosas pero voy a hacer lo que pueda
+25/5/26, 20:55 - Santi: Dale Ale, entiendo, si crees que no llegamos, podemos hacer una parte esta semana y otra parte la que viene y lo ponemos en el Trello, como lo ves?
+25/5/26, 20:57 - Alejandro Vega Fullstack AI: si perfecto
+25/5/26, 20:58 - Alejandro Vega Fullstack AI: la otra si no tendre ningun problema
+25/5/26, 20:58 - Santi: Perfecto
+25/5/26, 20:58 - Santi: Please ponlo en el Trello
+27/5/26, 13:24 - Santi: Buenas chicos, Jesús no podrá hacer el sprint comprometido pero de todas maneras la call sigue en pie 💪🏻
+27/5/26, 13:25 - Alejandro Vega Fullstack AI: Si claro se que jenifer esta haciendo lo mejor
+27/5/26, 13:25 - Alejandro Vega Fullstack AI: igualmente estoy revisando la app y sugiriendo cambios para hacer un sistema mas robusto incluyendo mis actividades
+27/5/26, 13:27 - Santi: Thanks Ale!
+29/5/26, 15:40 - Jeniffer Onebox: Buenos días Santi , tengo un contra tiempo y todavía no estoy en casa podríamos mover la reunión para las 10?
+29/5/26, 15:40 - Jeniffer Onebox: Actualice también el trello con todo lo que trabajé esta semana
+29/5/26, 15:46 - Jeniffer Onebox: De igual forma están actualizados los cambios en la página por si quieres ir a verlos
+29/5/26, 15:51 - Santi: Buenas Jeniffer, imposible a las 10am. Quedan 10' para la call, si hacemos cambios avisar con más tiempo
+29/5/26, 15:51 - Santi: Cuando podrías hacerla?
+29/5/26, 15:52 - Jeniffer Onebox: Puedes regalarme media hora porfavor
+29/5/26, 15:53 - Santi: Nada, a las 4:30 tngo otra call
+29/5/26, 15:54 - Jeniffer Onebox: La call dura media hora
+29/5/26, 15:54 - Jeniffer Onebox: Me conecto no más llego
+29/5/26, 15:55 - Santi: Tranki, la pasamos al lunes
+29/5/26, 15:56 - Santi: Que disponibilidad tienes?
+29/5/26, 15:56 - Jeniffer Onebox: Vale Santiago que pena de igual forma
+29/5/26, 15:56 - Jeniffer Onebox: Todo el día no hay problema
+29/5/26, 15:57 - Jeniffer Onebox: Te invito a que revisen el sistema de todas formas es que ando acompañando a Jesus en una cita médica por eso la demora
+29/5/26, 15:58 - Santi: Espero que no sea nada
+29/5/26, 15:59 - Jeniffer Onebox: Ah no tranquilo son de rutina  gracias por estar pendiente y que pena nuevamente
+29/5/26, 16:01 - Santi: 
+29/5/26, 16:01 - Santi: <Multimedia omitido>
+29/5/26, 16:01 - Santi: <Multimedia omitido>
+29/5/26, 16:05 - Jeniffer Onebox: La parte responsiva no está adaptada todavía , solo estoy enfocada en funcionalidad en escritorio
+29/5/26, 16:05 - Jeniffer Onebox: Eso es lo último que haré para celular y iPad
+29/5/26, 16:06 - Jeniffer Onebox: Siempre se pensó como aplicación de escritorio
+31/5/26, 9:51 - Santi: Buenos días, chicos.
+
+Voy a ser bastante directo porque me preocupa la situación del proyecto.
+
+Llevamos ya 6 meses y, sinceramente, cuando pruebo la herramienta lo que veo es una carcasa clicable con muy poca funcionalidad real. No considero que el avance sea acorde al tiempo que llevamos invertido.
+
+He cargado dos proyectos nuevos para probarla y, a día de hoy, la herramienta no me aporta valor. No lee los chats, no los clasifica correctamente, no identifica tareas pendientes, no muestra desde cuándo están abiertas o bloqueadas, no indica quién tiene acciones pendientes, ni tampoco cuándo se han completado las tareas o cuánto tiempo ha llevado resolverlas.
+
+Y precisamente ahí está el valor del producto: saber qué está pendiente, qué está bloqueado, quién tiene que actuar, desde cuándo existe un problema y cuánto tiempo se tarda en resolverlo. Ahora mismo no tengo ninguna de esa información.
+
+Por eso no entiendo que sigamos dedicando tiempo a cambiar botones o detalles visuales cuando el núcleo del producto sigue sin funcionar. Sinceramente, da la sensación de que estamos prácticamente en el mismo punto que hace meses.
+
+Sé que suena duro, pero necesito decirlo. Después de 6 meses no es de recibo que todavía no tengamos un MVP que demuestre claramente el valor de la plataforma. Lo que tenemos hoy podríamos haberlo montado con Lovable en muy poco tiempo.
+
+Necesito que revisemos prioridades de inmediato y que nos centremos en las funcionalidades que realmente justifican la existencia del producto. Porque ahora mismo siento que no estamos avanzando en la dirección correcta. Creo Jesus que tiene mucho que ver con tu área de expertise, porque Jeniffer puede trabajar horas en el front pero si no está resuelto el back estamos perdiendo el tiempo. Revisar los últmos proyectos subidos y los chat que hay creados y vereis que no han leido nada prácticamente. Esto es algo que llevo diciendo desde hace tiempo.
+31/5/26, 9:56 - Santi: Por otro lado, el tema de la Seguridad sigue siendo un tema muy grave: Si pregunto en el chatbot que me digas quien participa en el proyecto de Onebox 2026 me tira información de otros proyectos con sus mails, teléfonos....super grave este tema.
+31/5/26, 13:39 - Jeniffer Onebox: Buen día Santiago , como el sistema sigue en fase de funcionamiento en muy normal que no tenga siempre el resultado en primeras en la creación correcta de los proyectos , esta parte suele probarse constantemente cada vez que se crean proyectos de diferente forma por eso es importante identificar estos errores y atacarlos de raíz te pido porfavor si puedes pegar la información de los chats que intentaste crear
+31/5/26, 13:50 - Jeniffer Onebox: El tema de ese chat en específico no se ha modificado desde que se creó , por eso no ha establecido la seguridad pertinente ya que en trello estábamos organizándonos con tareas y le di prioridad a la seguridad entre cuentas antes que ver si salía este error en el chat. De igual forma es algo que cubriré ahora
+31/5/26, 13:53 - Alejandro Vega Fullstack AI: Yo la verdad he estado demasiado ocupado debo revisar todo el backend y asegurarme que el flujo del chat tiene sentido
+31/5/26, 16:47 - Santi: Entiendo chicos, pero después de 6 meses creo que esto ya deberia estar subsanado. El tema de lectura correcta de los proyectos lo comenté hace tiempo.
+31/5/26, 16:49 - Santi: Esto habría que ver como se ha armado, y estar seguros que está ok
+31/5/26, 16:50 - Santi: Por favor Jesus, metamonos en faena pq estamos en la recta final y si Eliot ve que no funciona no nos ayudará a la comercialización.
+31/5/26, 16:51 - Jeniffer Onebox: El chat está funcionando , todavía no estaba corregido los permisos por qué fue algo que veníamos tocando  punto por punto
+31/5/26, 16:52 - Jeniffer Onebox: Con ese chat no sabíamos exactamente cómo lo íbamos a manejar por eso no se había tocado ni comentado funcionalidades alrededor de él
+31/5/26, 16:58 - Alejandro Vega Fullstack AI: Bueno son 6 meses desde que yo hice una demo solo para conocer como conectar a gmail , no se si tengo las fechas bien pero creo que empezamos con regularidad desde mas o menos la segunda mitad de febrero pero si entiendo el punto
+31/5/26, 17:55 - Santi: Jesus, que plazo estimas para que el sistema sepa leer perfectamente los chat que se suben al sistema?
+31/5/26, 17:56 - Santi: Importante que detecte fechas
+31/5/26, 17:58 - Alejandro Vega Fullstack AI: Jenifer me mostro que lo de las fechas y eso esta manualmente pero toca hacer que la IA tambien detecte eso
+31/5/26, 17:58 - Alejandro Vega Fullstack AI: eso esta en las subtareas
+31/5/26, 18:22 - Santi: Ok, lo de las fechas es una cosa, lo que detectar todos los chats y las actividades que estan pendientes es otra y eso no lo esta haciendo hoy la IA
+31/5/26, 18:25 - Alejandro Vega Fullstack AI: No eso toca agregarlo igualmente estas pruebas que haces permiten ver lo prioritario , algunas cosas que mencionaste en la mañana jenifer ya las trabajo en la tarde voy a sentarme a ver el sistema y ver que mejoras adicionales tenemos para mañana
+31/5/26, 18:27 - Alejandro Vega Fullstack AI: Necesitamos los ejemplos de lo que le mandas a la IA para ver en que falla eso es parte de las pruebas
+31/5/26, 18:52 - Santi: Ale, es que de lo que hemos estado hablando cn Jeniffer hace 1 semana, chequea el chst que he subido y mira lo que ha interpretado el sistema, solo los primeros chats
+31/5/26, 18:53 - Santi: Quiza solo lee X chats por subida
+31/5/26, 19:47 - Santi: <Multimedia omitido>
+31/5/26, 19:51 - Alejandro Vega Fullstack AI: Realmente saber el ejemplo exacto de lo que estás mandando
+31/5/26, 19:51 - Alejandro Vega Fullstack AI: Me refiero el archivo o el texto que le ingresas al sistema porfa <Se editó este mensaje.>
+31/5/26, 19:58 - Santi: <Multimedia omitido>
+31/5/26, 19:58 - Santi: <Multimedia omitido>
+31/5/26, 19:58 - Santi: <Multimedia omitido>
+31/5/26, 19:59 - Alejandro Vega Fullstack AI: Súper gracias
+1/6/26, 12:27 - Santi: Chicos, para la call de hoy tengamos todo listo, no hablemos de lo que hemos estado hablando entre nosotros, hablemos de lo que hay pendiente y de lo que hemos hecho
+1/6/26, 14:15 - Alejandro Vega Fullstack AI: Listo si señor
+1/6/26, 18:37 - Jeniffer Onebox: Hola equipo, si puedo realizar la conexión con Microsoft, pero es necesario crear una cuenta en  Azure  para completar la configuración. Aunque actualmente contamos con Cognito(AWS), son plataformas distintas y cada una gestiona sus servicios de manera independiente. Pero si se puede hacer la conexion solamente que me tomara un poco mas de tiempo
+1/6/26, 18:40 - Santi: Ok cuanto tiempo más? Para ponerlo en el spring?
+1/6/26, 18:42 - Jeniffer Onebox: el dia de hoy estare haciendolo
+1/6/26, 18:42 - Santi: Ok, entonces llegamos al viernes
+1/6/26, 18:43 - Jeniffer Onebox: si señor
+2/6/26, 4:58 - Jeniffer Onebox: <Multimedia omitido>
+2/6/26, 4:59 - Jeniffer Onebox: <Multimedia omitido>
+2/6/26, 4:59 - Jeniffer Onebox: <Multimedia omitido>
+2/6/26, 7:47 - Santi: Excelente Jeniffer 🔝🔝
+2/6/26, 12:44 - Santi: Jesus, hoy he quedado con un crack de la cyber seguridad, quiero que chequee nuestro proyecto la semana que viene, es un software engineer muy crack de Standford y me gustaría que le diera un vistazo. Así que por favor miremos bien tema seguridad, fugas, y arquitectura. Es posible que nos ayuda si la herramienta funciona bien.
+2/6/26, 15:46 - Alejandro Vega Fullstack AI: Ok
+3/6/26, 17:21 - Santi: Que tal chicos como viene el proyecto, en 2 días presentamos evoluciones
+3/6/26, 17:22 - Alejandro Vega Fullstack AI: Jenifer ha trabajado en
+3/6/26, 17:22 - Alejandro Vega Fullstack AI: los graficos y yo mejorando la IA
+3/6/26, 17:29 - Santi: Acabo de leer una noticia que reafirma,https://www.eleconomista.es/tecnologia/noticias/13946909/06/26/nvidia-entra-a-lo-grande-en-el-mercado-de-los-pc-con-un-nuevo-superchip-destinado-a-batir-a-intel-y-los-gigantes-de-la-ia-se-interesan-por-su-procesador-vera.html lo que estamos haciendo pero también nos puede poner alerta sobre nuestro roadmap, la clave ahora son las integraciones, pero el día de mañana eso será un comodity, así que lo que tenemos que hacer de manera impecable es desarrollar un agente que entienda todas las conversaciones, básicamente lo que estamos haciendo ahora.
+4/6/26, 10:54 - Santi: <Multimedia omitido>
+4/6/26, 12:10 - Santi: <Multimedia omitido>
+4/6/26, 12:15 - Santi: <Multimedia omitido>

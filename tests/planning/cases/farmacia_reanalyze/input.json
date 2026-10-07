@@ -1,0 +1,6 @@
+{
+  "trigger": "reanalyze",
+  "mode": "full",
+  "today": "2026-10-05",
+  "_why": "Reanalizar con texto completo la transcripcion del 14/7 y la propuesta Fase 1 del 19/9 (que nunca se analizo)."
+}

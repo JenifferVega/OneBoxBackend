@@ -1,0 +1,163 @@
+{
+  "kind": "member",
+  "title": "OneBox · Jeniffer da su update: 'casi', bloqueo que depende del dueño, fecha vaga, una idea y algo que se le olvidaba",
+  "today": "2026-06-05",
+  "member": {
+    "name": "Jeniffer",
+    "email": "jenifferf.funezp@gmail.com"
+  },
+  "turns": [
+    {
+      "from": "member",
+      "messages": [
+        "hola! pues bien",
+        "lo de microsoft casi listo",
+        "los graficos ya"
+      ],
+      "expect": {
+        "ai_asks": [
+          [
+            "microsoft",
+            "outlook"
+          ],
+          [
+            "falta",
+            "cuando",
+            "cuándo"
+          ]
+        ],
+        "ai_questions_max": 2
+      }
+    },
+    {
+      "from": "member",
+      "messages": [
+        "falta la cuenta de azure, eso lo tiene q crear santi"
+      ],
+      "expect": {
+        "ai_asks": [
+          [
+            "responsive"
+          ],
+          [
+            "asana"
+          ],
+          [
+            "permis"
+          ]
+        ],
+        "ai_asks_min": 1
+      }
+    },
+    {
+      "from": "member",
+      "messages": [
+        "responsive la otra semana",
+        "y lo de asana yo lo dejaria para despues del mvp la verdad"
+      ],
+      "expect": {
+        "ai_questions_max": 2
+      }
+    },
+    {
+      "from": "member",
+      "messages": [
+        "ah y el bug de permisos ya quedo, lo subi el jueves"
+      ],
+      "expect": {}
+    },
+    {
+      "from": "member",
+      "messages": [
+        "eso es todo"
+      ],
+      "expect": {
+        "ai_closes": true,
+        "ai_summary_mentions": [
+          [
+            "microsoft",
+            "azure"
+          ],
+          [
+            "grafic"
+          ],
+          [
+            "responsive"
+          ],
+          [
+            "asana"
+          ],
+          [
+            "permis"
+          ]
+        ],
+        "ai_summary_min": 4
+      }
+    }
+  ],
+  "expect_report": {
+    "items": [
+      {
+        "type": "done",
+        "task": "ob-graficos"
+      },
+      {
+        "type": "progress",
+        "task": "ob-microsoft"
+      },
+      {
+        "type": "blocker",
+        "task": "ob-microsoft",
+        "mentions": [
+          [
+            "azure"
+          ]
+        ],
+        "owner": "Santi",
+        "urgent": true
+      },
+      {
+        "type": [
+          "date_change",
+          "plan"
+        ],
+        "task": "ob-responsive",
+        "due_date": [
+          "2026-06-08",
+          "2026-06-09",
+          "2026-06-10",
+          "2026-06-11",
+          "2026-06-12"
+        ],
+        "certainty": "estimated"
+      },
+      {
+        "type": "idea",
+        "task": "ob-asana",
+        "mentions": [
+          [
+            "mvp"
+          ]
+        ]
+      },
+      {
+        "type": "done",
+        "task": "ob-permisos",
+        "mentions": [
+          [
+            "jueves",
+            "2026-06-04",
+            "4/6"
+          ]
+        ]
+      }
+    ],
+    "items_absent": [
+      {
+        "type": "done",
+        "task": "ob-microsoft"
+      }
+    ],
+    "plan_unchanged": true
+  }
+}

@@ -49,3 +49,18 @@ def _current_uid() -> str:
 
 def _current_email() -> str:
     return _CURRENT_EMAIL.get() or ""
+
+
+def _current_timezone() -> str:
+    """IANA timezone of the asking user (Settings page, table onebox-users).
+
+    Never raises: with no user context, or no saved zone, it returns the
+    default. Time is context, not a permission -- a wrong default is better
+    than a failed turn.
+    """
+    try:
+        from api.services.users import DEFAULT_TIMEZONE, user_timezone
+    except Exception:
+        return "UTC"
+    uid = _CURRENT_UID.get()
+    return user_timezone(uid) if uid else DEFAULT_TIMEZONE

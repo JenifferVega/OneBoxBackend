@@ -399,6 +399,41 @@ async def list_tools() -> list[types.Tool]:
                 "required": ["text"],
             },
         ),
+        # ── Planning graph (agent/planning) ─────────────────────────────────
+        types.Tool(
+            name="planning_list_cases",
+            description="List the planning-graph test cases (tests/planning/cases) and the result of their last run.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        types.Tool(
+            name="planning_run_case",
+            description=(
+                "Run one planning case with the REAL LLM: before.json + input.json -> proposal -> after.json, "
+                "scored against expected.json. Takes 1-3 minutes and costs a few cents. Returns the report."
+            ),
+            inputSchema={"type": "object", "properties": {
+                "case": {"type": "string", "description": "Case folder name, e.g. farmacia_reanalyze"}},
+                "required": ["case"]},
+        ),
+        types.Tool(
+            name="planning_report",
+            description="Show the last report.md of a planning case without running it again.",
+            inputSchema={"type": "object", "properties": {"case": {"type": "string"}}, "required": ["case"]},
+        ),
+        types.Tool(
+            name="planning_chat",
+            description=(
+                "Send a message to the PLANNING chat of a case's project (dry run: state lives in "
+                "tests/planning/sessions, never in DynamoDB). Ask questions ('que bloquea el lanzamiento?'), "
+                "order changes ('cierra todo lo de accesos de Meta'), ask to read a document, or decide on "
+                "the open proposal ('aprueba todo', 'aprueba 1,3', 'rechaza'). Use message='--reset' to start over."
+            ),
+            inputSchema={"type": "object", "properties": {
+                "case": {"type": "string"},
+                "message": {"type": "string"},
+                "session_id": {"type": "string", "default": "default"}},
+                "required": ["case", "message"]},
+        ),
     ]
 
 
@@ -425,6 +460,10 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCont
         "onebox_confirm":           _handle_confirm,
         "onebox_onboarding":        _handle_onboarding,
         "onebox_onboarding_dryrun": _handle_onboarding_dryrun,
+        "planning_list_cases":      _handle_planning_list,
+        "planning_run_case":        _handle_planning_run,
+        "planning_report":          _handle_planning_report,
+        "planning_chat":            _handle_planning_chat,
     }
     handler = handlers.get(name)
     if not handler:
@@ -1248,6 +1287,73 @@ async def _handle_onboarding_dryrun(args: dict) -> list[types.TextContent]:
         lines.append("")
     if data.get("reason"):
         lines.append(f"⚠️ reason: {data['reason']}")
+    return [types.TextContent(type="text", text="\n".join(lines))]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PLANNING GRAPH (agent/planning) -- run in a subprocess so a crash or a slow
+# LLM never takes this MCP server down.
+# ══════════════════════════════════════════════════════════════════════════════
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+PLANNING_CASES = BACKEND_DIR / "tests" / "planning" / "cases"
+
+
+async def _run_py(args: list, timeout: int = 900) -> tuple:
+    proc = await asyncio.create_subprocess_exec(
+        sys.executable, *args, cwd=str(BACKEND_DIR),
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+    try:
+        out, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except asyncio.TimeoutError:
+        proc.kill()
+        return 124, f"timeout after {timeout}s"
+    return proc.returncode, out.decode("utf-8", "replace")
+
+
+def _handle_planning_list(args: dict) -> list[types.TextContent]:
+    lines = ["Planning cases:"]
+    for d in sorted(p for p in PLANNING_CASES.iterdir() if p.is_dir()):
+        rep = d / "runs" / "latest" / "report.md"
+        last = rep.read_text(encoding="utf-8").splitlines()[0] if rep.exists() else "never run"
+        ready = "ready" if (d / "before.json").exists() else "MISSING before.json (export the project)"
+        lines.append(f"- {d.name}: {ready} | last: {last}")
+    return [types.TextContent(type="text", text="\n".join(lines))]
+
+
+async def _handle_planning_run(args: dict) -> list[types.TextContent]:
+    case = args.get("case", "")
+    code, out = await _run_py(["tests/run_planning_case.py", case])
+    summary = "\n".join(l for l in out.splitlines() if l.startswith(("PASS", "FAIL", "      !", "Traceback"))) or out[-3000:]
+    rep = PLANNING_CASES / case / "runs" / "latest" / "report.md"
+    body = rep.read_text(encoding="utf-8")[:12000] if rep.exists() else ""
+    return [types.TextContent(type="text", text=f"exit {code}\n{summary}\n\n{body}")]
+
+
+def _handle_planning_report(args: dict) -> list[types.TextContent]:
+    rep = PLANNING_CASES / args.get("case", "") / "runs" / "latest" / "report.md"
+    return [types.TextContent(type="text", text=rep.read_text(encoding="utf-8")[:15000] if rep.exists() else "No runs yet.")]
+
+
+async def _handle_planning_chat(args: dict) -> list[types.TextContent]:
+    code, out = await _run_py(["tests/planning/chat_cli.py", args.get("case", ""),
+                               args.get("session_id") or "default", args.get("message", "")], timeout=600)
+    start = out.find("{\n")
+    if start < 0:
+        return [types.TextContent(type="text", text=f"exit {code}\n{out[-4000:]}")]
+    try:
+        data = json.loads(out[start:])
+    except json.JSONDecodeError:
+        return [types.TextContent(type="text", text=out[-4000:])]
+    lines = [data.get("reply", ""), "", f"intent: {data.get('intent')} | applied: {data.get('applied')} | "
+             f"open tasks: {data.get('open_tasks')} | nodes: {' -> '.join(data.get('nodes') or [])}"]
+    prop = data.get("proposal")
+    if prop:
+        lines += ["", f"PROPOSAL {prop.get('counts')}"] + prop.get("operations", [])
+        if prop.get("questions"):
+            lines += ["", "QUESTIONS"] + [f"{i}. {q}" for i, q in enumerate(prop["questions"], 1)]
+        if prop.get("warnings"):
+            lines += ["", "WARNINGS"] + prop["warnings"]
     return [types.TextContent(type="text", text="\n".join(lines))]
 
 

@@ -1,0 +1,211 @@
+{
+  "title": "OneBox · atrasos, reporte de terceros con causa, 'yo', prioridades y su corrección",
+  "today": "2026-06-05",
+  "leader": {
+    "name": "Santi",
+    "email": "santiago@digitalworkers.online"
+  },
+  "turns": [
+    {
+      "from": "leader",
+      "messages": [
+        "quien esta atrasado"
+      ],
+      "expect": {
+        "intent": "question",
+        "proposal": "none",
+        "answer_mentions": [
+          [
+            "jeniffer",
+            "jenny"
+          ],
+          [
+            "jesús",
+            "jesus",
+            "ale"
+          ]
+        ],
+        "answer_mentions_min": 1
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "jenny dice q lo de microsoft se va a la otra semana xq falta azure"
+      ],
+      "expect": {
+        "intent": "feedback",
+        "proposal": "new",
+        "ops": [
+          {
+            "op": "update",
+            "task": "ob-microsoft",
+            "fields": {
+              "due_date": [
+                "2026-06-08",
+                "2026-06-09",
+                "2026-06-10",
+                "2026-06-11",
+                "2026-06-12"
+              ]
+            }
+          }
+        ],
+        "creates_or_notes": [
+          [
+            "azure"
+          ]
+        ],
+        "asks": [
+          [
+            "azure"
+          ],
+          [
+            "quién",
+            "quien"
+          ]
+        ],
+        "asks_min": 1
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "yo la creo"
+      ],
+      "why": "'yo' = quien escribe (Santi).",
+      "expect": {
+        "intent": [
+          "decide",
+          "change"
+        ],
+        "proposal": "edited",
+        "creates": [
+          {
+            "text": [
+              [
+                "azure"
+              ]
+            ],
+            "fields": {
+              "assigned_to": "Santi"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "lo de seguridad es lo primero, todo lo demas despues"
+      ],
+      "expect": {
+        "intent": "change",
+        "proposal": "edited",
+        "depends_on_min": {
+          "task": "ob-seguridad-chat",
+          "count": 3
+        }
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "uf no tanto, solo lo de ale"
+      ],
+      "why": "'lo de Ale' = las tareas de Jesús Alejandro Vega.",
+      "expect": {
+        "intent": "change",
+        "proposal": "edited",
+        "depends_absent": {
+          "task": "ob-seguridad-chat",
+          "on": [
+            "ob-graficos",
+            "ob-responsive",
+            "ob-login",
+            "ob-asana"
+          ]
+        }
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "ok"
+      ],
+      "expect": {
+        "intent": "decide",
+        "decision": {
+          "kind": "approve_all"
+        },
+        "applied": true
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "y el experto de standford viene el martes, que tengamos todo listo"
+      ],
+      "expect": {
+        "intent": "change",
+        "proposal": "new",
+        "ops": [
+          {
+            "op": "update",
+            "task": "ob-revision-experto",
+            "fields": {
+              "due_date": "2026-06-09",
+              "date_status": "committed"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "mandales a los dos un recordatorio de eso"
+      ],
+      "why": "'los dos' = Jesús y Jeniffer; 'eso' = preparar la revisión del martes.",
+      "expect": {
+        "intent": "action",
+        "applied": false,
+        "handoff": {
+          "to": [
+            "jesús",
+            "jesus",
+            "ale"
+          ],
+          "to_also": [
+            "jeniffer",
+            "jenny"
+          ],
+          "mentions": [
+            [
+              "revisi"
+            ],
+            [
+              "martes",
+              "9"
+            ]
+          ],
+          "mentions_min": 1
+        }
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "cuanto llevamos?"
+      ],
+      "why": "Ambiguo (avance, tiempo, dinero): preguntar o responder el avance aclarando.",
+      "expect": {
+        "intent": [
+          "question",
+          "clarify"
+        ],
+        "proposal": "none"
+      }
+    }
+  ]
+}

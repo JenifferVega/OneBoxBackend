@@ -377,6 +377,7 @@ def create_project_from_draft(uid: str, req) -> dict:
     # so the deep analysis sees the real material and not the short description.
     # Priority: sourceText from the request (if the frontend forwards it) → the
     # draft text saved in S3 by analyze_text_preview → (fallback) the description.
+    draft_item: dict = {}
     full_text = (req.sourceText or '').strip()
     if not full_text and req.draftId:
         try:
@@ -402,6 +403,7 @@ def create_project_from_draft(uid: str, req) -> dict:
         timing=req.timing or '',
         delivery_date=req.deliveryDate or '',
         analysis_text=full_text,
+        source_name=draft_item.get('fileName') or '',
     )
     project_id = result['projectId']
 
@@ -489,6 +491,7 @@ def create_project_from_document(uid: str, file_bytes: bytes, file_name: str,
         channels=channel_list,
         participants=[],
         analysis_text=text,
+        source_name=file_name or f'doc.{ext}',
     )
     project_id = result['projectId']
 
@@ -631,6 +634,8 @@ def analyze_text_for_project(uid: str, project_id: str, text: str, source: str,
         project_type=existing.get('type', 'Other'),
         description=text[:5000],
         participants=existing.get('participants', []),
+        analysis_text=text,                  # the whole text, not its first 5,000 chars
+        source_name=fname,
     )
 
     # In-app notification (kept in the owner's feed)

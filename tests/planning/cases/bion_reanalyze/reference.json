@@ -1,0 +1,553 @@
+{
+  "_about": "Lectura de referencia (a mano, texto completo) de los chats de WhatsApp del proyecto BION Paid Media Campaign (proj-e569a06b), y reconciliacion contra las 41 tareas actuales. 'evidence' cita la hora del mensaje; 'confidence: inferido' marca lo que se deduce y no se dice literalmente.",
+  "sources": {
+    "chat_v1": {
+      "file": "chat.txt",
+      "uploaded": "2026-09-21",
+      "range": "2026-09-11 -> 2026-09-16 14:45",
+      "chars": 17829,
+      "read_by_onebox": "completo (creacion del proyecto via analysis_text)"
+    },
+    "chat_v2": {
+      "file": "chat.txt",
+      "uploaded": "2026-09-22",
+      "range": "2026-09-11 -> 2026-09-21 18:08",
+      "chars": 24393,
+      "read_by_onebox": "primeros 5.000 (hasta ~2026-09-12)",
+      "note": "v2 contiene a v1 entera. Lo nuevo es solo 16/9 14:45 -> 21/9; eso es lo que OneBox debio leer y no leyo."
+    }
+  },
+  "as_of": "2026-09-21 (ultimo mensaje). Lo ocurrido despues no esta en los documentos.",
+  "people": {
+    "two_zero": [
+      {
+        "name": "David Andres",
+        "role": "Lider del proyecto en Two.Zero"
+      },
+      {
+        "name": "Javier Costa",
+        "role": "Contacto con el cliente, traducciones y emails"
+      },
+      {
+        "name": "Santi",
+        "role": "Coordinacion con Claudia",
+        "note": "Es 'Tu' en el chat (9/14 15:08 'Gracias Santi' responde a 'Tu: Te lo reenvio Claudia'). OneBox lo trata como persona distinta."
+      },
+      {
+        "name": "Claudia (Claudia Ads Google)",
+        "role": "Especialista en Ads, externa"
+      },
+      {
+        "name": "Mat Two Zero",
+        "role": "Cuentas y sistemas internos"
+      },
+      {
+        "name": "Pablo TWODOTZERO Roca",
+        "role": "Two.Zero"
+      }
+    ],
+    "cliente": [
+      {
+        "name": "Raquel Germano",
+        "role": "Coordinadora del proyecto del lado cliente"
+      },
+      {
+        "name": "Francisca",
+        "role": "Lado cliente, origino el hilo"
+      },
+      {
+        "name": "Rafael Sardinha",
+        "role": "BION, tiene los accesos"
+      },
+      {
+        "name": "Diego",
+        "role": "BION, segundo administrador de Meta"
+      }
+    ],
+    "in_onebox": [
+      "Claudia (claudiamchimento@gmail.com, invitacion pendiente)",
+      "Jesus (PM)"
+    ]
+  },
+  "summary": "Two.Zero implementa campanas de Paid Media (Google Ads y Meta) para BION (sportsbion.com), coordinadas por Raquel Germano, y ademas entrega recomendaciones de contenido y estructura para dos landings (Padres e Hijos/Players). La semana del 11 al 21/9 se dedico a desbloquear accesos: Two.Zero creo su portafolio comercial de Meta (13/9) y una cuenta para Claudia; el Business Manager de BION quedo bloqueado 7 dias por seguridad de Meta; mientras tanto se priorizo medicion. El 17/9 Tag Manager quedo instalado y Analytics recibiendo datos, y se detecto que sportsbion.com no tiene banner de consentimiento (pedido a sus desarrolladores). El 18/9 se creo la cuenta de Google Ads y Claudia empezo a montar la campana; el 21/9 se consiguio el acceso a Meta. Para lanzar faltan entregas del cliente: URLs de las landings, posts publicados en Instagram, reels y carruseles, y videos en YouTube.",
+  "key_insight": "Al 21/9 el cuello de botella dejo de ser el acceso a las plataformas y paso a ser material del cliente (URLs, posts, reels, videos) y el banner de consentimiento.",
+  "work_done": [
+    {
+      "text": "Requisitos tecnicos de Meta enviados al equipo",
+      "assigned_to": "Claudia",
+      "date": "2026-09-12",
+      "evidence": "9/12 14:53"
+    },
+    {
+      "text": "Cuenta de correo Two.Zero creada para Claudia",
+      "assigned_to": "David Andres / Mat Two Zero",
+      "date": "2026-09-12",
+      "evidence": "9/12 23:11"
+    },
+    {
+      "text": "Portafolio comercial de Meta de Two.Zero creado y Claudia con acceso",
+      "assigned_to": "David Andres",
+      "date": "2026-09-13",
+      "evidence": "9/13 10:45 'punto 1 listo'; 9/14 00:22"
+    },
+    {
+      "text": "Email a BION con los pasos de Meta (punto 2)",
+      "assigned_to": "Claudia",
+      "date": "2026-09-14",
+      "evidence": "9/14 00:22"
+    },
+    {
+      "text": "Reunion con BION",
+      "assigned_to": "Claudia, Santi, Javier Costa",
+      "date": "2026-09-14",
+      "evidence": "9/14 10:49"
+    },
+    {
+      "text": "2FA activado en el Facebook de David",
+      "assigned_to": "David Andres",
+      "date": "2026-09-14",
+      "evidence": "9/14 18:34"
+    },
+    {
+      "text": "Acceso al material de Dropbox resuelto",
+      "assigned_to": "Claudia",
+      "date": "2026-09-14",
+      "evidence": "9/14 18:42 'ya tengo acceso'"
+    },
+    {
+      "text": "Email resumen de la reunion y de Meta Ads enviado",
+      "assigned_to": "Claudia",
+      "date": "2026-09-14",
+      "evidence": "9/14 20:12"
+    },
+    {
+      "text": "Accesos a la web solicitados por email (copia a Rafael)",
+      "assigned_to": "Claudia",
+      "date": "2026-09-16",
+      "evidence": "9/16 14:45"
+    },
+    {
+      "text": "Tag Manager instalado; Analytics recibiendo datos",
+      "assigned_to": "Claudia / Javier Costa",
+      "date": "2026-09-17",
+      "evidence": "9/17 18:42"
+    },
+    {
+      "text": "Falta de banner de consentimiento detectada y comunicada a los desarrolladores de BION",
+      "assigned_to": "Claudia",
+      "date": "2026-09-17",
+      "evidence": "9/17 18:42"
+    },
+    {
+      "text": "Cuenta de Google Ads creada con Rafael",
+      "assigned_to": "Claudia, Javier Costa",
+      "date": "2026-09-18",
+      "evidence": "9/18 17:54"
+    },
+    {
+      "text": "Acceso a la cuenta de Meta de BION conseguido",
+      "assigned_to": "Claudia",
+      "date": "2026-09-21",
+      "evidence": "9/21 17:34 'Habemus cuenta de Meta!'"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "n1",
+      "text": "Montar la campana de Google Ads y el etiquetado",
+      "assigned_to": "Claudia",
+      "status": "in_progress",
+      "depends_on": [],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "evidence": "9/19 18:40 'ya estoy armando la campana y realizando el etiquetado'"
+    },
+    {
+      "id": "n2",
+      "text": "Enviar a Raquel la solicitud: URLs de landings, posts en Instagram, reels de prueba, videos en YouTube",
+      "assigned_to": "Javier Costa",
+      "status": "pending",
+      "depends_on": [],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "evidence": "9/21 17:58-18:00 (borrador revisado)",
+      "confidence": "inferido: no hay confirmacion de envio"
+    },
+    {
+      "id": "n3",
+      "text": "Entregar las URLs de las landings Padres e Hijos",
+      "assigned_to": "Raquel Germano",
+      "status": "pending",
+      "depends_on": [
+        "n2"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "evidence": "9/21 17:38"
+    },
+    {
+      "id": "n4",
+      "text": "Publicar los posts en el Instagram de BION",
+      "assigned_to": "Raquel Germano",
+      "status": "pending",
+      "depends_on": [
+        "n2"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "evidence": "9/21 17:36"
+    },
+    {
+      "id": "n5",
+      "text": "Subir los videos al canal de YouTube de BION",
+      "assigned_to": "Raquel Germano",
+      "status": "pending",
+      "depends_on": [
+        "n2"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "evidence": "9/21 17:59"
+    },
+    {
+      "id": "n6",
+      "text": "Implementar banner de consentimiento en sportsbion.com",
+      "assigned_to": "Desarrolladores de BION",
+      "status": "pending",
+      "depends_on": [],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "evidence": "9/17 18:42"
+    },
+    {
+      "id": "n7",
+      "text": "Lanzar campanas de Meta",
+      "assigned_to": "Claudia",
+      "status": "pending",
+      "depends_on": [
+        "n4"
+      ],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "evidence": "9/21 17:36 'para poder levantar las campanas en Meta'"
+    },
+    {
+      "id": "n8",
+      "text": "Traducir y adaptar al formato Two.Zero el documento de Claudia y enviarlo",
+      "assigned_to": "Javier Costa",
+      "status": "pending",
+      "depends_on": [],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "evidence": "9/21 08:54",
+      "confidence": "inferido: probablemente las guias de landings (imagen omitida)"
+    },
+    {
+      "id": "n9",
+      "text": "Weekly Javier-Claudia para alinear proyectos",
+      "assigned_to": "Javier Costa",
+      "status": "pending",
+      "depends_on": [],
+      "start_date": "",
+      "due_date": "",
+      "date_status": "sin_fecha",
+      "evidence": "9/21 17:57",
+      "recurring": true
+    }
+  ],
+  "risks": [
+    "Si se agregan creativos despues de lanzar Google Ads, se reinicia el aprendizaje (~10 dias). [9/15 14:57]",
+    "Sin banner de consentimiento, Google limita medicion, publicidad y remarketing. [9/17 18:42]",
+    "Cliente importante y percepcion de retraso. [9/14 13:20; 9/14 17:58]",
+    "Credenciales compartidas en el chat en texto plano. [9/12 23:11]"
+  ],
+  "decisions": [
+    "Two.Zero tiene su propio portafolio de Meta y BION lo agrega como socio. [9/12 14:53]",
+    "Mientras Meta esta bloqueado, avanzar con Analytics y Search Console. [9/14 18:00]",
+    "Lanzar Google Ads apenas este Tag Manager, sin esperar todos los creativos. [9/15 14:57]",
+    "Two.Zero instala Tag Manager (el cliente los ve como partner tech). [9/16 09:59]",
+    "Las peticiones al cliente van por email via Javier. [9/14 18:02]"
+  ],
+  "reconciliation": {
+    "tasks": [
+      {
+        "existing_taskId": "1f7f995505824675b784ac92173ab2c2",
+        "text": "Claudia sent an email with Meta access requirements",
+        "action": "keep",
+        "evidence": "9/12 14:53"
+      },
+      {
+        "existing_taskId": "fca71e8ac89b4fd9be5e1540def5474c",
+        "text": "Claudia sent an email to David Andres and Santiago...",
+        "action": "delete",
+        "evidence": "duplicado de 1f7f9955"
+      },
+      {
+        "existing_taskId": "5b703f9e01dd468899cdb6f0281089da",
+        "text": "Two.Zero created an email account for Claudia",
+        "action": "keep",
+        "evidence": "9/12 23:11"
+      },
+      {
+        "existing_taskId": "c656a89db2484597941bc5ac70261b67",
+        "text": "Created a new email thread ... Rafael Sardinha",
+        "action": "keep",
+        "evidence": "9/12 14:01"
+      },
+      {
+        "existing_taskId": "20ce8834b8f348a685f291b41cfab652",
+        "text": "Two.Zero created a Meta Commercial Portfolio",
+        "action": "keep",
+        "evidence": "9/13 10:45"
+      },
+      {
+        "existing_taskId": "97fe87d264004b01a38bf82197f71121",
+        "text": "Claudia sent an email to BION regarding Meta access",
+        "action": "keep",
+        "evidence": "9/14 00:22"
+      },
+      {
+        "existing_taskId": "e9ca41e83c0d482dafc155d069f84382",
+        "text": "Claudia gained access to the Two.Zero Meta Commercial Portfolio",
+        "action": "keep",
+        "evidence": "9/14 00:22"
+      },
+      {
+        "existing_taskId": "0c9538a8a7b24fd096283b91b2b5279b",
+        "text": "David Andres activated 2FA",
+        "action": "keep",
+        "evidence": "9/14 18:34"
+      },
+      {
+        "existing_taskId": "aec1b49174474e68aca57f86b77f5c07",
+        "text": "Claudia sent an email summarizing the meeting",
+        "action": "keep",
+        "evidence": "9/14 20:12"
+      },
+      {
+        "existing_taskId": "90ba837978c5438881d7bb0bb9740dd0",
+        "text": "Claudia sent an email requesting web access",
+        "action": "keep",
+        "evidence": "9/16 14:45"
+      },
+      {
+        "existing_taskId": "94669383795b44f2bc16e05918a1c54c",
+        "text": "Recommendations Parents landing page",
+        "action": "keep",
+        "evidence": "9/11; 9/14 00:22 'Manana trabajo con las landings'",
+        "note": "Puede estar entregada el 21/9 (ver n8): confirmar con Claudia"
+      },
+      {
+        "existing_taskId": "567bd7f242e641f8a43b7d4100fd6773",
+        "text": "Recommendations Players landing page",
+        "action": "keep",
+        "evidence": "idem",
+        "note": "Confirmar con Claudia"
+      },
+      {
+        "existing_taskId": "979310464a034df5afe1db4d0a3db0c7",
+        "text": "Guidelines for both landing pages",
+        "action": "keep",
+        "evidence": "9/11 09:56",
+        "assign_to": "Claudia"
+      },
+      {
+        "existing_taskId": "7ccb93f6c3f143b69d8a8f1407d1a01a",
+        "text": "Verify if BION has a web and an app",
+        "action": "keep",
+        "evidence": "9/14 18:01; 9/14 20:12 sigue sin aclararse"
+      },
+      {
+        "existing_taskId": "6c453501da7d40b39c87eb25d3544ae1",
+        "text": "Launch Google Ads campaigns once Tag Manager ... ready",
+        "action": "keep",
+        "evidence": "9/15 14:57",
+        "depends_on": [
+          "n1",
+          "n5"
+        ],
+        "note": "Tag Manager ya esta (17/9); por decision del 15/9 no espera todos los creativos"
+      },
+      {
+        "existing_taskId": "8a9e9770d0494b5db9752472943ab7e3",
+        "text": "Missing reels and carousels",
+        "action": "keep",
+        "evidence": "9/14 18:42",
+        "convert_to": "tarea pendiente de Raquel Germano: entregar reels y carruseles (reels como prueba, 9/21 17:41)"
+      },
+      {
+        "existing_taskId": "2a84db8bb5d742b1985fa5bc55ecd6fa",
+        "text": "BION client difficulties giving account access",
+        "action": "close_as_done",
+        "evidence": "9/18 Google Ads creada; 9/21 Meta conseguida"
+      },
+      {
+        "existing_taskId": "b58a70566910453a80dbea672190a652",
+        "text": "BION Meta Business Manager frozen until 2026-09-20",
+        "action": "close_as_done",
+        "evidence": "9/21 17:34"
+      },
+      {
+        "existing_taskId": "88a981daa8e14343a77ab569da4ee5ac",
+        "text": "Dropbox link requires Dropbox Plus",
+        "action": "close_as_done",
+        "evidence": "9/14 18:42 'ya tengo acceso'"
+      },
+      {
+        "existing_taskId": "3d3ec52bd8eb4279bb9be179aca73904",
+        "text": "Respond to the email regarding Dropbox Plus",
+        "action": "close_as_done",
+        "evidence": "9/14 16:13 + 18:42"
+      },
+      {
+        "existing_taskId": "3981a0242e5b4a7b8c2fba55657648e3",
+        "text": "Coordinate with Rafael to resolve Meta Business and Google",
+        "action": "close_as_done",
+        "evidence": "9/18 + 9/21"
+      },
+      {
+        "existing_taskId": "31c174ff017f42fd8fc461d15079355a",
+        "text": "BION to add Two.Zero as Partner ... admin access",
+        "action": "close_as_done",
+        "evidence": "9/21 17:34",
+        "confidence": "inferido: 'Habemus cuenta de Meta' implica el acceso"
+      },
+      {
+        "existing_taskId": "4f01b7c630514d1caf34d736a868a53a",
+        "text": "BION to create their own Meta Commercial Portfolio",
+        "action": "close_as_done",
+        "evidence": "9/14 17:57: BION ya tenia BM 1547297196689742"
+      },
+      {
+        "existing_taskId": "cd33ab1e60734d968487fcdc61cc65fd",
+        "text": "BION to assign Facebook Page",
+        "action": "close_as_done",
+        "evidence": "9/21 17:34",
+        "confidence": "inferido"
+      },
+      {
+        "existing_taskId": "3ed90bb345864cd0a07291b4b691ff54",
+        "text": "BION to assign Instagram",
+        "action": "close_as_done",
+        "evidence": "9/21 17:34",
+        "confidence": "inferido"
+      },
+      {
+        "existing_taskId": "270ce731b1f644599fa4a5f19a12628c",
+        "text": "BION to assign Ad Account",
+        "action": "close_as_done",
+        "evidence": "9/21 17:34",
+        "confidence": "inferido"
+      },
+      {
+        "existing_taskId": "2913f9dbea354f8aabde567839ba3eb2",
+        "text": "Two.Zero to accept the access requests from BION",
+        "action": "close_as_done",
+        "evidence": "9/21 17:34",
+        "confidence": "inferido"
+      },
+      {
+        "existing_taskId": "aacb1553b49b456bab1128b35443cf9f",
+        "text": "Add Claudia with admin access to Two.Zero's portfolio",
+        "action": "close_as_done",
+        "evidence": "9/14 00:22"
+      },
+      {
+        "existing_taskId": "44f7b8cf92714920994543e062b0e819",
+        "text": "Obtain access to BION's website",
+        "action": "close_as_done",
+        "evidence": "9/17 18:42: Tag Manager instalado",
+        "confidence": "inferido"
+      },
+      {
+        "existing_taskId": "edbb9e3cc29a47dfbf0b8a08c26cf9b2",
+        "text": "Install Google Tag Manager codes",
+        "action": "close_as_done",
+        "evidence": "9/17 18:42"
+      },
+      {
+        "existing_taskId": "74080177a7a74d95b6f30189c4a612b1",
+        "text": "Work with Analytics and Search Console",
+        "action": "close_as_done",
+        "evidence": "9/17 18:42 (Analytics)",
+        "note": "Search Console no se menciona como terminado"
+      },
+      {
+        "existing_taskId": "18cd560a61bd4e85893aeef47a730820",
+        "text": "Specific issues with Meta Business configuration",
+        "action": "close_as_done",
+        "evidence": "9/21 17:34"
+      },
+      {
+        "existing_taskId": "b9c421ad18a74077adb7db616bc09d8d",
+        "text": "Specific issues with Google account configuration",
+        "action": "close_as_done",
+        "evidence": "9/18 17:54"
+      },
+      {
+        "existing_taskId": "7cc6b78dd8d04473ba311792a4501262",
+        "text": "Recommendations Parents landing (sin asignar)",
+        "action": "delete",
+        "evidence": "duplicado de 94669383"
+      },
+      {
+        "existing_taskId": "d72f75df4ef441218c93e6b77a78f02e",
+        "text": "Recommendations Players landing (sin asignar)",
+        "action": "delete",
+        "evidence": "duplicado de 567bd7f2"
+      },
+      {
+        "existing_taskId": "c09aa216ae7846d49549531cb85b089d",
+        "text": "Create a Two.Zero account for Claudia",
+        "action": "delete",
+        "evidence": "ya hecho: 5b703f9e"
+      },
+      {
+        "existing_taskId": "7d499259b0c04b1f969ce658006184d5",
+        "text": "Create a Two.Zero Commercial Portfolio",
+        "action": "delete",
+        "evidence": "ya hecho: 20ce8834"
+      },
+      {
+        "existing_taskId": "f3aad405ed8049aba39a3cd4c2c8edb1",
+        "text": "Two.Zero does not have a Meta Commercial Portfolio",
+        "action": "delete",
+        "evidence": "falso desde 9/13"
+      },
+      {
+        "existing_taskId": "abdf9d5413b944929c444fdd3dfa38fe",
+        "text": "BION to add Two.Zero as a Partner (Rafael)",
+        "action": "delete",
+        "evidence": "duplicado de 31c174ff"
+      },
+      {
+        "existing_taskId": "8ecd4fc182fc47759a15565048caaf60",
+        "text": "Client difficulties providing access (Rafael)",
+        "action": "delete",
+        "evidence": "duplicado de 2a84db8b"
+      },
+      {
+        "existing_taskId": "9fc4a8e942bb4cc484599e51328adaa0",
+        "text": "Ensure all creative assets are available",
+        "action": "delete",
+        "evidence": "se fusiona con 8a9e9770"
+      }
+    ],
+    "insights": "72 -> conservar una sola version de summary/client_profile/key_insight/project_characterization; cerrar los 5 blockers de acceso.",
+    "people": "Unificar 'Claudia Ads Google'='Claudia' y 'Tu'='Santi'; anadir David, Javier, Raquel, Rafael como participantes.",
+    "counts": {
+      "keep": 15,
+      "delete": 9,
+      "close_as_done": 17,
+      "create": 9
+    }
+  }
+}

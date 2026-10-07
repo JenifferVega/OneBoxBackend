@@ -1,0 +1,86 @@
+{
+  "kind": "replan",
+  "title": "BION · el dueño replanifica solo con un mensaje (sin adjuntos): sale Rafa, reasignar, mover lanzamiento, Dropbox ya no aplica",
+  "today": "2026-09-30",
+  "leader": {
+    "name": "Jesus",
+    "email": "ventas.javc@gmail.com"
+  },
+  "turns": [
+    {
+      "from": "leader",
+      "messages": [
+        "cambio de planes: rafa sale del proyecto este viernes",
+        "lo de las urls y los videos de youtube lo asume raquel",
+        "el lanzamiento de google ads se mueve al 14 de octubre, bion no tiene listo el tag manager",
+        "y lo de dropbox ya no aplica, nos pasaron todo por drive"
+      ],
+      "why": "Un mensaje sin adjuntos ES el contexto: debe producir una propuesta, no una conversación.",
+      "expect": {
+        "proposal": "new",
+        "ops": [
+          {
+            "op": "update",
+            "task": "bion-urls",
+            "fields": {
+              "assigned_to": "Raquel"
+            }
+          },
+          {
+            "op": "update",
+            "task": "bion-video",
+            "fields": {
+              "assigned_to": "Raquel"
+            }
+          },
+          {
+            "op": "update",
+            "task": "6c453501",
+            "fields": {
+              "due_date": "2026-10-14"
+            }
+          }
+        ],
+        "ops_any": [
+          {
+            "op": [
+              "close",
+              "delete"
+            ],
+            "task": "bion-dropb"
+          },
+          {
+            "op": [
+              "close",
+              "delete"
+            ],
+            "task": "88a981da"
+          }
+        ],
+        "ops_absent": [
+          {
+            "op": [
+              "delete",
+              "close"
+            ],
+            "task": "6c453501"
+          },
+          {
+            "op": [
+              "delete",
+              "close"
+            ],
+            "task": "bion-urls"
+          },
+          {
+            "op": [
+              "delete",
+              "close"
+            ],
+            "task": "bion-video"
+          }
+        ]
+      }
+    }
+  ]
+}

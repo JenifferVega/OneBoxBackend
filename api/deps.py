@@ -14,6 +14,9 @@ attachments_table = dynamodb.Table('onebox-attachments')
 user_phones_table = dynamodb.Table('onebox-user-phones')
 user_tokens_table = dynamodb.Table('onebox-user-tokens')
 sessions_table = dynamodb.Table('onebox-whatsapp-sessions')
+# One record per user (key userId): profile and preferences -- timezone,
+# language. Created by scripts/dynamo/create_users_table.py.
+users_table = dynamodb.Table('onebox-users')
 
 
 def require_uid(uid_value: str) -> str:

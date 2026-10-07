@@ -6,7 +6,7 @@ Two tiers (the reference architecture pattern):
 """
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from datetime import date
+from datetime import date, datetime
 
 from agent.graph.history import format_history, format_previous_results
 from agent.graph.nodes.planner.patterns import match_fast_path
@@ -141,6 +141,23 @@ def _project_board_lines() -> str:
         return "(not available)"
 
 
+def _today_for_user() -> str:
+    """Today's date WHERE THE USER IS, plus the zone.
+
+    date.today() is the server's date -- UTC in production -- so from 7 pm in
+    Bogota the agent already believed it was tomorrow and every "tomorrow" or
+    due date it computed was off by a day.
+    """
+    try:
+        from zoneinfo import ZoneInfo
+        from agent.tools.context import _current_timezone
+        tz = _current_timezone()
+        now = datetime.now(ZoneInfo(tz))
+        return f"{now.date().isoformat()} ({now.strftime('%A')}, {now.strftime('%H:%M')} in {tz})"
+    except Exception:
+        return date.today().isoformat()
+
+
 def _goal_text(goal: dict) -> str:
     """Render the unfinished job for the prompt. Empty is stated explicitly:
     a blank slot reads as a missing variable, and models fill blanks."""
@@ -245,7 +262,7 @@ def planner_node(state: AgentState, llm) -> dict:
     # .replace() instead of .format(): the catalog contains literal JSON with braces
     system = (
         PLANNER_PROMPT
-        .replace("{today}", date.today().isoformat())
+        .replace("{today}", _today_for_user())
         .replace("{history}", format_history(state.get("history", [])))
         .replace("{validator_feedback}", feedback)
         .replace("{pending_goal}", _goal_text(state.get("pending_goal")))

@@ -1,0 +1,127 @@
+{
+  "kind": "member",
+  "title": "OneBox · Ale arranca vago, reporta a medias, no sabe fechas y cuenta algo de otra persona 'creo'",
+  "today": "2026-06-05",
+  "member": {
+    "name": "Jesús Alejandro Vega",
+    "email": "ventas.javc@gmail.com"
+  },
+  "turns": [
+    {
+      "from": "member",
+      "messages": [
+        "uff semana pesada"
+      ],
+      "expect": {
+        "ai_asks": [
+          [
+            "segur"
+          ],
+          [
+            "fecha"
+          ],
+          [
+            "presentaci"
+          ],
+          [
+            "revisi",
+            "experto"
+          ]
+        ],
+        "ai_asks_min": 1,
+        "ai_questions_max": 2
+      }
+    },
+    {
+      "from": "member",
+      "messages": [
+        "lo de seguridad va, ya filtra por proyecto pero me falta lo de los telefonos"
+      ],
+      "expect": {}
+    },
+    {
+      "from": "member",
+      "messages": [
+        "lo de las fechas ni lo he tocado"
+      ],
+      "expect": {
+        "ai_asks": [
+          [
+            "cuando",
+            "cuándo",
+            "fecha"
+          ]
+        ],
+        "ai_asks_min": 1
+      }
+    },
+    {
+      "from": "member",
+      "messages": [
+        "no se, depende de si termino seguridad"
+      ],
+      "expect": {}
+    },
+    {
+      "from": "member",
+      "messages": [
+        "ah y creo q jenny ya termino lo de microsoft"
+      ],
+      "why": "Dato de terceros con duda sobre una tarea que no es suya: se guarda como rumor, no cuenta como hecho.",
+      "expect": {}
+    },
+    {
+      "from": "member",
+      "messages": [
+        "listo"
+      ],
+      "expect": {
+        "ai_closes": true
+      }
+    }
+  ],
+  "expect_report": {
+    "items": [
+      {
+        "type": "progress",
+        "task": "ob-seguridad-chat",
+        "mentions": [
+          [
+            "telefon"
+          ]
+        ]
+      },
+      {
+        "type": "not_started",
+        "task": "ob-fechas-ia"
+      },
+      {
+        "type": "plan",
+        "task": "ob-fechas-ia",
+        "mentions": [
+          [
+            "segur"
+          ]
+        ],
+        "depends_on": "ob-seguridad-chat"
+      },
+      {
+        "type": "hearsay",
+        "task": "ob-microsoft",
+        "certainty": "low",
+        "about_person": "Jeniffer"
+      }
+    ],
+    "items_absent": [
+      {
+        "type": "done",
+        "task": "ob-microsoft"
+      },
+      {
+        "type": "date_change",
+        "task": "ob-fechas-ia"
+      }
+    ],
+    "plan_unchanged": true
+  }
+}

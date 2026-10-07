@@ -174,6 +174,78 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["text"],
       },
     },
+    // ── Grafo de planificación (agent/planning) ─────────────────────────────
+    {
+      name: "planning_list_cases",
+      description: "Lista los casos de prueba del grafo de planificación (tests/planning/cases) y el resultado de su última corrida.",
+      inputSchema: { type: "object", properties: {} },
+    },
+    {
+      name: "planning_run_case",
+      description:
+        "Corre un caso del grafo de planificación con la IA REAL: before.json + input.json -> propuesta -> after.json, " +
+        "y lo califica contra expected.json. Tarda 1-3 minutos. Devuelve el reporte.",
+      inputSchema: {
+        type: "object",
+        properties: { case: { type: "string", description: "Carpeta del caso, p. ej. farmacia_reanalyze" } },
+        required: ["case"],
+      },
+    },
+    {
+      name: "planning_report",
+      description: "Muestra el último report.md de un caso sin volver a correrlo.",
+      inputSchema: { type: "object", properties: { case: { type: "string" } }, required: ["case"] },
+    },
+    {
+      name: "planning_chat",
+      description:
+        "Envía un mensaje al CHAT DE PLANIFICACIÓN del proyecto de un caso (dry-run: el estado vive en " +
+        "tests/planning/sessions, nunca en DynamoDB). Preguntas ('¿qué bloquea el lanzamiento?'), cambios " +
+        "('cierra todo lo de accesos de Meta'), leer un documento, o decidir sobre la propuesta abierta " +
+        "('aprueba todo', 'aprueba 1,3', 'rechaza'). message='--reset' reinicia la sesión.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          case: { type: "string" },
+          message: { type: "string" },
+          session_id: { type: "string", default: "default" },
+        },
+        required: ["case", "message"],
+      },
+    },
+    // ── Conversaciones guionadas (tests/planning/conversations) ──────────────
+    {
+      name: "planning_list_conversations",
+      description:
+        "Lista las conversaciones de prueba (tests/planning/conversations) con su tipo: member (un miembro da " +
+        "su update en el chat de la app), consolidation (varios updates + Trello -> resumen y propuesta para el " +
+        "dueño, aprobación reflejada en Trello) y replan (el dueño replanifica con contexto). Título, pasos y " +
+        "resultado de la última corrida.",
+      inputSchema: { type: "object", properties: {} },
+    },
+    {
+      name: "planning_run_conversation",
+      description:
+        "Corre una conversación guionada (member / consolidation / replan) con la IA REAL (tablas de AWS " +
+        "simuladas en memoria, Trello desde fixtures con la forma real de la API, documentos con el extractor " +
+        "real) y la califica turno por turno. ~1-2 min por turno: devuelve 'sigue corriendo' y luego se consulta " +
+        "con planning_conversation_report. upto=N corre solo los primeros N turnos; dry=true no llama a la IA " +
+        "(solo prueba la plomería, sin costo).",
+      inputSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Carpeta, p. ej. member_jenny, consolidate_onebox, bion_replan_mensaje" },
+          upto: { type: "number", description: "Solo los primeros N turnos (0 = todos)" },
+          dry: { type: "boolean", description: "Sin IA: solo plomería" },
+        },
+        required: ["name"],
+      },
+    },
+    {
+      name: "planning_conversation_report",
+      description: "Muestra el último reporte (turno por turno) de una conversación, o si sigue corriendo.",
+      inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
+    },
   ],
 }));
 
@@ -193,6 +265,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case "onebox_from_text_preview": return handleFromTextPreview(args);
     case "onebox_from_text_create":  return handleFromTextCreate(args);
     case "onebox_onboarding_dryrun": return handleOnboardingDryrun(args);
+    case "planning_list_cases":      return handlePlanningList();
+    case "planning_run_case":        return handlePlanningRun(args);
+    case "planning_report":          return handlePlanningReport(args);
+    case "planning_chat":            return handlePlanningChat(args);
+    case "planning_list_conversations":  return handleConversationList();
+    case "planning_run_conversation":    return handleConversationRun(args);
+    case "planning_conversation_report": return handleConversationReport(args);
     default:
       return text(`Herramienta desconocida: ${name}`);
   }
@@ -675,6 +754,88 @@ async function handleOnboardingDryrun(args) {
   if (data.reason) lines.push(`⚠️ reason: ${data.reason}`);
 
   return text(lines.join("\n"));
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// GRAFO DE PLANIFICACIÓN — por HTTP al backend (/debug/planning/*), igual que
+// el resto de herramientas. El backend solo responde a peticiones locales.
+// ══════════════════════════════════════════════════════════════════════════════
+
+async function planningCall(method, route, body) {
+  try {
+    const res = await fetch(`${BASE_URL}${route}`, {
+      method,
+      headers: { "Content-Type": "application/json", "x-user-id": USER_ID, "x-user-email": USER_EMAIL },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: `HTTP ${res.status}: ${data.detail ?? JSON.stringify(data)}` };
+    return { data };
+  } catch (e) {
+    return { error: `No se pudo conectar a ${BASE_URL}. ¿Está corriendo el servidor? (${e.message})` };
+  }
+}
+
+async function handlePlanningList() {
+  const { data, error } = await planningCall("GET", "/debug/planning/cases");
+  if (error) return text(`❌ ${error}`);
+  return text(["Casos de planificación:", ...data.cases.map((c) =>
+    `- ${c.case}: ${c.ready ? "listo" : "FALTA before.json"} | última: ${c.last || "nunca corrido"}`)].join("\n"));
+}
+
+async function handlePlanningRun(args) {
+  const { data, error } = await planningCall("POST", "/debug/planning/run", { case: args.case || "" });
+  if (error) return text(`❌ ${error}`);
+  if (data.passed === null || data.passed === undefined) return text(data.report || "⏳ Sin resultado todavía.");
+  return text(`${data.passed ? "PASS" : "FAIL"} existing=${data.existing_accuracy} plan=${data.plan_items_recall}` +
+    `${(data.violations || []).map((v) => `\n  ! ${v}`).join("")}\n\n${(data.report || "").slice(0, 12000)}`);
+}
+
+async function handlePlanningReport(args) {
+  const { data, error } = await planningCall("GET", `/debug/planning/report/${encodeURIComponent(args.case || "")}`);
+  if (error) return text(`❌ ${error}`);
+  return text((data.report || "Sin corridas todavía.").slice(0, 15000));
+}
+
+async function handlePlanningChat(args) {
+  const { data, error } = await planningCall("POST", "/debug/planning/chat", {
+    case: args.case || "", message: args.message || "", session_id: args.session_id || DEFAULT_SESSION });
+  if (error) return text(`❌ ${error}`);
+  if (data.reset) return text(`Sesión reiniciada: ${data.session}`);
+  const lines = [data.reply || "", "",
+    `intent: ${data.intent} | aplicado: ${data.applied} | tareas abiertas: ${data.open_tasks} | nodos: ${(data.nodes || []).join(" -> ")}`];
+  const p = data.proposal;
+  if (p) {
+    lines.push("", `PROPUESTA ${JSON.stringify(p.counts)}`, ...(p.operations || []));
+    if ((p.questions || []).length) lines.push("", "PREGUNTAS", ...p.questions.map((q, i) => `${i + 1}. ${q}`));
+    if ((p.warnings || []).length) lines.push("", "AVISOS", ...p.warnings);
+  }
+  return text(lines.join("\n"));
+}
+
+async function handleConversationList() {
+  const { data, error } = await planningCall("GET", "/debug/planning/conversations");
+  if (error) return text(`❌ ${error}`);
+  return text(["Conversaciones de prueba:", ...data.conversations.map((c) => {
+    const last = c.last ? `${c.last.passed}/${c.last.turns} turnos OK (${c.last.seconds} s)` : "nunca corrida";
+    return `- ${c.name} [${c.kind || "replan"}] (${c.turns} pasos): ${c.title} | última: ${last}${c.job === "running" ? " | ⏳ corriendo" : ""}`;
+  })].join("\n"));
+}
+
+async function handleConversationRun(args) {
+  const { data, error } = await planningCall("POST", "/debug/planning/conversation/run", {
+    name: args.name || "", upto: Number(args.upto || 0), dry: !!args.dry });
+  if (error) return text(`❌ ${error}`);
+  if (!data.done) return text(data.report || "⏳ Sigue corriendo.");
+  const r = data.result || {};
+  return text(`${r.passed ?? "?"}/${r.turns ?? "?"} turnos OK\n\n${(data.report || "").slice(0, 15000)}`);
+}
+
+async function handleConversationReport(args) {
+  const { data, error } = await planningCall("GET",
+    `/debug/planning/conversation/report/${encodeURIComponent(args.name || "")}`);
+  if (error) return text(`❌ ${error}`);
+  return text((data.report || "Sin corridas todavía.").slice(0, 20000));
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

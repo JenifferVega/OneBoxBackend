@@ -1,0 +1,110 @@
+{
+  "_doc": "Raw Trello REST responses, keyed by request. The card of task 88a981da was ARCHIVED: the cards endpoint does not return archived cards, so it is absent here.",
+  "_archived_card": {
+    "id": "66a1c0de0000000000000007",
+    "name": "Dropbox link for creative material requires a Dropbox Plus account, preventing access to some assets.",
+    "desc": "Owner (OneBox): Santi\n\nOneBox task: 88a981daa8e14343a77ab569da4ee5ac",
+    "due": null,
+    "idList": "65f0b1a2c3d4e5f600000011",
+    "dateLastActivity": "2026-09-30T16:10:00.000Z",
+    "closed": false
+  },
+  "GET /1/boards/65f0b1a2c3d4e5f600000001/lists?fields=name,closed": [
+    {
+      "id": "65f0b1a2c3d4e5f600000011",
+      "name": "OneBox",
+      "closed": false
+    },
+    {
+      "id": "65f0b1a2c3d4e5f600000012",
+      "name": "En curso",
+      "closed": false
+    },
+    {
+      "id": "65f0b1a2c3d4e5f600000013",
+      "name": "Esperando cliente",
+      "closed": false
+    },
+    {
+      "id": "65f0b1a2c3d4e5f600000014",
+      "name": "Hecho",
+      "closed": false
+    },
+    {
+      "id": "65f0b1a2c3d4e5f600000019",
+      "name": "Ideas (viejo)",
+      "closed": true
+    }
+  ],
+  "GET /1/lists/65f0b1a2c3d4e5f600000011/cards?fields=name,desc,due,idList,dateLastActivity,closed": [
+    {
+      "id": "66a1c0de0000000000000004",
+      "name": "BION to upload campaign videos to their YouTube channel",
+      "desc": "Owner (OneBox): Rafael\n\nOneBox task: bion-videos",
+      "due": null,
+      "idList": "65f0b1a2c3d4e5f600000011",
+      "dateLastActivity": "2026-09-30T16:10:00.000Z",
+      "closed": false
+    },
+    {
+      "id": "66a1c0de0000000000000006",
+      "name": "Ensure all creative assets (reels, carousels) are available.",
+      "desc": "Owner (OneBox): Claudia Ads Google\n\nOneBox task: 9fc4a8e942bb4cc484599e51328adaa0",
+      "due": "2026-09-29T12:00:00.000Z",
+      "idList": "65f0b1a2c3d4e5f600000011",
+      "dateLastActivity": "2026-09-30T16:10:00.000Z",
+      "closed": false
+    }
+  ],
+  "GET /1/lists/65f0b1a2c3d4e5f600000012/cards?fields=name,desc,due,idList,dateLastActivity,closed": [
+    {
+      "id": "66a1c0de0000000000000005",
+      "name": "Launch Google Ads campaigns once Tag Manager codes are installed and creatives are ready.",
+      "desc": "Owner (OneBox): Claudia Ads Google\n\nOneBox task: 6c453501da7d40b39c87eb25d3544ae1",
+      "due": "2026-10-08T12:00:00.000Z",
+      "idList": "65f0b1a2c3d4e5f600000012",
+      "dateLastActivity": "2026-10-02T09:41:12.000Z",
+      "closed": false
+    },
+    {
+      "id": "66a1c0de0000000000000099",
+      "name": "Configurar conversiones de Google Ads (formulario landing Padres)",
+      "desc": "Creada en Trello por Claudia. Necesita las URLs definitivas.",
+      "due": "2026-10-10T12:00:00.000Z",
+      "idList": "65f0b1a2c3d4e5f600000012",
+      "dateLastActivity": "2026-10-02T09:45:00.000Z",
+      "closed": false
+    }
+  ],
+  "GET /1/lists/65f0b1a2c3d4e5f600000013/cards?fields=name,desc,due,idList,dateLastActivity,closed": [
+    {
+      "id": "66a1c0de0000000000000003",
+      "name": "BION to provide URLs for Parents and Players landing pages",
+      "desc": "Owner (OneBox): Rafael Sardinha\n\nOneBox task: bion-urls\n\nPadres: lista. Hijos: pendiente de dominio.",
+      "due": null,
+      "idList": "65f0b1a2c3d4e5f600000013",
+      "dateLastActivity": "2026-10-01T11:20:00.000Z",
+      "closed": false
+    }
+  ],
+  "GET /1/lists/65f0b1a2c3d4e5f600000014/cards?fields=name,desc,due,idList,dateLastActivity,closed": [
+    {
+      "id": "66a1c0de0000000000000001",
+      "name": "BION developers to implement consent banner on sportsbion.com",
+      "desc": "Owner (OneBox): Rafael\n\nOneBox task: bion-banner\n\nRafael: banner de cookies activo desde el 2/10 (Cookiebot).",
+      "due": null,
+      "idList": "65f0b1a2c3d4e5f600000014",
+      "dateLastActivity": "2026-10-02T17:05:33.000Z",
+      "closed": false
+    },
+    {
+      "id": "66a1c0de0000000000000002",
+      "name": "BION to publish posts on Instagram account for Meta campaigns",
+      "desc": "Owner (OneBox): Raquel\n\nOneBox task: bion-posts\n\nRaquel publicó 2 posts (1/10 y 3/10).",
+      "due": null,
+      "idList": "65f0b1a2c3d4e5f600000014",
+      "dateLastActivity": "2026-10-03T19:12:00.000Z",
+      "closed": false
+    }
+  ]
+}

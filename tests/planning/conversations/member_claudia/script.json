@@ -1,0 +1,88 @@
+{
+  "kind": "member",
+  "title": "BION · Claudia: abreviaturas, fecha condicionada a otro, y una pregunta que nadie le respondió",
+  "today": "2026-09-30",
+  "member": {
+    "name": "Claudia",
+    "email": "claudiamchimento@gmail.com"
+  },
+  "turns": [
+    {
+      "from": "member",
+      "messages": [
+        "holaa",
+        "subi 3 reels de prueba al ig ayer"
+      ],
+      "expect": {
+        "ai_questions_max": 2
+      }
+    },
+    {
+      "from": "member",
+      "messages": [
+        "la campaña de google la lanzo el jueves si rafa me pasa las urls"
+      ],
+      "why": "Fecha condicionada: jueves 2/10 SOLO si llegan las URLs de Rafael.",
+      "expect": {}
+    },
+    {
+      "from": "member",
+      "messages": [
+        "y los videos de youtube? nadie me dijo nada"
+      ],
+      "expect": {}
+    },
+    {
+      "from": "member",
+      "messages": [
+        "nada mas x ahora"
+      ],
+      "expect": {
+        "ai_closes": true
+      }
+    }
+  ],
+  "expect_report": {
+    "items": [
+      {
+        "type": "progress",
+        "task": [
+          "8a9e9770",
+          "9fc4a8e9"
+        ],
+        "mentions": [
+          [
+            "reel"
+          ]
+        ]
+      },
+      {
+        "type": "plan",
+        "task": "6c453501",
+        "due_date": "2026-10-02",
+        "depends_on": "bion-urls",
+        "certainty": "conditional"
+      },
+      {
+        "type": [
+          "blocker",
+          "question"
+        ],
+        "task": "bion-videos",
+        "mentions": [
+          [
+            "youtube",
+            "video"
+          ]
+        ]
+      }
+    ],
+    "items_absent": [
+      {
+        "type": "done",
+        "task": "6c453501"
+      }
+    ],
+    "plan_unchanged": true
+  }
+}

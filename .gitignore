@@ -7,3 +7,10 @@ __pycache__/
 .DS_Store
 .env
 .env.production
+
+# Planning graph: local chat sessions and case runs (regenerated)
+tests/planning/sessions/
+tests/planning/cases/*/runs/
+tests/planning/conversations/*/runs/
+tests/planning/conversations/_archive/*/runs/
+scripts/sim/backups/

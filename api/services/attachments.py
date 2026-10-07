@@ -61,6 +61,8 @@ def upload_attachment(uid: str, user_email: str, project_id: str,
             project_type=existing.get('type', 'Other'),
             description=text[:5000],
             participants=existing.get('participants', []),
+            analysis_text=text,              # the whole document, not its first 5,000 chars
+            source_name=file_name or f'doc.{ext}',
         )
 
         # In-app notification (kept in the owner's feed)

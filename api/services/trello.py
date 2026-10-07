@@ -255,12 +255,15 @@ def create_card(uid: str, list_id: str, name: str, desc: str = "",
 
 
 def update_card(uid: str, card_id: str, name: str = "", desc: str = "",
-                due: str = "") -> dict:
+                due: str = "", list_id: str = "", closed: bool = False) -> dict:
     """Update an existing card's content. Only the fields given are sent.
 
     This is what makes a second export an UPDATE instead of a duplicate: the
     task already has a card, so the card is brought in line with the task
-    rather than skipped or created again.
+    rather than skipped or created again. `list_id` moves the card to
+    another column (in Trello the column is the status); `closed=True`
+    archives it (what OneBox does when a task is deleted: archived cards can
+    be restored in Trello, deleted ones cannot).
 
     A card the user deleted in Trello answers 404. That is not an error worth
     failing the whole export over -- it is reported so the caller can clear
@@ -273,6 +276,10 @@ def update_card(uid: str, card_id: str, name: str = "", desc: str = "",
         body["desc"] = desc[:16384]
     if due:
         body["due"] = due
+    if list_id:
+        body["idList"] = list_id
+    if closed:
+        body["closed"] = "true"
     resp = _call("PUT", f"{TRELLO_API}/cards/{card_id}", "update_card", uid,
                  params=body)
     if resp.status_code == 404:

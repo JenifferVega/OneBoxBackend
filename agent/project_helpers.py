@@ -134,7 +134,8 @@ def generate_insights_for_project(
     participants: list = None,
     participants_count: int = 0,
     analysis_text: str = "",
-    dry_run: bool = False
+    dry_run: bool = False,
+    source_name: str = ""
 ) -> dict:
     """
     Calls the AI to analyze the content and create insights in DynamoDB.
@@ -154,6 +155,14 @@ def generate_insights_for_project(
     content = (analysis_text or description or "").strip()
     if not content:
         return {"generated": False, "reason": "no_description"}
+
+    # TASKS belong to the planning graph (api/services/planning_live.py): it
+    # reconciles the new material with the tasks that already exist instead of
+    # adding a fresh copy of everything. This function keeps writing the
+    # OBSERVATION insights (summary, client, risks, decisions, metrics, tech
+    # issues). PLANNING_ENGINE=off restores the old task writer.
+    from api.services import planning_live
+    use_planning = (not dry_run) and planning_live.enabled()
 
     # Normalized here too: participants are stored with whatever keys the
     # writer used ({nombre, rol} from a Spanish conversation, for one), and
@@ -355,7 +364,7 @@ RESPOND ONLY WITH JSON, no extra text or code fences:
                     assigned_to = ''
                 if not text:
                     return
-                if dry_run:
+                if dry_run or use_planning:
                     return
                 tasks_table.put_item(Item={
                     'projectId': project_id,
@@ -400,12 +409,14 @@ RESPOND ONLY WITH JSON, no extra text or code fences:
             return str(item)
 
         # 5. Work already done → also as COMPLETED tasks (status='done')
-        for item in (analysis.get('work_done') or [])[:20]:
+        # (with the planning graph on, it writes these two feed entries itself
+        # for what it really created / closed)
+        for item in (analysis.get('work_done') or [])[:20] if not use_planning else []:
             _save_insight('work_done', _text_of(item), f'Work performed on {project_name}')
             _save_task(item, 'done', 'work_done')
 
         # 6. Pending tasks → also as PENDING tasks
-        for task in (analysis.get('tasks') or [])[:30]:
+        for task in (analysis.get('tasks') or [])[:30] if not use_planning else []:
             _save_insight('task_created', _text_of(task), f'Task auto-detected in {project_name}')
             _save_task(task, 'pending', 'task_created')
 
@@ -431,7 +442,12 @@ RESPOND ONLY WITH JSON, no extra text or code fences:
             _save_insight('tech_issue', str(issue), f'Technical issue identified in {project_name}')
 
         print(f"[insights] {created} insights created for {project_name} (with operational tasks synced)")
-        return {"generated": True, "count": created, "analysis": analysis}
+        planning = False
+        if use_planning:
+            planning = planning_live.start_document_planning(
+                project_id, user_id,
+                source_name or f"texto-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt", content)
+        return {"generated": True, "count": created, "analysis": analysis, "planning": planning}
 
     except Exception as e:
         print(f"[insights] Error: {e}")
@@ -448,7 +464,8 @@ def create_project_full(
     participants: list = None,
     timing: str = "",
     delivery_date: str = "",
-    analysis_text: str = ""
+    analysis_text: str = "",
+    source_name: str = ""
 ) -> dict:
     """
     Creates a full project with:
@@ -537,6 +554,7 @@ def create_project_full(
         participants=participants,
         participants_count=len(participants),
         analysis_text=analysis_text,  # original full text if the caller has it
+        source_name=source_name,
     )
 
     # 3.5 If the original description is long (looks like chat / raw text) and

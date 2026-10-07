@@ -184,6 +184,110 @@ check(out.get("status") == "narrate",
 check(out.get("validation_decision") == "CONTINUE",
       "and carries a verdict so the narrator asks properly")
 
+
+# ════════════════════════════════════════════════════════════════════════
+# 2026-10-05: consent decided in CODE, not left to the planner
+# ════════════════════════════════════════════════════════════════════════
+
+def run_plan(steps, **state):
+    plan = [{"step": i + 1, "tool": t, "params": p} for i, (t, p) in enumerate(steps)]
+    return run(steps[0][0], steps[0][1], plan=plan, **state)
+
+
+print("\n─ the loop: a block records its own proposal ─────────────────")
+# The planner skipped the two-turn pattern and put the send in the plan with
+# proposing=[]. The executor blocked it -- correctly -- but nothing recorded
+# that a question was being asked, so the user's "yes" authorised nothing and
+# the send was blocked again on every turn.
+out = run("send_notification",
+          {"recipient": "+34600000000", "message": "revisa el informe",
+           "channel": "whatsapp"})
+check(out.get("proposing") == ["send_notification"],
+      "a blocked tool is returned as `proposing`, without the planner")
+check((out["results"][1].get("would_do") or {}).get("message") == "revisa el informe",
+      "the block carries what it WOULD have done, for a concrete question")
+
+out2 = run("send_notification",
+           {"recipient": "+34600000000", "message": "revisa el informe",
+            "channel": "whatsapp"},
+           awaiting_consent=out["proposing"], consent_granted=True)
+check("_consent_missing" not in out2["results"][1],
+      "the next turn's 'yes' now authorises it: no loop")
+check(not out2.get("proposing"),
+      "a run that blocked nothing proposes nothing")
+
+print("\n─ update_task: judged by what it would DO to the task ─────────")
+P = "proj-DRYRUN-aaa111"
+PENDING = "Evaluar la viabilidad tecnica de la automatizacion"   # Carlos, pending
+BLOCKED = "Definir la arquitectura y el stack tecnologico"       # Ana, blocked
+
+
+def on_task(text, **change):
+    return [("list_tasks", {"project_id": P}),
+            ("update_task", {"task_id": {"from_step": 1, "match":
+                             {"key": "text", "value": text}, "extract": "taskId"},
+                             **change})]
+
+
+out = run_plan(on_task(PENDING, status="blocked"))
+r = out["results"][2]
+check(r.get("_consent_missing") == "update_task",
+      "blocking a pending task asks: the whole team is messaged")
+check(any("EVERY participant" in w for w in r.get("would_notify") or []),
+      "and says who would be notified")
+check(out.get("proposing") == ["update_task"],
+      "and records it as the proposal")
+
+out = run_plan(on_task(BLOCKED, status="blocked"))
+check("_consent_missing" not in out["results"][2],
+      "'blocking' a task that is already blocked sends nothing: no question")
+
+out = run_plan(on_task(PENDING, assigned_to="Ana Torres"))
+check(out["results"][2].get("_consent_missing") == "update_task",
+      "reassigning to someone else asks: the new assignee is notified")
+
+out = run_plan(on_task(PENDING, assigned_to="carlos lopez"))
+check("_consent_missing" not in out["results"][2],
+      "re-saving the SAME assignee sends nothing: no question")
+
+out = run_plan(on_task(PENDING, status="done"))
+check("_consent_missing" not in out["results"][2],
+      "marking done notifies nobody: no question")
+
+out = run_plan(on_task(PENDING, status="blocked"),
+               awaiting_consent=["update_task"], consent_granted=True)
+check("_consent_missing" not in out["results"][2],
+      "with consent on record, the block runs")
+
+print("\n─ create_task: an assignee is notified ───────────────────────")
+out = run("create_task", {"project_id": P, "text": "QA", "assigned_to": "Marta"})
+check(out["results"][1].get("_consent_missing") == "create_task",
+      "a standalone task WITH an assignee asks")
+
+out = run_plan([("create_project", {"name": "Alpha", "type": "Other",
+                                    "description": "fases A y B con Marta"}),
+                ("create_task", {"project_id": {"from_step": 1, "extract": "projectId"},
+                                 "text": "Fase A", "assigned_to": "Marta"})])
+check("_consent_missing" not in out["results"][2],
+      "the same task inside a project being created does not (catalog exception)")
+
+print("\n─ what comes after a blocked step waits for the same 'yes' ────")
+out = run_plan([("send_notification", {"recipient": "+34600000000",
+                                       "message": "hola", "channel": "whatsapp"}),
+                ("create_task", {"project_id": P, "text": "seguimiento"}),
+                ("list_tasks", {"project_id": P})])
+check(out["results"][2].get("_held_for_consent") == ["send_notification"],
+      "a later write is held, not run")
+check("create_task" not in (out.get("tools_used") or []),
+      "a held write never ran")
+check("_held_for_consent" not in out["results"][3],
+      "a later read that depends on nothing blocked still runs")
+
+from agent.graph.runner import _succeeded_tools  # noqa: E402
+check("create_task" not in _succeeded_tools(
+          [{"step": 2, "tool": "create_task"}], {2: out["results"][2]}),
+      "a held step is not counted as done by the runner")
+
 print()
 if failures:
     print(f"{len(failures)} FAILED:")

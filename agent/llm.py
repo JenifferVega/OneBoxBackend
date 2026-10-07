@@ -72,8 +72,9 @@ def _call_gemini(
         contents.append({"role": gemini_role, "parts": [{"text": text}]})
 
     response = requests.post(
-        f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}",
-        headers={"content-type": "application/json"},
+        f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
+        # Key in a header: in the URL it ends up in exception text and logs.
+        headers={"content-type": "application/json", "x-goog-api-key": GEMINI_API_KEY},
         json={
             "system_instruction": {"parts": [{"text": system_prompt}]},
             "contents": contents,

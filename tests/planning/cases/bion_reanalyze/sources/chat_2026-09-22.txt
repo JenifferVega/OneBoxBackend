@@ -1,0 +1,329 @@
+Los mensajes y las llamadas están cifrados de extremo a extremo. Nadie fuera de este chat, ni siquiera WhatsApp, puede leerlos ni escucharlos.
+[9/11/26, 9:55:17 AM] - Los mensajes y las llamadas están cifrados de extremo a extremo. Nadie fuera de este chat, ni siquiera WhatsApp, puede leerlos ni escucharlos. Toca para obtener más información.
+[9/11/26, 9:55:17 AM] - DW - BION
+[9/11/26, 9:55:30 AM] - Tú añadió a Claudia Ads Google, Mat Two Zero, Pablo TWODOTZERO Roca y David Andres
+[9/11/26, 9:55:52 AM] Tú: [Reenviado] Hi David,
+
+
+
+One more thing:  the client is having some difficulties giving us the necessary account access (Meta, Google, Instagram).
+
+Can I create a new email thread to put you both in direct contact, so you can help them sort it out?
+
+
+
+Thanks,
+Francisca
+[9/11/26, 9:56:15 AM] Tú: Respuesta: 
+
+Perfect, thanks for the update.
+
+Regarding the landing pages, yes, we can definitely provide some recommendations on the content and structure for each one. Since the audiences are different, we can suggest what information, messaging, key benefits and calls to action would make sense for the Parents landing page versus the Players landing page.
+
+We can put together a short set of guidelines for both, so the client can use them as a reference while developing the pages internally.
+
+Best,
+[9/11/26, 8:22:12 PM] - David Andres añadió a Javier Costa
+[9/11/26, 8:22:14 PM] David Andres: <Mensaje de message_history_notice>
+[9/11/26, 8:22:14 PM] David Andres: @Santi verás mail en portugués para activar esto
+[9/11/26, 8:22:56 PM] David Andres: @Javier Costa estás en copia también, perdona que se que tienes 0 contexto te lo cuento el lunes
+[9/11/26, 8:23:28 PM] David Andres: @Claudia Ads Google si no te importa te crearemos cuenta de Two.Zero para este proyecto okay?
+[9/12/26, 2:00:53 PM] David Andres: @Santi contestas cuando puedas porfa? A ellos?
+[9/12/26, 2:01:05 PM] David Andres: Con lo que te diga Claudia, o no se si tienen que decir ellos primero
+[9/12/26, 2:01:32 PM] David Andres: Olá, Rafael,
+
+Conforme combinado com a Francisca, crio esta thread para percebermos a melhor forma de termos os acessos necessários para a implementação das campanhas de Paid Media.
+
+Incluo aqui o David, Javier e Santiago, da nossa equipa digital, que vão acompanhar o setup técnico e vão ajudar diretamente a perceber e resolver as questões que estamos a encontrar com os diferentes acessos.
+
+Como temos algumas situações específicas a resolver, nomeadamente Meta Business e configuração das contas Google, parece-nos mais simples coordenarem diretamente por aqui os passos necessários.
+
+David, Javier e Santiago, deixo-vos então em contacto com o @Rafael Sardinha, para conseguirmos desbloquear esta frente.
+Estou aqui como sempre a coordenar o projeto e a ajudar-vos no que precisarem.
+
+Obrigada,
+Raquel Germano
+965 690 962
+[9/12/26, 2:01:38 PM] David Andres: Entiendo es decirles lo que necesitamos para activar
+[9/12/26, 2:27:41 PM] Tú: Sisi, se lo he pasado ha Claudia esta mañana. Ojo que es sabado. Cuando Claudia me de respuesta contestamos
+[9/12/26, 2:52:21 PM] Claudia Ads Google: Buenas  les mande un email ayer
+[9/12/26, 2:53:12 PM] Claudia Ads Google: Buenas, antes de conectar y coordinar con ellos quiero verificar una cuestion técnica con Ustedes.
+
+Lo ideal es que Two.Zero tenga un Portfolio Comercial de Meta que esté creado en https://business.facebook.com
+
+Allí tendrá diferentes activos y puede nombrar o quitar personas.
+
+- Ir a Configuración del negocio > Información del negocio > copiar el ID del negocio
+- Ir a Personas > Agregar > agregarme a mí keivlife@gmail.com con acceso de administrador a todo.
+
+ 2. Bion tiene que agregar como Socio a Two.Zero:
+Ellos van a Socios > Agregar socio > ponen  ID de Two.Zero
+Y nos tienen que asignar:
+- Página de Facebook (acceso total)
+- Instagram (acceso total)
+- Cuenta publicitaria (acceso de administrador para gestionar campañas)
+
+ Una vez que nos brindan acceso, a Two.Zero   nos llega la solicitud en: Configuración > Solicitudes. Aceptamos y ya nos aparecen todos los activos de Bion dentro de nuestro Portfolio para trabajar.
+
+No hace falta que nos agreguen como personas dentro del Portfolio de ellos.
+
+Aclaración para todos: Meta exige perfil real. El Portfolio Comercial es de Two.Zero como empresa, pero las personas que operan son perfiles personales verificados (con doble factor de autenticación).
+
+Aguardo sus comentarios para responder
+[9/12/26, 2:54:48 PM] David Andres: A quien?
+[9/12/26, 2:54:52 PM] David Andres: A ellos?
+[9/12/26, 2:55:28 PM] David Andres: Ah lo veo ahora perdona Claudia
+[9/12/26, 2:56:02 PM] Claudia Ads Google: A ti y a santiago. Perdon que no avise x aqui
+[9/12/26, 2:56:08 PM] David Andres: Tengo que crear yo eso entonces de Two.Zero verdad?
+[9/12/26, 2:56:26 PM] David Andres: @Pablo TWODOTZERO Roca esto no lo tenemos no?
+[9/12/26, 2:56:42 PM] Claudia Ads Google: Si tienes cuenta de Facebook si
+[9/12/26, 2:57:10 PM] David Andres: De Two.Zero no
+[9/12/26, 2:57:14 PM] David Andres: Mía si
+[9/12/26, 2:57:50 PM] Claudia Ads Google: Ok
+[9/12/26, 2:59:22 PM] David Andres: A ellos (Bion) no les decimos nada no? Hasta tener esto listo
+[9/12/26, 3:01:05 PM] Claudia Ads Google: Bion debe tener su propio portfolio y nos da acceso
+[9/12/26, 3:02:12 PM] Claudia Ads Google: Entrá con el perfil personal de Facebook de esa persona.
+Andá a Meta Business .
+Buscá Crear portfolio comercial o Crear negocio. Dependiendo de la interfaz puede aparecer dentro de Configuración → Portfolios comerciales.
+Completá:
+Nombre del portfolio/comercio.
+Nombre de la persona.
+Correo electrónico del negocio.
+[9/12/26, 3:02:34 PM] Claudia Ads Google: Sino hacemos un meet y lo hacemos en un ratito
+[9/12/26, 3:02:42 PM] David Andres: OK cuando lo tenga te damos mail Two.Zero y les contestas yes
+[9/12/26, 3:03:02 PM] Claudia Ads Google: Ok
+[9/12/26, 3:06:18 PM] Claudia Ads Google: Mientras tanto preparo algunas ideas para las landings
+[9/12/26, 3:22:59 PM] Pablo TWODOTZERO Roca: Portafolio comercial de meta no tenemos
+[9/12/26, 3:30:25 PM] David Andres: OK! Puedes crearlo tú porfa?
+[9/12/26, 3:30:53 PM] Pablo TWODOTZERO Roca: Sí, luego lo puedo mirar
+[9/12/26, 3:34:18 PM] Claudia Ads Google: Me preparan mientras la cuenta de email de two zero? Mientras preparo que responder
+[9/12/26, 3:38:43 PM] David Andres: Te lo acabo de solicitar te lo creará @Mat Two Zero en cuanto pueda
+[9/12/26, 3:39:34 PM] Claudia Ads Google: Gracias
+[9/12/26, 11:11:35 PM] David Andres: @Claudia Ads Google 
+
+Email: claudia.chimento@twodotzero.agency
+
+
+Password: [REDACTED]
+[9/12/26, 11:11:41 PM] David Andres: Aquí tienes la cuenta mil gracias
+[9/12/26, 11:11:50 PM] David Andres: @Pablo TWODOTZERO Roca cojo yo este tema
+[9/12/26, 11:15:27 PM] Claudia Ads Google: gracias! estoy intentando entrar x webmail https://twodotzero.agency/webmail/  pero me da error
+[9/12/26, 11:15:40 PM] Claudia Ads Google: <imagen omitida> estare haciendo algo mal?
+[9/12/26, 11:15:43 PM] Mat Two Zero: Es outlook :)
+[9/12/26, 11:15:46 PM] Mat Two Zero: No webmail
+[9/12/26, 11:21:32 PM] Claudia Ads Google: listo! ya entre
+[9/12/26, 11:21:35 PM] Claudia Ads Google: gracias
+[9/13/26, 10:45:51 AM] David Andres: @Claudia Ads Google punto 1 listo. Sobre el punto 2 les puedes mandar email a ellos. Te reenvío el email para que puedas responder (no abras un nuevo hilo sino responde sobre ese)
+[9/13/26, 10:45:53 AM] David Andres: Mil gracias
+[9/13/26, 10:45:57 AM] David Andres: Revisa si has recibido acceso
+[9/13/26, 10:46:14 AM] David Andres: <imagen omitida>
+[9/13/26, 5:12:57 PM] Claudia Ads Google: Gracias lo miro mas tarde y te aviso. Que estoy sin el ordenador
+[9/14/26, 12:22:33 AM] Claudia Ads Google: Hola @David Andres ya tengo acceso al portfolio two.zero y eh enviado el email. Mañana trabajo con las landings
+[9/14/26, 6:07:14 AM] David Andres: Gracias
+[9/14/26, 10:49:16 AM] David Andres: <imagen omitida>
+[9/14/26, 10:49:28 AM] David Andres: @Santi te puedes unir con @Claudia Ads Google hoy 16:30 de España?
+[9/14/26, 10:49:36 AM] David Andres: Así seguís los pasos de lo que os indicaba Claudia
+[9/14/26, 10:49:46 AM] David Andres: @Javier Costa tú puedes unirte también?
+[9/14/26, 11:05:50 AM] Tú: Perfecto, por un momento pensaba 3:3pm y se me complicaba, pero si es 4:30 sin problema
+[9/14/26, 11:06:00 AM] David Andres: Es 3:30 Portugal
+[9/14/26, 11:06:02 AM] David Andres: Ya he contestado
+[9/14/26, 11:06:17 AM] Tú: A ver que dice Claudia, si si entiendo que hablan de Portugal
+[9/14/26, 11:06:21 AM] David Andres: Le he reenviado la convo a claudia
+[9/14/26, 11:06:26 AM] David Andres: Tienes la convo también Santi es 16:30
+[9/14/26, 11:11:54 AM] Javier Costa: Yes, me uno. Falamos 30 minutos
+[9/14/26, 11:14:29 AM] David Andres: Perfecto
+[9/14/26, 1:20:29 PM] David Andres: Sobretodo es muy importante que salga bien esta reunión que como Santi sabe es cliente importante
+[9/14/26, 2:13:44 PM] Claudia Ads Google: Buenas! Allí estaré!
+[9/14/26, 2:13:54 PM] David Andres: Genial gracias!!!
+[9/14/26, 2:13:58 PM] David Andres: Y buenos días!
+[9/14/26, 3:02:08 PM] David Andres: <imagen omitida> @Claudia Ads Google @Santi tenemos este email también para contestar cuando podáis
+[9/14/26, 3:04:29 PM] Claudia Ads Google: @David Andres ese email no lo tengo... ni acceso a las imagenes, me las envías?
+[9/14/26, 3:05:35 PM] Tú: Te lo reenvio Claudia
+[9/14/26, 3:07:53 PM] Claudia Ads Google: Recibido
+[9/14/26, 3:08:21 PM] David Andres: Gracias Santi
+[9/14/26, 4:04:53 PM] Claudia Ads Google: Se eliminó este mensaje.
+[9/14/26, 4:09:03 PM] Claudia Ads Google: estoy viendo el email que me envió @Santi pero en ese link me pide una cuenta de dropbox plus... estaré haciendo algo mal?
+[9/14/26, 4:09:22 PM] David Andres: Que link?
+[9/14/26, 4:09:25 PM] David Andres: Es un PDF no?
+[9/14/26, 4:09:33 PM] David Andres: Sino pídeles acceso
+[9/14/26, 4:11:53 PM] Tú: A mi me pasa lo mismo me piden acceso a Dropbox plus
+[9/14/26, 4:13:40 PM] Tú: Se lo pido yo
+[9/14/26, 4:16:04 PM] Claudia Ads Google: gracias
+[9/14/26, 4:36:55 PM] David Andres: Estáis en la call no?
+[9/14/26, 4:37:21 PM] Tú: que call?
+[9/14/26, 4:37:33 PM] David Andres: La de Bion
+[9/14/26, 4:37:45 PM] Tú: <imagen omitida>
+[9/14/26, 4:37:52 PM] Tú: 😅
+[9/14/26, 4:38:12 PM] David Andres: Que susto me has pegado jajaja
+[9/14/26, 5:51:30 PM] Claudia Ads Google: Ay me perdi que dije?
+[9/14/26, 5:51:54 PM] Claudia Ads Google: @David Andres  tienes autenticacion en dos pasos el Facebook
+[9/14/26, 5:52:22 PM] David Andres: No
+[9/14/26, 5:52:57 PM] Claudia Ads Google: Puedes agregarla?
+[9/14/26, 5:53:22 PM] David Andres: Yes lo hago tonight
+[9/14/26, 5:53:31 PM] Claudia Ads Google: 💪🏻
+[9/14/26, 5:57:20 PM] Claudia Ads Google: Les envío la respuesta de meta:
+[9/14/26, 5:57:21 PM] Claudia Ads Google: El número 1547297196689742 corresponde al identificador del portafolio comercial (Business Manager) de Bion Ads.
+Al intentar analizarlo, el sistema me indica que aún no aparece un vínculo de propiedad entre su perfil personal y ese portafolio específico. Esto confirma exactamente el problema que usted describe: no puede gestionar los permisos porque el vínculo no se ha completado.
+Analizando las capturas que envió, hay dos puntos clave:
+El error de seguridad (Cuenta de Rafael: El mensaje "De momento, não é possível efetuar esta alteração" (en portugués) confirma que Meta ha detectado un inicio de sesión desde un dispositivo nuevo o ubicación distinta. Por seguridad, se bloquean las acciones administrativas sensibles durante 7 días.
+Estado de la Cuenta: Aunque en la imagen se ve un método de pago (MasterCard 2356), si la cuenta aparece como "desactivada" en el Administrador de Anuncios, suele ser porque el sistema requiere una verificación de seguridad adicional que está siendo bloqueada por el mismo periodo de 7 días.
+¿Qué debe hacer ahora?
+No intente cambiar la seguridad hoy: Cada intento de forzar el cambio en el Centro de Cuentas puede reiniciar el contador de seguridad.
+Fecha de desbloqueo: Usted fue agregada como administradora recientemente (13 de septiembre). El sistema le permitirá realizar estos cambios y asignar permisos a partir del 20 de septiembre.
+David Andrés: Veo que él también fue agregado ayer. Si él tiene un dispositivo que use con frecuencia para esta cuenta, podría intentar realizar la asignación desde su propia computadora habitual para ver si el sistema se lo permite.
+En resumen: la cuenta tiene fondos y pago, pero está "congelada" administrativamente por Meta como medida de protección ante el nuevo acceso. El 20 de septiembre podrá operar con normalidad.
+[9/14/26, 5:58:13 PM] David Andres: Hasta el 20 tenemos que esperar? Nos van a fusilar
+[9/14/26, 5:59:07 PM] David Andres: Qué hago entonces?
+[9/14/26, 5:59:25 PM] Claudia Ads Google: hace la autenticacion en dos pasos
+[9/14/26, 6:00:00 PM] Claudia Ads Google: mientras vayamos con analytics, y search console
+[9/14/26, 6:00:16 PM] David Andres: Y la parte de Google Ads la habéis activado ya?
+[9/14/26, 6:00:46 PM] Claudia Ads Google: le dije primero que tengamos analytics y search console midiendo, asi intentamos aprovechar el descuentro
+[9/14/26, 6:00:54 PM] David Andres: OK
+[9/14/26, 6:01:10 PM] Claudia Ads Google: ellos tienen la web y una app?
+[9/14/26, 6:01:23 PM] Claudia Ads Google: o solo trabajaremos con la web?
+[9/14/26, 6:01:29 PM] David Andres: Nidea, yo creo que es WebApp
+[9/14/26, 6:01:46 PM] Claudia Ads Google: mejor!  podras verificarlo?
+[9/14/26, 6:01:59 PM] Claudia Ads Google: voy a necesitar accesos a la web
+[9/14/26, 6:02:26 PM] David Andres: Debería estar en la documentación que os enviamos, tengo la misma información que vosotros no sé más. Si necesitáis algo, se lo preguntáis en las reuniones o por email a través de @Javier Costa
+[9/14/26, 6:06:24 PM] Claudia Ads Google: @Javier Costa tienes los accesos a la web? o se los pedimos a Rafael?
+[9/14/26, 6:13:03 PM] David Andres: Nono no los tiene pedídselos
+[9/14/26, 6:16:24 PM] Claudia Ads Google: ok, voy a esperar dos dias, para decir lo del bloqueo, asi solo son 5 que hay que esperar
+[9/14/26, 6:17:55 PM] David Andres: <mensaje de voz omitido>
+[9/14/26, 6:20:44 PM] Claudia Ads Google: <mensaje de voz omitido>
+[9/14/26, 6:34:50 PM] David Andres: <imagen omitida> @Claudia Ads Google 2FA Activado en mi Facebook
+[9/14/26, 6:35:31 PM] David Andres: <mensaje de voz omitido>
+[9/14/26, 6:35:35 PM] David Andres: @Javier Costa @Claudia Ads Google
+[9/14/26, 6:36:05 PM] Mat Two Zero: yes
+[9/14/26, 6:37:24 PM] Tú: 👍🏻
+[9/14/26, 6:42:59 PM] Claudia Ads Google: Una cosa a tener en cuenta en el material que pasaron en drop box, ya tengo acceso, no estan los reels, creo que esperaban aprobacion para hacerlos. Los haran segun el pdf, y me parece que también faltan los carrouseles
+[9/14/26, 6:43:50 PM] Claudia Ads Google: Con respecto al email de la meet de hoy lo armo en español y chequeo con @Javier Costa para que la traducción quede ok
+[9/14/26, 7:31:07 PM] Tú: Gracias Claudia
+[9/14/26, 8:12:53 PM] Claudia Ads Google: les he enviado el email de la reunión y de la parte de meta ads, por lo que ví la web tiene desarrollo a medida, y no logro darme cuenta si es una webapp la parte de admistracion o usuarios. Si sus desarrolladores pueden incorporar la etiqueta de tag manager... seria mejor. Sino que nos brinden los accesos y los instalo
+[9/14/26, 8:46:33 PM] David Andres: Gracias
+[9/14/26, 8:46:40 PM] David Andres: @Javier Costa que mande el Mail resumen cuando pueda
+[9/14/26, 8:46:45 PM] David Andres: Mil gracias Claudia
+[9/15/26, 11:35:52 AM] David Andres: <imagen omitida>
+[9/15/26, 11:36:10 AM] David Andres: @Javier Costa tenemos que contestar asap coordina con @Mat Two Zero porfa respuesta
+[9/15/26, 2:57:45 PM] Claudia Ads Google: Buenas! Dos cosas a tener en cuenta.
+@Javier Costa preferimos que los códigos de Tag Manager los instalen los desarrolladores de la web / webapp, ellos han desarrollado el sitio/sistema y entiendo que será más sencillo.
+@David Andres acerca de lanzar la campañas: Google Ads tiene 10 dias de aprendizaje aproximamente y es importante tener todos los creativos al comenzar, si los agregamos luego, la herramienta necesitará comenzar el aprendizaje nuevamente. No es lo más conveniente. En este caso, como necesitamos comenzar cuanto antes si les parece avanzamos ni bien esten los códigos de tag manager inttalados, asi no dilatamos el lanzamiento de campañas
+[9/16/26, 9:07:31 AM] Javier Costa: Nosotros lo podemos hacer? Ellos prefieren que lo hagamos nosotros...
+[9/16/26, 9:59:50 AM] David Andres: Ellos nos ven como partner tech si, lo tenemos que hacer nosotros idealmente
+[9/16/26, 10:00:11 AM] David Andres: Pero hay que avanzar ya y arrancar en cuanto podamos
+[9/16/26, 10:00:51 AM] Tú: Si, si  hace falta coordinamos una call con Javier y Mat para hacerlo
+[9/16/26, 10:02:01 AM] Javier Costa: Perfecto, les digo que no problem
+[9/16/26, 10:02:26 AM] David Andres: Y asegurad que tenemos todos los accesos y lo hacemos hoy
+[9/16/26, 1:41:42 PM] David Andres: Tenemos que mandarle mail a Bion no?
+[9/16/26, 1:41:44 PM] David Andres: Que nos vean activos
+[9/16/26, 1:42:15 PM] Tú: Javier ha contestado a Raquel un mail de ayer
+[9/16/26, 1:42:36 PM] Tú: Ahora veo con Claudia como seguimos
+[9/16/26, 1:42:45 PM] Tú: Recien arrancan allá
+[9/16/26, 1:44:03 PM] David Andres: OK, sisi pero Raquel nos pedía que contactemos también a Bion
+[9/16/26, 2:16:54 PM] Claudia Ads Google: Buenaz Ok. Envio email solicitando accesos a la web
+[9/16/26, 2:45:08 PM] Claudia Ads Google: Ya envié el email solicitando el acceso, lo copie a Rafael, proque en la reunión dijo que tenia los accesos
+[9/16/26, 2:45:18 PM] David Andres: gracias
+[9/17/26, 9:35:40 AM] Javier Costa: Hola equipo,
+
+Tenéis disponibilidad para hacer una llamada 10min y alinear temas?
+
+@Claudia Ads Google @Santi
+[9/17/26, 9:37:20 AM] Tú: Cuando querais, yo entre las 1pm y las 2pm ok y sino 4pm
+[9/17/26, 9:39:42 AM] Javier Costa: Por mi 13h ok
+[9/17/26, 9:39:56 AM] Tú: a ver que dice Claudia, quizá un poco justo
+[9/17/26, 1:11:27 PM] Javier Costa: Perdonad que no os había invitado. Os va bien en 10min?
+[9/17/26, 1:14:52 PM] Tú: Buenas Javier, cuando Claudia me de el ok te digo
+[9/17/26, 1:15:38 PM] Javier Costa: Genial!
+[9/17/26, 1:46:38 PM] Javier Costa: Yo dentro de poco voy a comer y tengo llamadas a partir de las 15:30.
+[9/17/26, 1:47:17 PM] Javier Costa: Entonces ya sería a las 17 mi siguiente slot disponible
+[9/17/26, 1:47:33 PM] David Andres: Han enviado otro email tendríamos que confirmarles
+[9/17/26, 1:52:08 PM] Javier Costa: Correcto, me gustaría primero alinear con el equipo
+[9/17/26, 1:52:34 PM] David Andres: Yes perf
+[9/17/26, 2:23:25 PM] Tú: @Javier Costa si estas hablamos
+[9/17/26, 2:27:32 PM] Claudia Ads Google: Hola! cuando puedan hablamos
+[9/17/26, 2:56:53 PM] Javier Costa: Estoy
+[9/17/26, 2:57:50 PM] Tú: Hablar vosotros que yo tngo reunion con cliente
+[9/17/26, 2:58:27 PM] Tú: Acabo de hablar cn Claudia para alinear
+[9/17/26, 2:58:55 PM] Claudia Ads Google: Ya estoy
+[9/17/26, 3:00:01 PM] Javier Costa: Ahora me conecto
+[9/17/26, 3:06:36 PM] Claudia Ads Google: @Javier Costa  el enlace es el que has enviado por email?
+[9/17/26, 3:07:12 PM] Javier Costa: Sí, nos podemos unir a ese. Gracias!
+[9/17/26, 6:42:46 PM] Claudia Ads Google: Buenas! 
+Tag Manager ya funciona y estamos recibiendo datos de analytics.
+
+Adicionalmente encontré que sportsbion.com no tiene banner consentimiento y para google es necesario  recoger el consentimiento y transmitir esas señales a Google para determinadas funciones de medición, publicidad y remarketing. Ya se lo solicité a los desarrolladores. Estan copiados.
+
+Envié un email a Rafael para realizar una meet ni bien pueda para crear cuenta de google ads y ver si podemos destrabar Meta
+[9/17/26, 7:19:10 PM] Javier Costa: Perfecto, invitadme a la call porfa
+[9/17/26, 7:19:22 PM] David Andres: Good
+[9/17/26, 7:19:58 PM] Claudia Ads Google: Ok. Ni bien me diga te aviso para coordinar y realices la convocatoria
+[9/17/26, 7:20:17 PM] Javier Costa: Perfecto! Mil gracias. Super buen trabajo!
+[9/18/26, 3:55:09 PM] Claudia Ads Google: Buenas @Javier Costa en 20 o 30 minutos Rafael podrá conectarse para crear la cuenta de Google Ads, le he enviado whatsapp, podras estar?
+[9/18/26, 4:18:47 PM] Claudia Ads Google: @Javier Costa @David Andres tengo a Rafael para crear la cuenta de google ads, pueden crear la meet?
+[9/18/26, 4:19:58 PM] Javier Costa: Yes, puedes crear la convo en teams e invitarme?
+[9/18/26, 4:20:14 PM] Javier Costa: O pasarme su correo y le invito
+[9/18/26, 4:21:38 PM] Claudia Ads Google: ahi te invie
+[9/18/26, 4:21:42 PM] Claudia Ads Google: invite
+[9/18/26, 4:23:04 PM] Claudia Ads Google: 11.30
+[9/18/26, 4:23:13 PM] Javier Costa: Perfecto
+[9/18/26, 5:54:27 PM] Claudia Ads Google: Buenas! Hemos creado la cuenta de Google Ads, con lo cual trabajaré para realizar la campaña
+[9/18/26, 5:56:11 PM] Claudia Ads Google: Rafael sigue con problemas con Meta, he organizado una reunión con el y Diego (que es el otro administrador Meta), ya he enviado invitacion a @Javier Costa
+[9/19/26, 4:49:11 PM] David Andres: OK gracias
+[9/19/26, 4:49:14 PM] David Andres: Lo pudisteis solucionar?
+[9/19/26, 6:40:26 PM] Claudia Ads Google: Google Ads: si pudimos crear la cuenta, ya estoy armando la campaña y realizando el etiquetado
+
+Meta: el perfil de Rafael está restringido. Combinamos con Rafael una nueva meet el lunes, con la otra persona que tiene administracion de la cuenta Meta (Diego) para las 15.30 España, ya armé la meet y lo agregué a @Javier Costa
+[9/19/26, 8:32:37 PM] David Andres: Genial gracias
+[9/21/26, 8:54:19 AM] David Andres: <imagen omitida> Mil gracias Claudia
+[9/21/26, 8:54:37 AM] David Andres: @Javier Costa traduces + docs a nuestro formato y lo mandas porfa?
+[9/21/26, 8:54:49 AM] Javier Costa: Yes!!!
+[9/21/26, 8:55:27 AM] David Andres: thx
+[9/21/26, 5:34:50 PM] Claudia Ads Google: Habemus cuenta de Meta!
+[9/21/26, 5:36:50 PM] Claudia Ads Google: Le vamos a tener que pedir a Raquel que realicen los posteos en el instagram de Bion para poder levantar las campañas en Meta
+[9/21/26, 5:38:26 PM] Claudia Ads Google: Acerca del email de raquerl:   "On our end, do you need us to set the URLs for the landing pages? Please confirm. :)"
+Si necesitamos las urls de cada una de las landings: Padres e Hijos
+[9/21/26, 5:38:28 PM] Tú: Vaya noticion
+[9/21/26, 5:39:38 PM] Mat Two Zero: @Javier Costa todo tuyo
+[9/21/26, 5:41:19 PM] Claudia Ads Google: @Javier Costa pideles también que cuando tengan los reels los suban como reels de prueba
+[9/21/26, 5:56:11 PM] Claudia Ads Google: @Javier Costa quieres que hablemos 2 minutos y te explico bien los pasos a seguir?
+[9/21/26, 5:57:04 PM] Javier Costa: Perfecto!
+[9/21/26, 5:57:29 PM] Javier Costa: De hecho quizás lo mejor es también establecer una weekly tú y yo para alinear en proyectos :)
+[9/21/26, 5:58:02 PM] Claudia Ads Google: ok
+[9/21/26, 5:58:06 PM] Javier Costa: Hi Raquel,
+
+Yes, we will need the URLs for both landing pages: Parents and Children.
+
+Additionally, in order for us to launch the campaigns on Meta, we’ll need you to publish the corresponding posts on Bion’s Instagram account.
+
+Also, once the Reels are ready, could you please upload them as Trial Reels?
+
+For the Google Ads campaigns, the videos will also need to be uploaded to Bion’s YouTube channel.
+
+Thank you!
+
+Best,
+
+
+Esto es correcto?
+[9/21/26, 5:58:51 PM] Javier Costa: Dame un segundo pls, que estoy en un espacio donde no puedo hablar y necesito salir
+[9/21/26, 5:59:10 PM] Javier Costa: Hola Raquel,
+
+Sí, necesitaremos las URLs de ambas landing pages: Padres e Hijos.
+
+Además, para que podamos lanzar las campañas en Meta, necesitaremos que publiquéis los posts correspondientes en la cuenta de Instagram de Bion.
+
+También, cuando los Reels estén listos, ¿podríais subirlos como Reels de prueba?
+
+¡Muchas gracias!
+
+Un saludo,  
+Javier
+
+Traducción
+[9/21/26, 5:59:56 PM] Claudia Ads Google: si si perfecto
+una cosa mas para Google Ads los videos tienen que estar subidos al canal de youtube de Bion
+[9/21/26, 6:00:45 PM] Javier Costa: Ok! Añado: 
+"For the Google Ads campaigns, the videos will also need to be uploaded to Bion’s YouTube channel."
+[9/21/26, 6:01:12 PM] Javier Costa: Bajo y te llamo?
+[9/21/26, 6:07:58 PM] Javier Costa: Te estoy llamando
+[9/21/26, 6:08:14 PM] Claudia Ads Google: Ok
+[9/21/26, 6:08:47 PM] Claudia Ads Google: Por WhatsApp?

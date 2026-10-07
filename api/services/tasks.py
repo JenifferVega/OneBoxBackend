@@ -11,6 +11,33 @@ from agent.tools import projects_table, tasks_table
 from api.services.access import has_project_access
 
 
+def notification_effects(task_before: dict, assigned_to=None, status=None) -> list:
+    """Which notifications an update would send, given the task as it is NOW.
+
+    The single source of truth for "does this update reach a person?". Used
+    here by update_task to decide what to send, and by the agent's executor to
+    decide whether the change needs the user's explicit consent first. One
+    rule in one place: if the two ever disagreed, the agent would either ask
+    for nothing or send without asking.
+
+      "assignment" -> the new assignee is notified (email/WhatsApp). Only when
+                      the assignee actually CHANGES: re-saving the same person
+                      sends nothing.
+      "blocked"    -> EVERY participant of the project is notified. Only when
+                      the task MOVES to blocked: it was not blocked before.
+    """
+    task_before = task_before or {}
+    effects = []
+    old_assigned = (task_before.get('assignedTo', '') or '').strip()
+    if (assigned_to is not None
+            and str(assigned_to).strip()
+            and str(assigned_to).strip().lower() != old_assigned.lower()):
+        effects.append('assignment')
+    if status == 'blocked' and (task_before.get('status', '') or '') != 'blocked':
+        effects.append('blocked')
+    return effects
+
+
 def _notify_assignment_async(project_id: str, task_text: str, assigned_to_name: str,
                               due_date: str = "", actor_uid: str = "",
                               actor_email: str = "") -> None:
@@ -224,13 +251,9 @@ def update_task(uid: str, user_email: str, task_id: str, req) -> dict:
     # or from another person to THEM). If only something else is edited
     # (text, date) and assigned_to already pointed to the same person, do
     # NOT send again.
-    old_assigned = (task.get('assignedTo', '') or '').strip()
+    effects = notification_effects(task, updates.get('assignedTo'), updates.get('status'))
     new_assigned = updates.get('assignedTo')
-    if (
-        new_assigned is not None
-        and new_assigned.strip()                              # assigns to someone
-        and new_assigned.strip().lower() != old_assigned.lower()  # and changed
-    ):
+    if 'assignment' in effects:
         _notify_assignment_async(
             project_id=task['projectId'],
             task_text=updates.get('text', task.get('text', '')),
@@ -242,9 +265,7 @@ def update_task(uid: str, user_email: str, task_id: str, req) -> dict:
 
     # If the task JUST moved to 'blocked', notify via WhatsApp the
     # participants with a phone (in a thread, so we do not block the response).
-    old_status = task.get('status', '')
-    new_status = updates.get('status')
-    if new_status == 'blocked' and old_status != 'blocked':
+    if 'blocked' in effects:
         proj_id = task['projectId']  # threading already imported above
         task_text = updates.get('text', task.get('text', ''))
         reason = (updates.get('blockedReason') or task.get('blockedReason') or '').strip()

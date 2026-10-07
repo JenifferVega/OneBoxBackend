@@ -1,0 +1,76 @@
+{
+  "kind": "member",
+  "title": "OneBox · Eloi (PM externo) no reporta tareas: trae ideas y propuestas de proceso",
+  "today": "2026-06-05",
+  "member": {
+    "name": "Eloi",
+    "email": "eloi@pm.example"
+  },
+  "turns": [
+    {
+      "from": "member",
+      "messages": [
+        "hola, yo no tengo tareas asignadas pero quería comentar algo"
+      ],
+      "expect": {
+        "ai_questions_max": 1
+      }
+    },
+    {
+      "from": "member",
+      "messages": [
+        "propongo que el informe pdf entre al mvp, los clientes lo van a pedir si o si"
+      ],
+      "expect": {
+        "ai_questions_max": 1
+      }
+    },
+    {
+      "from": "member",
+      "messages": [
+        "y deberiamos hacer un daily de 15 min, vamos muy desconectados"
+      ],
+      "expect": {}
+    },
+    {
+      "from": "member",
+      "messages": [
+        "eso, gracias"
+      ],
+      "expect": {
+        "ai_closes": true
+      }
+    }
+  ],
+  "expect_report": {
+    "items": [
+      {
+        "type": "idea",
+        "mentions": [
+          [
+            "informe",
+            "pdf"
+          ]
+        ],
+        "decision_for_owner": true
+      },
+      {
+        "type": "idea",
+        "mentions": [
+          [
+            "daily"
+          ]
+        ]
+      }
+    ],
+    "items_absent": [
+      {
+        "type": "done"
+      },
+      {
+        "type": "date_change"
+      }
+    ],
+    "plan_unchanged": true
+  }
+}

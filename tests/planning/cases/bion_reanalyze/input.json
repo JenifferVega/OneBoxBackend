@@ -1,0 +1,6 @@
+{
+  "trigger": "reanalyze",
+  "mode": "full",
+  "today": "2026-10-05",
+  "_why": "Reanalizar el chat completo (11/9-21/9). El analisis del 22/9 solo leyo 5.000 caracteres y duplico tareas."
+}

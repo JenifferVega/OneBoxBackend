@@ -1,12 +1,13 @@
 """Project endpoints: list, detail, creation, participants,
 invitations and deletion."""
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
 
 from api.deps import require_uid
 from api.schemas import (
     CreateProjectRequest, InviteRequest, RemoveParticipantRequest,
     UpdateParticipantsRequest, UpdateProjectRequest,
 )
+from api.services import project_export
 from api.services import projects as projects_service
 
 router = APIRouter()
@@ -34,6 +35,28 @@ async def get_project(project_id: str, x_user_id: str = Header(default="")):
     except HTTPException:
         raise
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/projects/{project_id}/export")
+async def export_project(
+    project_id: str,
+    include_text: bool = Query(True, description="Re-extract each attachment's full text from S3"),
+    x_user_id: str = Header(default=""),
+    x_user_email: str = Header(default=""),
+):
+    """Everything stored about one project as a single JSON document:
+    project, tasks, insights, attachments (with full text), conversations,
+    notifications and invitations. Read-only. Owner and participants."""
+    uid = require_uid(x_user_id)
+    try:
+        return project_export.export_project(
+            uid, (x_user_email or "").lower(), project_id, include_text=include_text)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[export_project] Error: {e}")
+        import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 

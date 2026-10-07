@@ -269,8 +269,11 @@ class ChatGeminiHTTP(BaseChatModel):
 
         url = _GEMINI_URL.format(model=self.model)
         try:
+            # Key in a header, not the query string: a failed request puts the
+            # URL in the exception text, and that text goes to the logs.
             resp = requests.post(
-                f"{url}?key={self.api_key}",
+                url,
+                headers={"x-goog-api-key": self.api_key},
                 json=body,
                 timeout=self.timeout,
             )

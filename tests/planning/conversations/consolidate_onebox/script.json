@@ -1,0 +1,167 @@
+{
+  "kind": "consolidation",
+  "title": "OneBox · consolidar lo que contaron Jenny, Ale y Eloi (+ Trello), avisar al dueño y reflejar la aprobación en Trello",
+  "today": "2026-06-05",
+  "owner": {
+    "name": "Santi",
+    "email": "santiago@digitalworkers.online"
+  },
+  "inputs": [
+    {
+      "member_conversation": "member_jenny"
+    },
+    {
+      "member_conversation": "member_ale"
+    },
+    {
+      "member_conversation": "member_eloi"
+    },
+    {
+      "trello_api": "../onebox_semana/fixtures/trello_api.json"
+    }
+  ],
+  "expect": {
+    "urgent_to_owner": [
+      {
+        "mentions": [
+          [
+            "azure"
+          ]
+        ],
+        "after": "member_jenny"
+      }
+    ],
+    "contradictions": [
+      {
+        "task": "ob-microsoft",
+        "mentions": [
+          [
+            "jenny",
+            "jeniffer"
+          ],
+          [
+            "ale",
+            "jesus",
+            "jesús"
+          ]
+        ]
+      }
+    ],
+    "proposal": {
+      "ops": [
+        {
+          "op": "close",
+          "task": "ob-graficos"
+        },
+        {
+          "op": "close",
+          "task": "ob-permisos"
+        },
+        {
+          "op": "update",
+          "task": "ob-responsive"
+        }
+      ],
+      "ops_absent": [
+        {
+          "op": "close",
+          "task": "ob-microsoft"
+        },
+        {
+          "op": "delete",
+          "task": "ob-asana"
+        }
+      ],
+      "depends": [
+        {
+          "task": "ob-fechas-ia",
+          "on": "ob-seguridad-chat"
+        }
+      ],
+      "decisions_for_owner": [
+        [
+          [
+            "asana"
+          ]
+        ],
+        [
+          [
+            "informe",
+            "pdf"
+          ]
+        ]
+      ]
+    },
+    "digest": {
+      "mentions": [
+        [
+          "azure"
+        ],
+        [
+          "asana"
+        ],
+        [
+          "pdf",
+          "informe"
+        ],
+        [
+          "microsoft"
+        ]
+      ],
+      "mentions_min": 4,
+      "not_reported": []
+    },
+    "plan_unchanged_until_approved": true
+  },
+  "project_patch": {
+    "trelloBoardId": "65f0b1a2c3d4e5f600000002",
+    "trelloBoardName": "OneBox MVP",
+    "trelloListId": "65f0b1a2c3d4e5f600000022",
+    "trelloListName": "Sprint actual"
+  },
+  "trello_links": {
+    "ob-microsoft": "66b2d0de0000000000000001",
+    "ob-seguridad-chat": "66b2d0de0000000000000002",
+    "ob-graficos": "66b2d0de0000000000000003",
+    "ob-permisos": "66b2d0de0000000000000004",
+    "ob-responsive": "66b2d0de0000000000000005",
+    "ob-asana": "66b2d0de0000000000000006"
+  },
+  "approve": true,
+  "expect_trello": {
+    "status": [
+      "ok"
+    ],
+    "writes": [
+      {
+        "method": "PUT",
+        "card": "66b2d0de0000000000000005",
+        "param_keys": [
+          "due"
+        ]
+      }
+    ],
+    "writes_absent": [
+      {
+        "method": "PUT",
+        "param_keys": [
+          "name"
+        ]
+      },
+      {
+        "method": "PUT",
+        "param_keys": [
+          "closed"
+        ]
+      },
+      {
+        "method": "PUT",
+        "card": "66b2d0de0000000000000003",
+        "param_keys": [
+          "idList"
+        ]
+      }
+    ]
+  },
+  "_why_trello": "Las tarjetas se vincularon a mano (sin sync previo): al aprobar solo se escriben fecha y columna, nunca títulos. Gráficos y permisos ya están en 'Hecho ✅' y Outlook en 'Bloqueado': no se mueven. Responsive recibe la fecha estimada que dio Jenny."
+}

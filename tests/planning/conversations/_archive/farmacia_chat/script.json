@@ -1,0 +1,241 @@
+{
+  "title": "Farmacia · pagos, fechas relativas, aprobación parcial y alcance",
+  "today": "2026-10-06",
+  "leader": {
+    "name": "Jesus",
+    "email": "ventas.javc@gmail.com"
+  },
+  "turns": [
+    {
+      "from": "leader",
+      "messages": [
+        "sandra ya pago el 30"
+      ],
+      "expect": {
+        "intent": "feedback",
+        "proposal": "new",
+        "ops": [
+          {
+            "op": "close",
+            "task": "fh-pago-30"
+          }
+        ]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "aprobado"
+      ],
+      "expect": {
+        "intent": "decide",
+        "decision": {
+          "kind": "approve_all"
+        },
+        "applied": true,
+        "plan_state": {
+          "fh-pago-30": {
+            "status": "done"
+          }
+        }
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "arranquemos con el as is esta semana y el to be la otra"
+      ],
+      "why": "Esta semana = 6–10/10; la otra = 13–17/10.",
+      "expect": {
+        "intent": "change",
+        "proposal": "new",
+        "ops": [
+          {
+            "op": "update",
+            "task": "fh-as-is",
+            "fields": {
+              "due_date": [
+                "2026-10-09",
+                "2026-10-10"
+              ]
+            }
+          },
+          {
+            "op": "update",
+            "task": "fh-to-be",
+            "fields": {
+              "due_date": [
+                "2026-10-16",
+                "2026-10-17"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "ah y las claves de la intranet todavia nada"
+      ],
+      "why": "fh-accesos ya está bloqueada y el AS-IS depende de ella: avisar del choque y preguntar.",
+      "expect": {
+        "intent": [
+          "feedback",
+          "question"
+        ],
+        "asks": [
+          [
+            "as is",
+            "as-is"
+          ],
+          [
+            "fecha"
+          ]
+        ],
+        "asks_min": 1
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "si mantenla, lo empiezo con lo q tengo"
+      ],
+      "expect": {
+        "intent": [
+          "decide",
+          "change"
+        ],
+        "proposal": "edited",
+        "ops": [
+          {
+            "op": "update",
+            "task": "fh-as-is",
+            "fields": {
+              "due_date": [
+                "2026-10-09",
+                "2026-10-10"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "aprueba todo menos lo del to be, eso lo hablo yo con ella"
+      ],
+      "expect": {
+        "intent": "decide",
+        "decision": {
+          "kind": "approve_some",
+          "exclude": {
+            "task": [
+              "fh-to-be"
+            ]
+          }
+        },
+        "applied": true,
+        "plan_state": {
+          "fh-to-be": {
+            "dueDate": ""
+          }
+        }
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "cuanto nos falta para cobrar el 50"
+      ],
+      "expect": {
+        "intent": "question",
+        "proposal": "none",
+        "answer_mentions": [
+          [
+            "desarrollo"
+          ],
+          [
+            "automatiz"
+          ],
+          [
+            "prueba"
+          ]
+        ],
+        "answer_mentions_min": 1
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "lo del chatbot y lo de escanear recetas metelo"
+      ],
+      "why": "Fuera del alcance de la fase 1: preguntar antes de meterlo.",
+      "expect": {
+        "intent": [
+          "change",
+          "question"
+        ],
+        "asks": [
+          [
+            "fase 2"
+          ],
+          [
+            "alcance"
+          ],
+          [
+            "backlog"
+          ]
+        ],
+        "asks_min": 1,
+        "creates_absent": [
+          [
+            "chatbot"
+          ],
+          [
+            "receta"
+          ]
+        ]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "backlog"
+      ],
+      "expect": {
+        "intent": [
+          "decide",
+          "change"
+        ],
+        "proposal": [
+          "new",
+          "edited"
+        ],
+        "creates_or_notes": [
+          [
+            "chatbot"
+          ],
+          [
+            "receta"
+          ]
+        ],
+        "no_due_date_on_creates": true
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "dale"
+      ],
+      "expect": {
+        "intent": "decide",
+        "decision": {
+          "kind": "approve_all"
+        },
+        "applied": true
+      }
+    }
+  ]
+}

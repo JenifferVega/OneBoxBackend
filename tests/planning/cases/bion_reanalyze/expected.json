@@ -1,0 +1,430 @@
+{
+  "description": "41 tareas: 15 se conservan, 17 se cierran (6 por inferencia: pueden ir a pregunta), 9 se borran (duplicados/falsas). Faltan tareas de entregas del cliente. Ver reference.json.",
+  "existing": {
+    "5b703f9e01dd468899cdb6f0281089da": {
+      "accept": [
+        "keep",
+        "update"
+      ],
+      "note": "9/12 23:11"
+    },
+    "c656a89db2484597941bc5ac70261b67": {
+      "accept": [
+        "keep",
+        "update"
+      ],
+      "note": "9/12 14:01"
+    },
+    "20ce8834b8f348a685f291b41cfab652": {
+      "accept": [
+        "keep",
+        "update"
+      ],
+      "note": "9/13 10:45"
+    },
+    "97fe87d264004b01a38bf82197f71121": {
+      "accept": [
+        "keep",
+        "update"
+      ],
+      "note": "9/14 00:22"
+    },
+    "e9ca41e83c0d482dafc155d069f84382": {
+      "accept": [
+        "keep",
+        "update"
+      ],
+      "note": "9/14 00:22"
+    },
+    "0c9538a8a7b24fd096283b91b2b5279b": {
+      "accept": [
+        "keep",
+        "update"
+      ],
+      "note": "9/14 18:34"
+    },
+    "aec1b49174474e68aca57f86b77f5c07": {
+      "accept": [
+        "keep",
+        "update"
+      ],
+      "note": "9/14 20:12"
+    },
+    "90ba837978c5438881d7bb0bb9740dd0": {
+      "accept": [
+        "keep",
+        "update"
+      ],
+      "note": "9/16 14:45"
+    },
+    "979310464a034df5afe1db4d0a3db0c7": {
+      "accept": [
+        "keep",
+        "update"
+      ],
+      "note": "9/11 09:56"
+    },
+    "7ccb93f6c3f143b69d8a8f1407d1a01a": {
+      "accept": [
+        "keep",
+        "update"
+      ],
+      "note": "9/14 18:01; 9/14 20:12 sigue sin aclararse"
+    },
+    "6c453501da7d40b39c87eb25d3544ae1": {
+      "accept": [
+        "keep",
+        "update"
+      ],
+      "note": "9/15 14:57"
+    },
+    "8a9e9770d0494b5db9752472943ab7e3": {
+      "accept": [
+        "keep",
+        "update"
+      ],
+      "note": "9/14 18:42"
+    },
+    "2a84db8bb5d742b1985fa5bc55ecd6fa": {
+      "accept": [
+        "close"
+      ],
+      "note": "9/18 Google Ads creada; 9/21 Meta conseguida"
+    },
+    "b58a70566910453a80dbea672190a652": {
+      "accept": [
+        "close"
+      ],
+      "note": "9/21 17:34"
+    },
+    "88a981daa8e14343a77ab569da4ee5ac": {
+      "accept": [
+        "close"
+      ],
+      "note": "9/14 18:42 'ya tengo acceso'"
+    },
+    "3d3ec52bd8eb4279bb9be179aca73904": {
+      "accept": [
+        "close"
+      ],
+      "note": "9/14 16:13 + 18:42"
+    },
+    "3981a0242e5b4a7b8c2fba55657648e3": {
+      "accept": [
+        "close"
+      ],
+      "note": "9/18 + 9/21"
+    },
+    "31c174ff017f42fd8fc461d15079355a": {
+      "accept": [
+        "close",
+        "question",
+        "keep"
+      ],
+      "note": "9/21 17:34"
+    },
+    "4f01b7c630514d1caf34d736a868a53a": {
+      "accept": [
+        "close"
+      ],
+      "note": "9/14 17:57: BION ya tenia BM 1547297196689742"
+    },
+    "cd33ab1e60734d968487fcdc61cc65fd": {
+      "accept": [
+        "close",
+        "question",
+        "keep"
+      ],
+      "note": "9/21 17:34"
+    },
+    "3ed90bb345864cd0a07291b4b691ff54": {
+      "accept": [
+        "close",
+        "question",
+        "keep"
+      ],
+      "note": "9/21 17:34"
+    },
+    "270ce731b1f644599fa4a5f19a12628c": {
+      "accept": [
+        "close",
+        "question",
+        "keep"
+      ],
+      "note": "9/21 17:34"
+    },
+    "2913f9dbea354f8aabde567839ba3eb2": {
+      "accept": [
+        "close",
+        "question",
+        "keep"
+      ],
+      "note": "9/21 17:34"
+    },
+    "aacb1553b49b456bab1128b35443cf9f": {
+      "accept": [
+        "close"
+      ],
+      "note": "9/14 00:22"
+    },
+    "44f7b8cf92714920994543e062b0e819": {
+      "accept": [
+        "close",
+        "question",
+        "keep"
+      ],
+      "note": "9/17 18:42: Tag Manager instalado"
+    },
+    "edbb9e3cc29a47dfbf0b8a08c26cf9b2": {
+      "accept": [
+        "close"
+      ],
+      "note": "9/17 18:42"
+    },
+    "74080177a7a74d95b6f30189c4a612b1": {
+      "accept": [
+        "close",
+        "update"
+      ],
+      "note": "9/17 18:42 Analytics recibe datos; Search Console sin evidencia -> update en curso también vale"
+    },
+    "18cd560a61bd4e85893aeef47a730820": {
+      "accept": [
+        "close"
+      ],
+      "note": "9/21 17:34"
+    },
+    "b9c421ad18a74077adb7db616bc09d8d": {
+      "accept": [
+        "close"
+      ],
+      "note": "9/18 17:54"
+    },
+    "c09aa216ae7846d49549531cb85b089d": {
+      "accept": [
+        "delete",
+        "close"
+      ],
+      "note": "ya hecho: 5b703f9e"
+    },
+    "7d499259b0c04b1f969ce658006184d5": {
+      "accept": [
+        "delete",
+        "close"
+      ],
+      "note": "ya hecho: 20ce8834"
+    },
+    "f3aad405ed8049aba39a3cd4c2c8edb1": {
+      "accept": [
+        "delete",
+        "close"
+      ],
+      "note": "falso desde 9/13"
+    },
+    "abdf9d5413b944929c444fdd3dfa38fe": {
+      "accept": [
+        "delete",
+        "close"
+      ],
+      "note": "duplicado de 31c174ff"
+    },
+    "8ecd4fc182fc47759a15565048caaf60": {
+      "accept": [
+        "delete",
+        "close"
+      ],
+      "note": "duplicado de 2a84db8b"
+    },
+    "9fc4a8e942bb4cc484599e51328adaa0": {
+      "accept": [
+        "delete",
+        "update",
+        "close"
+      ],
+      "note": "se fusiona con 8a9e9770"
+    }
+  },
+  "pairs": [
+    [
+      "1f7f995505824675b784ac92173ab2c2",
+      "fca71e8ac89b4fd9be5e1540def5474c"
+    ],
+    [
+      "94669383795b44f2bc16e05918a1c54c",
+      "7cc6b78dd8d04473ba311792a4501262"
+    ],
+    [
+      "567bd7f242e641f8a43b7d4100fd6773",
+      "d72f75df4ef441218c93e6b77a78f02e"
+    ]
+  ],
+  "plan_items": [
+    {
+      "id": "n1 montar campana Google Ads",
+      "required": true,
+      "any_of": [
+        [
+          "etiquet"
+        ],
+        [
+          "armar",
+          "campan"
+        ],
+        [
+          "montar",
+          "campan"
+        ],
+        [
+          "configur",
+          "campan"
+        ],
+        [
+          "crear",
+          "campan"
+        ],
+        [
+          "tagging"
+        ],
+        [
+          "set",
+          "campaign"
+        ],
+        [
+          "build",
+          "campaign"
+        ],
+        [
+          "google",
+          "ads",
+          "campaign"
+        ]
+      ]
+    },
+    {
+      "id": "n3 URLs de landings",
+      "required": true,
+      "any_of": [
+        [
+          "url"
+        ]
+      ]
+    },
+    {
+      "id": "n4 posts en Instagram",
+      "required": true,
+      "any_of": [
+        [
+          "instagram",
+          "post"
+        ],
+        [
+          "instagram",
+          "public"
+        ]
+      ]
+    },
+    {
+      "id": "n5 videos en YouTube",
+      "required": true,
+      "any_of": [
+        [
+          "youtube"
+        ]
+      ]
+    },
+    {
+      "id": "n6 banner de consentimiento",
+      "required": true,
+      "any_of": [
+        [
+          "consentimiento"
+        ],
+        [
+          "consent"
+        ],
+        [
+          "cookie"
+        ]
+      ]
+    },
+    {
+      "id": "n7 lanzar Meta",
+      "required": true,
+      "any_of": [
+        [
+          "meta",
+          "lanz"
+        ],
+        [
+          "meta",
+          "campan"
+        ],
+        [
+          "meta",
+          "launch"
+        ],
+        [
+          "launch",
+          "meta"
+        ],
+        [
+          "meta",
+          "campaign"
+        ]
+      ]
+    },
+    {
+      "id": "reels y carruseles",
+      "required": true,
+      "any_of": [
+        [
+          "reel"
+        ]
+      ]
+    },
+    {
+      "id": "n2 solicitud a Raquel",
+      "required": false,
+      "any_of": [
+        [
+          "raquel"
+        ],
+        [
+          "raquel"
+        ]
+      ]
+    },
+    {
+      "id": "n8 traducir docs",
+      "required": false,
+      "any_of": [
+        [
+          "traduc"
+        ],
+        [
+          "translat"
+        ]
+      ]
+    },
+    {
+      "id": "n9 weekly",
+      "required": false,
+      "any_of": [
+        [
+          "weekly"
+        ],
+        [
+          "semanal"
+        ]
+      ]
+    }
+  ],
+  "limits": {
+    "max_creates": 14,
+    "max_questions": 5
+  },
+  "thresholds": {
+    "existing_accuracy": 0.75,
+    "plan_items_recall": 0.7
+  }
+}

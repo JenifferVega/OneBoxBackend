@@ -1,0 +1,108 @@
+{
+  "exportVersion": 1,
+  "exportedAt": "2026-10-05T17:53:40Z",
+  "project": {
+    "projectId": "proj-b8f8cea7",
+    "userId": "a4789408-4031-70f2-1d9f-c265b3b0128f",
+    "name": "Farmacia Haussman",
+    "description": "Es un proyecto de automatización de procesos",
+    "type": "Consultoría",
+    "status": "active",
+    "deliveryDate": "20226-09-30",
+    "timing": "",
+    "channels": [
+      "email"
+    ],
+    "participants": [
+      {
+        "telefono": "",
+        "nombre": "Ventas.javc",
+        "rol": "Dev Backend",
+        "email": "ventas.javc@gmail.com "
+      }
+    ],
+    "createdAt": "2026-07-14T15:40:54.939019",
+    "trelloBoardId": "6aa8db098cc564ab31cafff7"
+  },
+  "tasks": [
+    {
+      "projectId": "proj-b8f8cea7",
+      "taskId": "ab1f2c05ec994c9b8c105fedd16af449",
+      "userId": "a4789408-4031-70f2-1d9f-c265b3b0128f",
+      "text": "Analizar el proceso actual de formulación magistral de 50-100 fórmulas únicas diarias en Farmacia Haussman.",
+      "status": "pending",
+      "assignedTo": "",
+      "startDate": "2026-07-15",
+      "dueDate": "2026-07-21",
+      "createdBy": "IA",
+      "sourceLabel": "task_created",
+      "createdAt": "2026-07-14T15:41:42.409924",
+      "trelloCardId": "x"
+    },
+    {
+      "projectId": "proj-b8f8cea7",
+      "taskId": "975818a8413e4f26af6123152e01b792",
+      "userId": "a4789408-4031-70f2-1d9f-c265b3b0128f",
+      "text": "Evaluar la viabilidad técnica de la automatización del proceso de formulación magistral.",
+      "status": "pending",
+      "assignedTo": "",
+      "startDate": "2026-07-22",
+      "dueDate": "2026-07-28",
+      "createdBy": "IA",
+      "sourceLabel": "task_created",
+      "createdAt": "2026-07-14T15:41:42.419558",
+      "trelloCardId": "x"
+    },
+    {
+      "projectId": "proj-b8f8cea7",
+      "taskId": "e5805e97e50e43c0b7f3bcf945857247",
+      "userId": "a4789408-4031-70f2-1d9f-c265b3b0128f",
+      "text": "Definir la arquitectura y el stack tecnológico (incluyendo soluciones cloud) para la automatización de la formulación magistral.",
+      "status": "pending",
+      "assignedTo": "",
+      "startDate": "2026-07-29",
+      "dueDate": "2026-08-04",
+      "createdBy": "IA",
+      "sourceLabel": "task_created",
+      "createdAt": "2026-07-14T15:41:42.429440",
+      "trelloCardId": "x"
+    },
+    {
+      "projectId": "proj-b8f8cea7",
+      "taskId": "4120feba65824b33b8ae6955f0d29a90",
+      "userId": "a4789408-4031-70f2-1d9f-c265b3b0128f",
+      "text": "Desarrollar una solución de automatización para la creación de fórmulas magistrales únicas.",
+      "status": "pending",
+      "assignedTo": "",
+      "startDate": "2026-08-05",
+      "dueDate": "2026-08-19",
+      "createdBy": "IA",
+      "sourceLabel": "task_created",
+      "createdAt": "2026-07-14T15:41:42.439035",
+      "trelloCardId": "x"
+    }
+  ],
+  "insights": [],
+  "attachments": [
+    {
+      "projectId": "proj-b8f8cea7",
+      "attachmentId": "2026-07-14T15:41:31.053721#19e6710d",
+      "fileName": "Proyecto Automatizaciones Claude Transcript.txt",
+      "createdAt": "2026-07-14T15:41:31.053721",
+      "extension": "txt",
+      "sourceFile": "sources/Proyecto Automatizaciones Claude Transcript.txt"
+    },
+    {
+      "projectId": "proj-b8f8cea7",
+      "attachmentId": "2026-09-19T07:16:54.025574#e67f538d",
+      "fileName": "Proyecto Farmacia Hausmann Fase 1 vs1.pdf",
+      "createdAt": "2026-09-19T07:16:54.025574",
+      "extension": "pdf",
+      "sourceFile": "sources/Proyecto Farmacia Hausmann Fase 1 vs1.pdf"
+    }
+  ],
+  "notifications": [],
+  "invitations": [],
+  "conversations": [],
+  "_mock": "Proyecto y tareas tomados del export real del 2026-10-05. El texto de los adjuntos se extrae en cada corrida de sources/ con agent.document_parser.extract_text (el mismo extractor del sistema)."
+}

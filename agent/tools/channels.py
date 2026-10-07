@@ -32,10 +32,11 @@ TWILIO_MESSAGING_SERVICE_SID = os.environ.get("TWILIO_MESSAGING_SERVICE_SID", ""
 # verified, we log it as 'skipped_unverified' and DO NOT try to send.
 # Once AWS approves production access, the gate becomes a no-op (all pass).
 #
-# The FROM is jenifferf.funezp@gmail.com (verified in SES). Can be changed
-# via env var SES_FROM_EMAIL with no redeploy if we get our own domain later.
+# The FROM is the app's own domain address (verified in SES). Override with
+# SES_FROM_EMAIL. It used to default to a personal gmail address, so any
+# environment without the variable (a developer's .env) sent from it.
 # ============================================================================
-SES_FROM_EMAIL = os.environ.get("SES_FROM_EMAIL", "jenifferf.funezp@gmail.com")
+SES_FROM_EMAIL = os.environ.get("SES_FROM_EMAIL", "onebox@oneboxmanager.com")
 SES_REGION = os.environ.get("SES_REGION", os.environ.get("AWS_REGION", "us-east-1"))
 # The SES account is already in PRODUCTION → we can send to any recipient
 # without verifying them. The verification gate only applies when
@@ -49,10 +50,44 @@ _ses_client = None
 _ses_verified_cache: dict = {}
 
 
+class OutboxSES:
+    """Stand-in for SES when EMAIL_OUTBOX is set (a folder): every email is
+    written there as .html + .txt instead of being sent. Used by
+    scripts/simulate_notifications.py and for local development, so nobody
+    receives a real email while testing."""
+
+    def __init__(self, folder: str):
+        self.folder = folder
+        os.makedirs(folder, exist_ok=True)
+
+    def send_email(self, Source, Destination, Message, **_kw):
+        import json as _json
+        n = len([f for f in os.listdir(self.folder) if f.endswith(".json")]) + 1
+        to = ",".join(Destination.get("ToAddresses") or [])
+        body = Message.get("Body") or {}
+        rec = {"n": n, "from": Source, "to": to, "subject": (Message.get("Subject") or {}).get("Data", ""),
+               "text": (body.get("Text") or {}).get("Data", ""), "html": (body.get("Html") or {}).get("Data", ""),
+               "at": os.environ.get("EMAIL_OUTBOX_CLOCK", "")}
+        base = os.path.join(self.folder, f"{n:03d}")
+        with open(base + ".json", "w", encoding="utf-8") as f:
+            _json.dump(rec, f, ensure_ascii=False, indent=2)
+        print(f"[SES:outbox] {to} | {rec['subject']}")
+        return {"MessageId": f"outbox-{n:03d}"}
+
+    def get_identity_verification_attributes(self, Identities):
+        return {"VerificationAttributes": {i: {"VerificationStatus": "Success"} for i in Identities}}
+
+
 def _get_ses_client():
-    """Lazy init of the SES client. Uses the ECS task IAM role (no API keys)."""
+    """Lazy init of the SES client. Uses the ECS task IAM role (no API keys).
+    With EMAIL_OUTBOX=<folder>, emails go to that folder instead (simulation)."""
     global _ses_client
-    if _ses_client is None:
+    outbox = os.environ.get("EMAIL_OUTBOX", "")
+    if outbox:
+        if not isinstance(_ses_client, OutboxSES) or _ses_client.folder != outbox:
+            _ses_client = OutboxSES(outbox)
+        return _ses_client
+    if _ses_client is None or isinstance(_ses_client, OutboxSES):
         _ses_client = boto3.client('ses', region_name=SES_REGION)
     return _ses_client
 

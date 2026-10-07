@@ -1,0 +1,174 @@
+{
+  "kind": "replan",
+  "title": "Farmacia · actualizar desde el acta de seguimiento (.docx, tabla al final)",
+  "today": "2026-10-10",
+  "leader": {
+    "name": "Jesus",
+    "email": "ventas.javc@gmail.com"
+  },
+  "fixtures": {
+    "file": "fixtures/acta_seguimiento_2026-10-09.docx"
+  },
+  "turns": [
+    {
+      "from": "leader",
+      "messages": [
+        "te paso el acta de ayer"
+      ],
+      "context": {
+        "file": "fixtures/acta_seguimiento_2026-10-09.docx"
+      },
+      "why": "El extractor deja la tabla de pendientes al FINAL del texto, lejos de su título: hay que entenderla igual.",
+      "expect": {
+        "proposal": "new",
+        "ops_any": [
+          {
+            "op": [
+              "close",
+              "update"
+            ],
+            "task": [
+              "fh-accesos"
+            ]
+          },
+          {
+            "op": [
+              "close",
+              "update"
+            ],
+            "task": [
+              "fh-acceso-codigo"
+            ]
+          }
+        ],
+        "ops": [
+          {
+            "op": "update",
+            "task": "fh-as-is",
+            "fields": {
+              "due_date": "2026-10-10"
+            }
+          }
+        ],
+        "creates": [
+          {
+            "text": [
+              [
+                "albaran"
+              ]
+            ],
+            "fields": {
+              "assigned_to": "Sandra Prades Hausmann",
+              "due_date": "2026-10-15"
+            }
+          }
+        ],
+        "dates_any": [
+          {
+            "task": [
+              "fh-pago-50",
+              "fh-pruebas",
+              "fh-recepcion",
+              "fh-envios"
+            ],
+            "due_date": "2026-11-14"
+          }
+        ],
+        "creates_absent": [
+          [
+            "informe",
+            "semanal"
+          ]
+        ],
+        "notes_mentions": [
+          [
+            "magisfor",
+            "diciembre"
+          ]
+        ]
+      }
+    }
+  ],
+  "_archived_turns": [
+    {
+      "from": "leader",
+      "messages": [
+        "lo del informe semanal no, eso es fase 2"
+      ],
+      "expect": {
+        "intent": "change",
+        "proposal": [
+          "edited",
+          "unchanged"
+        ],
+        "creates_absent": [
+          [
+            "informe",
+            "semanal"
+          ]
+        ]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "y lo de priorizar facturas como afecta las fechas"
+      ],
+      "expect": {
+        "intent": "question",
+        "proposal": "unchanged",
+        "answer_mentions": [
+          [
+            "factura"
+          ],
+          [
+            "recepci",
+            "pedido"
+          ]
+        ],
+        "answer_mentions_min": 2
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "bueno dale pero el to be no lo muevas"
+      ],
+      "expect": {
+        "intent": [
+          "decide",
+          "change"
+        ],
+        "applied": true,
+        "plan_state": {
+          "fh-to-be": {
+            "dueDate": ""
+          }
+        }
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "mandale el acta a ale para que la vea"
+      ],
+      "expect": {
+        "intent": "action",
+        "applied": false,
+        "handoff": {
+          "to": [
+            "alejandro",
+            "ale"
+          ],
+          "mentions": [
+            [
+              "acta"
+            ]
+          ],
+          "channel": "email"
+        }
+      }
+    }
+  ],
+  "_note": "Replanificación con contexto: es lo único que el dueño pide en este chat. Los turnos de conversación posteriores (aprobar hablando, preguntas) se archivaron: ahora se aprueba con botones."
+}

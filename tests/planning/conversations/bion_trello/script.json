@@ -1,0 +1,172 @@
+{
+  "kind": "replan",
+  "title": "BION · sincronizar con un tablero Trello que el equipo movió a mano",
+  "today": "2026-10-04",
+  "leader": {
+    "name": "Jesus",
+    "email": "ventas.javc@gmail.com"
+  },
+  "fixtures": {
+    "trello_api": "fixtures/trello_api.json"
+  },
+  "turns": [
+    {
+      "from": "leader",
+      "messages": [
+        "sincroniza con el trello"
+      ],
+      "context": {
+        "trello": true
+      },
+      "why": "Banner: en 'Hecho' con nota de Rafael -> cerrar. Posts: en 'Hecho' pero la nota dice 2 publicados -> no cerrar o preguntar. Campaña: fecha movida al 8/10. Tarjeta nueva de Claudia -> tarea nueva. Tarjeta archivada: no aparece, no se toca.",
+      "expect": {
+        "proposal": "new",
+        "ops": [
+          {
+            "op": "close",
+            "task": "bion-banner"
+          },
+          {
+            "op": "update",
+            "task": "6c453501",
+            "fields": {
+              "due_date": "2026-10-08"
+            }
+          }
+        ],
+        "creates": [
+          {
+            "text": [
+              [
+                "conversion"
+              ]
+            ],
+            "fields": {
+              "due_date": "2026-10-10",
+              "assigned_to": "Claudia"
+            }
+          }
+        ],
+        "ops_absent": [
+          {
+            "op": "close",
+            "task": "88a981da"
+          },
+          {
+            "op": "delete",
+            "task": "88a981da"
+          }
+        ]
+      }
+    }
+  ],
+  "_archived_turns": [
+    {
+      "from": "leader",
+      "messages": [
+        "lo del banner seguro? clau a veces mueve cosas antes de tiempo"
+      ],
+      "expect": {
+        "intent": "question",
+        "proposal": "unchanged",
+        "answer_mentions": [
+          [
+            "rafael"
+          ],
+          [
+            "2/10",
+            "2 de octubre",
+            "cookiebot"
+          ]
+        ],
+        "answer_mentions_min": 1
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "ok pero lo de los posts no lo cierres que faltan 3"
+      ],
+      "expect": {
+        "intent": "change",
+        "proposal": "edited",
+        "ops_absent": [
+          {
+            "op": "close",
+            "task": "bion-posts"
+          }
+        ]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "aprueba"
+      ],
+      "expect": {
+        "intent": "decide",
+        "decision": {
+          "kind": "approve_all"
+        },
+        "applied": true,
+        "plan_state": {
+          "bion-banner": {
+            "status": "done"
+          },
+          "6c453501": {
+            "dueDate": "2026-10-08"
+          },
+          "bion-posts": {
+            "status": [
+              "pending",
+              "in_progress"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "y lo q no esta en trello?"
+      ],
+      "expect": {
+        "intent": "question",
+        "proposal": "none",
+        "answer_mentions": [
+          [
+            "analytics"
+          ],
+          [
+            "reel"
+          ],
+          [
+            "carrusel",
+            "carousel"
+          ]
+        ],
+        "answer_mentions_min": 1
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "si subelas"
+      ],
+      "expect": {
+        "intent": "action",
+        "applied": false,
+        "handoff": {
+          "to": [],
+          "mentions": [
+            [
+              "trello"
+            ]
+          ],
+          "tool_hint": "push_tasks_to_trello"
+        }
+      }
+    }
+  ],
+  "_note": "Replanificación con contexto: es lo único que el dueño pide en este chat. Los turnos de conversación posteriores (aprobar hablando, preguntas) se archivaron: ahora se aprueba con botones."
+}

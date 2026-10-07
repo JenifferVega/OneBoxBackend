@@ -44,11 +44,22 @@ def _accessible_project_ids(uid: str = "", email: str = "") -> set:
         return accessible
 
     # 2) Shared by email (scan + client-side filter because participants is a nested list)
+    # PAGINATED: one scan() call returns at most 1 MB. Without the loop, a
+    # project stored past the first page was invisible to the people it was
+    # shared with -- in the project list, in the agent's access checks and in
+    # the contact list -- and it got worse as the table grew.
     try:
-        scan = projects_table.scan(
-            ProjectionExpression='projectId, participants',
-        )
-        for p in scan.get('Items', []):
+        items, last_key = [], None
+        while True:
+            kwargs = {'ProjectionExpression': 'projectId, participants'}
+            if last_key:
+                kwargs['ExclusiveStartKey'] = last_key
+            page = projects_table.scan(**kwargs)
+            items.extend(page.get('Items', []))
+            last_key = page.get('LastEvaluatedKey')
+            if not last_key:
+                break
+        for p in items:
             pid = p.get('projectId')
             if not pid or pid in accessible:
                 continue

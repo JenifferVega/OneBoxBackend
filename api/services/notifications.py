@@ -16,7 +16,13 @@ dispatch_pending_notifications():
     of the recurringDays; if so, sends but keeps status='pending' (so it runs
     again next week). EventBridge fires this endpoint every hour.
 """
+import os
 from boto3.dynamodb.conditions import Attr
+
+
+# Local hour (in the owner's timezone) from which a recurring send may go
+# out on its day. "Every Monday" means Monday morning, not Monday 00:00.
+RECURRING_SEND_HOUR = int(os.environ.get("RECURRING_SEND_HOUR", "9"))
 
 
 def send_scheduled_notifications() -> dict:
@@ -204,7 +210,10 @@ def dispatch_pending_notifications() -> dict:
     - One-time (scheduledAt present, isRecurring absent or False):
         If scheduledAt <= now UTC → sends and updates status='sent'.
     - Recurring (isRecurring=True, recurringDays present):
-        If today (UTC) is in recurringDays → sends.
+        If today -- in the OWNER's timezone (Settings page) -- is in
+        recurringDays and it is past RECURRING_SEND_HOUR there → sends.
+        It used to be today in UTC, so "every Monday" went out on Sunday
+        from 7 pm for a user in Bogota.
         Keeps status='pending' so it runs again next week.
         Records the last run in 'lastSentAt' to avoid double sends
         within the same hourly window.
@@ -214,9 +223,22 @@ def dispatch_pending_notifications() -> dict:
         send_notification, notifications_table, set_current_user, clear_current_user,
     )
 
+    from zoneinfo import ZoneInfo
+    from api.services.users import user_timezone
+
     now_dt = datetime.now(timezone.utc)
     now_iso = now_dt.isoformat()
-    today_name = now_dt.strftime('%A').lower()  # 'monday', 'tuesday', etc.
+    local_now_by_uid: dict = {}
+
+    def _local_now(owner_uid: str):
+        """Now, in the owner's timezone. One lookup per owner per run."""
+        if owner_uid not in local_now_by_uid:
+            try:
+                local_now_by_uid[owner_uid] = now_dt.astimezone(
+                    ZoneInfo(user_timezone(owner_uid)))
+            except Exception:
+                local_now_by_uid[owner_uid] = now_dt
+        return local_now_by_uid[owner_uid]
 
     try:
         result = notifications_table.scan(
@@ -248,15 +270,29 @@ def dispatch_pending_notifications() -> dict:
         should_send = False
 
         if is_recurring:
-            # Recurring: check whether today is one of the configured days.
-            if today_name not in (recurring_days or []):
+            # Recurring: is it one of the configured days WHERE THE OWNER IS,
+            # and late enough in their morning? The dispatcher runs hourly, so
+            # without the hour it fired at local midnight.
+            local_now = _local_now(uid)
+            if local_now.strftime('%A').lower() not in (recurring_days or []):
                 skipped += 1
                 continue
-            # Prevent double sends if it already ran today (lastSentAt matches today's date).
+            if local_now.hour < RECURRING_SEND_HOUR:
+                skipped += 1
+                continue
+            # Prevent double sends: already ran on this LOCAL date?
             last_sent = notif.get('lastSentAt', '')
-            if last_sent and last_sent[:10] == now_dt.strftime('%Y-%m-%d'):
-                skipped += 1
-                continue
+            if last_sent:
+                try:
+                    last_local = datetime.fromisoformat(
+                        last_sent.replace('Z', '+00:00'))
+                    if last_local.tzinfo is None:
+                        last_local = last_local.replace(tzinfo=timezone.utc)
+                    if last_local.astimezone(local_now.tzinfo).date() == local_now.date():
+                        skipped += 1
+                        continue
+                except ValueError:
+                    pass
             should_send = True
         elif scheduled_at:
             # One-time: only send if scheduled_at <= now.

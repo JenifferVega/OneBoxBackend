@@ -1,0 +1,183 @@
+{
+  "kind": "replan",
+  "title": "OneBox · update semanal (.md) contra un Trello hecho a mano que no cuadra",
+  "today": "2026-06-06",
+  "leader": {
+    "name": "Santi",
+    "email": "santiago@digitalworkers.online"
+  },
+  "fixtures": {
+    "trello_api": "fixtures/trello_api.json",
+    "file": "fixtures/update_semanal_jenny_2026-06-05.md"
+  },
+  "turns": [
+    {
+      "from": "leader",
+      "messages": [
+        "jenny me mando esto, mira tambien el trello"
+      ],
+      "context": {
+        "file": "fixtures/update_semanal_jenny_2026-06-05.md",
+        "trello": true
+      },
+      "why": "Microsoft: el update dice hecho, Trello dice bloqueado -> no cerrar, preguntar. Gráficos y permisos: las dos fuentes coinciden -> cerrar.",
+      "expect": {
+        "proposal": "new",
+        "ops": [
+          {
+            "op": "close",
+            "task": "ob-graficos"
+          },
+          {
+            "op": "close",
+            "task": "ob-permisos"
+          }
+        ],
+        "ops_absent": [
+          {
+            "op": "close",
+            "task": "ob-microsoft"
+          }
+        ],
+        "asks": [
+          [
+            "microsoft",
+            "outlook"
+          ]
+        ]
+      }
+    }
+  ],
+  "_archived_turns": [
+    {
+      "from": "leader",
+      "messages": [
+        "creele a jenny, el trello lo actualizan tarde"
+      ],
+      "expect": {
+        "intent": [
+          "decide",
+          "change"
+        ],
+        "proposal": "edited",
+        "ops": [
+          {
+            "op": "close",
+            "task": "ob-microsoft"
+          }
+        ]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "que mas no cuadra"
+      ],
+      "expect": {
+        "intent": "question",
+        "proposal": "unchanged",
+        "answer_mentions": [
+          [
+            "asana"
+          ],
+          [
+            "login"
+          ],
+          [
+            "pdf",
+            "informe"
+          ]
+        ],
+        "answer_mentions_min": 1
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "lo de asana sacalo ya no va"
+      ],
+      "expect": {
+        "intent": "change",
+        "proposal": "edited",
+        "ops_any": [
+          {
+            "op": [
+              "delete",
+              "close"
+            ],
+            "task": [
+              "ob-asana"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "y el certificado se lo mando yo hoy"
+      ],
+      "why": "'yo' = Santi; 'hoy' = 2026-06-06; desbloquea la doc de Meta.",
+      "expect": {
+        "intent": [
+          "feedback",
+          "change"
+        ],
+        "proposal": "edited",
+        "creates_or_updates": [
+          {
+            "text": [
+              [
+                "certificado"
+              ]
+            ],
+            "fields": {
+              "assigned_to": "Santi",
+              "due_date": "2026-06-06"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "aprueba todo"
+      ],
+      "expect": {
+        "intent": "decide",
+        "decision": {
+          "kind": "approve_all"
+        },
+        "applied": true,
+        "plan_state": {
+          "ob-microsoft": {
+            "status": "done"
+          },
+          "ob-graficos": {
+            "status": "done"
+          }
+        }
+      }
+    },
+    {
+      "from": "leader",
+      "messages": [
+        "pon en el trello lo que cambiamos"
+      ],
+      "expect": {
+        "intent": "action",
+        "applied": false,
+        "handoff": {
+          "mentions": [
+            [
+              "trello"
+            ]
+          ],
+          "tool_hint": "push_tasks_to_trello"
+        }
+      }
+    }
+  ],
+  "_note": "Replanificación con contexto: es lo único que el dueño pide en este chat. Los turnos de conversación posteriores (aprobar hablando, preguntas) se archivaron: ahora se aprueba con botones."
+}

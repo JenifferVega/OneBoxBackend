@@ -123,3 +123,9 @@ class CreateProjectFromTextRequest(BaseModel):
 
 class LinkPhoneRequest(BaseModel):
     phoneNumber: str
+
+
+class UpdateUserSettingsRequest(BaseModel):
+    """Partial update: only the fields sent are changed."""
+    timezone: Optional[str] = None   # IANA name, e.g. "America/Bogota"
+    language: Optional[str] = None   # "es" | "en"

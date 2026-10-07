@@ -79,6 +79,71 @@ failure — it is there so a harness cannot certify behaviour nobody verified.
 
 ---
 
+## Setup the update loop needs (once per AWS account)
+
+```bash
+python scripts/dynamo/create_planning_table.py    # table onebox-planning
+```
+
+Environment (see `.env.example`): `SES_FROM_EMAIL` (sender, default
+`onebox@oneboxmanager.com`), `APP_URL` (link in the emails),
+`UPDATE_REMINDER_HOUR_UTC` (12), `UPDATES_DIGEST_HOUR_UTC` (22), `CRON_SECRET`,
+`COGNITO_USER_POOL_ID`. An EventBridge rule must POST
+`/api/scheduled/dispatch-pending` every hour (header `x-cron-secret`): it sends
+the "hora de actualizar" emails, tells owners who did not report, and builds
+the daily digest. Without that rule none of it happens.
+
+---
+
+## Simulating the update loop on real data: `scripts/sim/`
+
+These run against the AWS account of your `.env` (real tables, real SES). Use
+them to walk the loop by hand, the way a member and an owner live it.
+
+`scripts/sim/update_flow.py`, one command per step:
+
+| Command | What it does | Writes? |
+|---|---|---|
+| `ses [--send-test EMAIL]` | Can SES send? Sender, verified domain/DKIM, quota, last 14 days (sent, bounced, spam). `--send-test` sends ONE real email | only with `--send-test` |
+| `tasks [--project ID]` | Every participant of a project (or all) with their open tasks, and the open tasks nobody is asked about (no assignee, or an assignee who is not a participant) | no |
+| `status --email E [--project ID]` | The projects of one person: their tasks, last report, whether their update is due, last reminder | no |
+| `make-due --email E [--project ID]` | Pretend the person has not reported for 4 days (only their check-in clock in `onebox-planning`) | yes, the clock |
+| `eventbridge --email E` | POSTs `/api/scheduled/dispatch-pending?force=true&only=E`, what EventBridge calls every hour, limited to that person: their email, the owner alert about them, the digest of their projects. `--everyone` = the real cron for everybody (real emails!). `--no-force` keeps the hour-of-day gates | sends real emails |
+| `notifications --project ID` | The owner's last in-app notifications (the bell) for a project | no |
+| `owner-late --email E [--project ID]` | Pretend the person is past the grace day, so the next `eventbridge` tells the owner | yes, the clock |
+
+The usual walk (backend running, e.g. `python main.py --port 8000`):
+
+```bash
+python scripts/sim/update_flow.py ses
+python scripts/sim/update_flow.py status --email you@example.com
+python scripts/sim/update_flow.py make-due --email you@example.com --project <id>
+python scripts/sim/update_flow.py eventbridge --email you@example.com   # the email arrives
+#   log in: the update modal opens with the same questions; answer, end with "eso es todo"
+python scripts/sim/update_flow.py eventbridge --email you@example.com   # digest + proposal for the owner
+python scripts/sim/update_flow.py notifications --project <id>
+```
+
+`scripts/sim/fix_mock_data.py` makes MOCK data consistent so the loop has
+someone to ask: one name per email (`--name EMAIL=NAME` to choose it),
+assignees added as participants, unassigned open tasks spread over the
+participants with email, and `--me EMAIL --me-tasks N` to give yourself tasks.
+Dry run by default; `--apply` writes after saving a backup in
+`scripts/sim/backups/`; `--restore <file>` undoes it.
+
+Set `EMAIL_OUTBOX=<folder>` in the backend's environment to write every email
+to that folder instead of sending it.
+
+## Scripted conversations (the AI, graded)
+
+`python tests/planning/run_conversation.py <name> [--dry]`, or the MCP tool
+`planning_run_conversation`. Kinds: `member` (a member's update chat),
+`consolidation` (several updates + Trello -> digest, proposal, approval written
+to Trello) and `replan` (the owner replans with context). Real LLM, AWS faked
+in memory. See `tests/planning/conversations/README.md`.
+
+---
+
 ## Diagnostic probes
 
 Not part of `check.sh`. These call real APIs and cost a few cents; run them when
