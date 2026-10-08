@@ -35,7 +35,7 @@ def reflect(uid: str, proj: dict, before: Dict[str, dict], after: Dict[str, dict
     Returns {status, created, updated, moved, archived, skipped, errors}."""
     from agent.tools.trello import _card_desc, _card_fingerprint, _clear_task_card, _diff_task_and_card, _save_task_card
     from api.services import trello as trello_service
-    res = {"status": "ok", "created": [], "updated": [], "moved": [], "archived": [], "skipped": [], "errors": []}
+    res: dict = {"status": "ok", "created": [], "updated": [], "moved": [], "archived": [], "skipped": [], "errors": []}
     board, home = proj.get("trelloBoardId"), proj.get("trelloListId")
     if not board or not home:
         return {**res, "status": "not_linked"}

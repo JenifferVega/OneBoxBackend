@@ -1,0 +1,53 @@
+{
+  "name": "member_status_needs_comment",
+  "description": "Ana is a MEMBER of Onebox2026 and task b3 is hers. A status with no reason tells the owner nothing, so her status change needs a comment: the agent must ASK why, not invent one and not report a change that did not happen. Once she says why, it goes through with her words.",
+  "session_id": "member_status_needs_comment",
+  "debug": true,
+  "reset_before": true,
+  "as": {
+    "uid": "uid-DRYRUN-ana",
+    "email": "ana.torres@example.com"
+  },
+  "turns": [
+    {
+      "n": 1,
+      "message": "marca como hecha mi tarea de documentar el API publico de Onebox2026",
+      "assert": {
+        "response_matches": [
+          "(?i)(por qu[eé]|motivo|raz[oó]n|comentario|qu[eé] pas[oó]|cu[eé]ntame|c[oó]mo qued[oó]|\\?)"
+        ],
+        "response_not_matches": [
+          "(?i)(he marcado|ya est[aá] marcada|qued[oó] marcada|la marqu[eé])"
+        ],
+        "comment": "Asking first, or calling the tool and relaying its 'comment required', are both fine. Claiming it is done is not."
+      }
+    },
+    {
+      "n": 2,
+      "message": "ya la publique ayer en el portal de documentacion y Jesus la reviso",
+      "assert": {
+        "tools_used_includes": [
+          "update_task"
+        ],
+        "results": [
+          {
+            "tool": "update_task",
+            "field": "success",
+            "op": "eq",
+            "value": true
+          },
+          {
+            "tool": "update_task",
+            "field": "comment_saved",
+            "op": "contains",
+            "value": "portal",
+            "why": "The comment must be HER reason, not a generic one."
+          }
+        ],
+        "response_not_matches": [
+          "(?i)(por qu[eé]|necesito un comentario)"
+        ]
+      }
+    }
+  ]
+}

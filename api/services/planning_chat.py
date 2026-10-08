@@ -73,6 +73,16 @@ def _access(uid: str, email: str, project_id: str) -> dict:
     return proj
 
 
+def _owner_access(uid: str, email: str, project_id: str) -> dict:
+    """Deciding on the plan is the owner's. A member could approve the
+    proposal built from their OWN status update, which made approval mean
+    nothing."""
+    proj = _access(uid, email, project_id)
+    if proj.get("userId") != uid:
+        raise HTTPException(status_code=403, detail="Only the project owner can decide on proposals")
+    return proj
+
+
 def _items(project_id: str) -> list:
     out, last = [], None
     while True:
@@ -258,7 +268,8 @@ def start_message(uid: str, email: str, project_id: str, message: str, context_t
         _store_source(proj, uid, email, fname, text, raw=data, ext=ext, content_type=ctype or "")
         sources.append((fname, text))
     if include_trello:
-        name, text = trello_text(uid, proj)
+        # The board is read with the OWNER's connection: members have none.
+        name, text = trello_text(proj.get("userId") or uid, proj)
         _store_source(proj, uid, email, name, text)
         sources.append((name, text))
     if not sources and not reread_all:
@@ -335,7 +346,7 @@ def decide(uid: str, email: str, project_id: str, prop_id: str, decision: str,
            op_indexes: Optional[List[int]] = None, _checked: bool = False) -> dict:
     from agent.planning.schedule import apply_proposal
     from agent.tools import insights_table, projects_table, tasks_table
-    proj = _access(uid, email, project_id) if not _checked else None
+    proj = _owner_access(uid, email, project_id) if not _checked else None
     item = _proposal_item(project_id, prop_id)
     if item.get("status") != "pending":
         raise HTTPException(status_code=409, detail=f"Proposal is {item.get('status')}, not pending")
@@ -421,7 +432,7 @@ def revert(uid: str, email: str, project_id: str, prop_id: str) -> dict:
     created and the notes it wrote. Only the last applied proposal, and only
     while nothing else changed the plan after it."""
     from agent.tools import insights_table, projects_table, tasks_table
-    proj = _access(uid, email, project_id)
+    proj = _owner_access(uid, email, project_id)
     item = _proposal_item(project_id, prop_id)
     if item.get("status") not in ("applied", "partially_applied"):
         raise HTTPException(status_code=409, detail="Only an applied proposal can be reverted")

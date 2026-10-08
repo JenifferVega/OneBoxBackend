@@ -1,0 +1,39 @@
+{
+  "name": "trello_board_invites_team",
+  "description": "When the OWNER creates a board for a project, the team is invited to it. Onebox2026 has Diego Ruiz with no email: he cannot be invited, and saying only 'board created' hides that.",
+  "session_id": "trello_board_invites_team",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "crea un tablero de Trello para Onebox2026 y sube las tareas",
+      "assert": {
+        "tool_call_count": {
+          "create_trello_board": 0
+        },
+        "response_matches": [
+          "(?i)(confirma|confirmas|\\u00bfquieres|shall i|do you want)"
+        ]
+      }
+    },
+    {
+      "n": 2,
+      "message": "si",
+      "assert": {
+        "tool_call_count": {
+          "create_trello_board": 1
+        },
+        "tools_used_includes": [
+          "create_trello_board",
+          "push_tasks_to_trello"
+        ],
+        "response_matches": [
+          "(?i)invit",
+          "(?i)Diego"
+        ],
+        "comment": "Who was invited AND who was left out (Diego: no email)."
+      }
+    }
+  ]
+}

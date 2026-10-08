@@ -98,7 +98,12 @@ TOOLS_DESCRIPTION = """
 - list_tasks(project_id): Lists the tasks in a project (text, status, owner, dates, taskId).
   Use it to locate a task's taskId before updating or deleting it.
 
-- update_task(task_id, text, status, assigned_to, due_date, start_date, description, blocked_reason): Updates an existing task.
+- update_task(task_id, text, status, assigned_to, due_date, start_date, description, blocked_reason, comment): Updates an existing task.
+    - comment: WHY the change is made, in the user's words. It is saved on the task (and on its Trello card).
+    - PERMISSIONS: the project OWNER can change anything. A MEMBER can only change status / blocked_reason on tasks
+      ASSIGNED TO THEM, and a member's status change REQUIRES comment: if they did not say why, ASK before calling.
+      Members cannot create or delete tasks nor change title, dates or assignee: those return "Only the project
+      owner can..." -- tell them to request it so it becomes a proposal for the owner. Do not retry.
   Parameters (all optional except task_id; only the fields you send are changed):
     - task_id: ID of the task to modify (required). Get it from list_tasks.
     - status: pending | done | blocked  (to UNBLOCK a task, use status="pending")
@@ -132,8 +137,12 @@ TOOLS_DESCRIPTION = """
     - Tolerates typos: if the exact lookup finds nobody, it retries with fuzzy matching, and matches found that way are flagged "fuzzy": true. Confirm those with the user before sending anything.
 
 ## TRELLO INTEGRATION — WHAT IT CAN AND CANNOT DO (READ BEFORE OFFERING ANYTHING):
-OneBox talks to Trello through EXACTLY TWO operations, listed below. The integration is ONE-WAY:
-OneBox writes cards INTO Trello and never reads them back.
+From THIS chat OneBox talks to Trello through the tools listed below, and they only WRITE: set a board up
+and export tasks. Cards are then kept in step automatically when tasks change in OneBox.
+Reading the board back is NOT done here: it happens in the planning chat (Intelligence > Replanificación,
+"include Trello") and in the daily consolidation, where what the team did on the board becomes a proposal
+the owner approves. Asked to bring Trello changes into OneBox, say you cannot do it from this chat and
+point the OWNER there. Never update tasks from what the user says is on the board.
 
 It CANNOT, and you must NEVER offer or imply any of these:
   - read, list or show the cards of a board          - move a card between lists
@@ -153,6 +162,15 @@ that does not exist.
     - project_id: (optional) links the project to the new board and its first list, so later pushes need no list.
     - This WRITES into the user's Trello account and the board is visible to everyone on it. NEVER call it inside a
       multi-step plan on your own initiative: ask first, act after the user says yes.
+
+    - AUTOMATIC SYNC: once a project has a board, creating, editing, completing, blocking or deleting a task in
+      OneBox updates its card by itself (through the OWNER's Trello connection, whoever made the change). Do NOT
+      call push_tasks_to_trello after create_task / update_task / delete_task; it is for the first export and for
+      a full re-sync the owner asks for. Members never need to connect Trello.
+    - ONLY THE PROJECT OWNER can use the Trello tools on a project (create_trello_board with project_id,
+      link_project_to_trello, push_tasks_to_trello). For anyone else these return owner_only: true:
+      tell them the owner has to set the board up first. On creation every project member with an email is invited
+      to the board; the result's `members` lists invited / failed / without_email. Report it.
 
 - link_project_to_trello(project_id, list_name, board_name, list_id): Remembers which Trello list a project pushes to.
     - Use it when the user picks an EXISTING board rather than creating one.

@@ -18,12 +18,16 @@ _EXTRA_TOOLS = """
   step when asked to create a board.
     - can_create: false -> it already has one; `already_linked` names it.
     - can_create: true  -> propose creating it and ask for confirmation.
+    - owner_only: true  -> the user is a member, not the owner. Only the owner
+      can create or choose the project's board. Say so; do not propose one.
 
 - create_trello_board(name, project_id, lists): Creates a NEW board in the
   user's real Trello account. REQUIRES the user to agree first.
     - name: REQUIRED, the board name. Never omit it.
     - project_id: links the project to the new board so later pushes need no
       list. lists: column names in order; defaults to OneBox's own statuses.
+    - OWNER ONLY when project_id is given. Every project member with an email
+      is invited to the new board; `members` says who was and who was not.
 
 - link_project_to_trello(project_id, list_name, board_name, list_id): Records
   which Trello list a project's cards go to, WITHOUT creating anything. Use it

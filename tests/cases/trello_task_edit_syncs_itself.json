@@ -1,0 +1,42 @@
+{
+  "name": "trello_task_edit_syncs_itself",
+  "description": "Once a project has a board, a task change reaches its card by itself. Exporting again after every edit is noise at best and, before the three-way diff, was how cards got overwritten.",
+  "session_id": "trello_task_edit_syncs_itself",
+  "debug": true,
+  "reset_before": true,
+  "turns": [
+    {
+      "n": 1,
+      "message": "manda las tareas pendientes de Marketing Q3 al tablero ONEBOX, en la lista Backlog",
+      "assert": {
+        "tools_used_includes": [
+          "push_tasks_to_trello"
+        ],
+        "tool_call_count": {
+          "create_trello_board": 0
+        }
+      }
+    },
+    {
+      "n": 2,
+      "message": "marca como hecha la tarea de integrar la pasarela de pago",
+      "assert": {
+        "tools_used_includes": [
+          "update_task"
+        ],
+        "tools_used_excludes": [
+          "push_tasks_to_trello",
+          "create_trello_board"
+        ],
+        "results": [
+          {
+            "tool": "update_task",
+            "field": "trelloSync",
+            "op": "eq",
+            "value": "automatic"
+          }
+        ]
+      }
+    }
+  ]
+}

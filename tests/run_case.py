@@ -28,12 +28,20 @@ PASS, FAIL, SKIP = "PASS", "FAIL", "SKIP"
 _ICON = {PASS: "  PASS ", FAIL: "  FAIL ", SKIP: "  SKIP "}
 
 
+# Who the request is sent as. A case (or one turn) can set
+#     "as": {"uid": "uid-DRYRUN-ana", "email": "ana.torres@example.com"}
+# to run as a project MEMBER: in the dry run, a caller whose email is one of
+# the fixture participants is that member; anyone else is the owner.
+_AS = {}
+
+
 def _post(path, payload):
     req = urllib.request.Request(
         f"{URL}{path}",
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json",
-                 "x-user-id": UID, "x-user-email": EMAIL},
+                 "x-user-id": _AS.get("uid") or UID,
+                 "x-user-email": _AS.get("email") or EMAIL},
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=180) as r:
@@ -101,6 +109,11 @@ def check_turn(spec, reply):
             out.append((SKIP, f"{label}  (needs debug=true; tool output not returned)"))
             continue
         hits = [res for tool, res in calls if tool == r["tool"]]
+        if not hits and r.get("if_called"):
+            # "IF it was attempted, it must have been refused": not calling
+            # the tool at all is the better outcome, not a failure.
+            out.append((PASS, f"{label}  ({r['tool']} was not called: nothing to refuse)"))
+            continue
         if not hits:
             out.append((FAIL, f"{label}  ({r['tool']} was never called)"))
             continue
@@ -135,7 +148,10 @@ def main():
     history, totals = [], {PASS: 0, FAIL: 0, SKIP: 0}
     for spec in case["turns"]:
         msg = spec["message"]
-        print(f"Turn {spec['n']}: {msg!r}")
+        _AS.clear()
+        _AS.update(spec.get("as") or case.get("as") or {})
+        who = f" [as {_AS.get('email')}]" if _AS else ""
+        print(f"Turn {spec['n']}{who}: {msg!r}")
         if spec.get("why"):
             print(f"   {spec['why']}")
         try:

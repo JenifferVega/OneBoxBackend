@@ -44,7 +44,7 @@ def updates_consolidate(project_id: str, x_user_id: str = Header(default=""), x_
     """On demand ('Consolidar ahora'): same as the daily digest."""
     uid = require_uid(x_user_id)
     email = (x_user_email or "").lower()
-    planning_chat._access(uid, email, project_id)
+    planning_chat._owner_access(uid, email, project_id)
     return updates_consolidation.consolidate(project_id, actor=email or uid)
 
 

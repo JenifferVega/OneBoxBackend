@@ -194,7 +194,7 @@ def list_tasks(project_id: str) -> dict:
 def update_task(task_id: str, text: str = None, status: str = None,
                      assigned_to: str = None, due_date: str = None,
                      start_date: str = None, description: str = None,
-                     blocked_reason: str = None) -> dict:
+                     blocked_reason: str = None, comment: str = None) -> dict:
     """Updates an existing task. Only changes the fields that are sent.
     Reuses api.services.tasks.update_task → preserves the block and
     reassignment notifications."""
@@ -207,6 +207,7 @@ def update_task(task_id: str, text: str = None, status: str = None,
             text=text, status=status, assigned_to=assigned_to,
             description=description, blocked_reason=blocked_reason,
             start_date=start_date, due_date=due_date, parent_task_id=None,
+            comment=comment,
         )
         return update_task(_current_uid(), _current_email(), task_id, req)
     except Exception as e:

@@ -204,6 +204,8 @@ def list_projects(uid: str, user_email: str) -> list:
                                 ExpressionAttributeValues={':p': updated_parts},
                             )
                             proj_item['participants'] = updated_parts
+                            from api.services import trello_sync
+                            trello_sync.invite_missing_async(pid)
                             print(f"[list_projects] Invited user {inv_email_norm} added to participants of {pid}")
                     except Exception as e:
                         print(f"[list_projects] Could not add invited user to participants of {pid}: {e}")
@@ -542,6 +544,10 @@ def update_participants(uid: str, project_id: str, participants: list) -> dict:
         ExpressionAttributeValues={':p': normalize_participants(participants)},
         ConditionExpression=Attr('userId').eq(uid)
     )
+    # Someone new, or someone who just got an email: invite them to the
+    # project's Trello board if it has one.
+    from api.services import trello_sync
+    trello_sync.invite_missing_async(project_id)
     return {"success": True, "projectId": project_id}
 
 
@@ -628,6 +634,8 @@ def invite_user(uid: str, project_id: str, email: str = '', phone: str = '',
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving participant: {str(e)}")
+    from api.services import trello_sync
+    trello_sync.invite_missing_async(project_id)
 
     # If we should NOT notify, we finish here (only the contact was recorded)
     if not send_notification:

@@ -150,6 +150,45 @@ def list_tasks(uid: str, user_email: str, project_id: str) -> list:
     )
 
 
+# ── What a member (not the owner) may do ────────────────────────────────────
+# A member does the work and reports on it; the owner decides the plan.
+#   member:  status / blocked reason / comments, on tasks assigned to THEM,
+#            and a status change always says why.
+#   owner:   everything else -- what exists, who does it, and when. A member
+#            who wants one of those asks for it (planning chat or check-in)
+#            and it becomes a proposal the owner approves.
+_MEMBER_FIELDS = ('status', 'blocked_reason', 'comment')
+_PLAN_FIELDS = ('text', 'assigned_to', 'description', 'start_date', 'due_date',
+                'parent_task_id')
+_MIN_COMMENT = 3
+
+
+def _is_assigned_to(proj: dict, task: dict, user_email: str) -> bool:
+    """Is this task assigned to the person behind this email? Same matching
+    the check-in uses: assignedTo is a free-text name, not an account."""
+    from agent.planning.sources import match_person, normalize_participant
+    email = (user_email or '').strip().lower()
+    who = (task.get('assignedTo') or '').strip()
+    if not email or not who:
+        return False
+    if who.lower() == email:
+        return True
+    parts = [normalize_participant(p) for p in (proj or {}).get('participants') or []]
+    me = next((p for p in parts if (p.get('email') or '').lower() == email), None)
+    if not me:
+        return False
+    hit = match_person(who, parts)
+    return bool(hit) and (hit.get('email') or '').lower() == email
+
+
+def _owner_only(what: str):
+    raise HTTPException(
+        status_code=403,
+        detail=f"Only the project owner can {what}. Ask for it in the planning "
+               f"chat or in your status update: it becomes a proposal the "
+               f"owner approves.")
+
+
 def create_task(uid: str, user_email: str, project_id: str, req) -> dict:
     """Create a task in a project. Accessible to owner AND invited users.
     The task is created with userId = project owner (not creator) so that
@@ -157,6 +196,8 @@ def create_task(uid: str, user_email: str, project_id: str, req) -> dict:
     has, _is_owner, proj = has_project_access(uid, user_email, project_id)
     if not has:
         raise HTTPException(status_code=403, detail="No access to this project")
+    if not _is_owner:
+        _owner_only("create tasks")
     task_id = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
     owner_uid = proj.get('userId', uid)
@@ -190,6 +231,10 @@ def create_task(uid: str, user_email: str, project_id: str, req) -> dict:
             actor_email=user_email or '',
         )
 
+    # The project's board follows, with the OWNER's Trello connection.
+    from api.services import trello_sync
+    trello_sync.sync_async(project_id, [task_id], created=True)
+
     return {"success": True, "taskId": task_id, "text": req.text}
 
 
@@ -207,6 +252,21 @@ def update_task(uid: str, user_email: str, task_id: str, req) -> dict:
     has, _is_owner, _proj = has_project_access(uid, user_email, task['projectId'])
     if not has:
         raise HTTPException(status_code=403, detail="No access to this project")
+    comment = (getattr(req, 'comment', None) or '').strip()
+    if not _is_owner:
+        if not _is_assigned_to(_proj, task, user_email):
+            _owner_only("change a task that is not assigned to you")
+        if any(getattr(req, f, None) is not None for f in _PLAN_FIELDS):
+            _owner_only("change a task's title, description, dates or assignee")
+        new_status = 'done' if req.status == 'completed' else req.status
+        if new_status is not None and new_status != task.get('status'):
+            # Blocking already carries its reason; that IS the comment.
+            comment = comment or (req.blocked_reason or '').strip()
+            if len(comment) < _MIN_COMMENT:
+                raise HTTPException(
+                    status_code=400,
+                    detail="A comment is required to change the status: say "
+                           "briefly what happened or why.")
     updates = {}
     if req.text is not None:
         updates['text'] = req.text
@@ -246,6 +306,32 @@ def update_task(uid: str, user_email: str, task_id: str, req) -> dict:
             ExpressionAttributeValues=expr_values,
             ExpressionAttributeNames=expr_names,
         )
+
+    # The comment is kept ON the task, with who said it and which status
+    # change it explains: a status with no reason tells the owner nothing.
+    note = ''
+    if comment:
+        entry = {
+            'at': datetime.utcnow().isoformat(),
+            'by': (user_email or '').strip().lower() or uid,
+            'text': comment[:2000],
+            'fromStatus': task.get('status', ''),
+            'toStatus': updates.get('status', task.get('status', '')),
+        }
+        tasks_table.update_item(
+            Key={'projectId': task['projectId'], 'taskId': task_id},
+            UpdateExpression="SET comments = list_append(if_not_exists(comments, :e), :c)",
+            ExpressionAttributeValues={':e': [], ':c': [entry]},
+        )
+        change = (f" ({entry['fromStatus']} -> {entry['toStatus']})"
+                  if entry['fromStatus'] != entry['toStatus'] else '')
+        note = f"{entry['by']}{change}: {entry['text']}"
+
+    if updates or comment:
+        # The card follows the task (owner's Trello connection), whoever
+        # edited it. `task` is the state BEFORE this change.
+        from api.services import trello_sync
+        trello_sync.sync_async(task['projectId'], [task_id], before=[task], comment=note)
 
     # Immediately notify the person if their assignment changed (from empty
     # or from another person to THEM). If only something else is edited
@@ -314,7 +400,9 @@ def update_task(uid: str, user_email: str, task_id: str, req) -> dict:
                     pass
         threading.Thread(target=_notify_blocked, daemon=True).start()
 
-    return {"success": True, "taskId": task_id}
+    return {"success": True, "taskId": task_id,
+            # The board follows on its own; nobody has to export again.
+            **({"trelloSync": "automatic"} if (_proj or {}).get("trelloBoardId") else {})}
 
 
 def delete_task(uid: str, user_email: str, task_id: str, cascade: bool) -> dict:
@@ -334,6 +422,8 @@ def delete_task(uid: str, user_email: str, task_id: str, cascade: bool) -> dict:
     has, _is_owner, _proj = has_project_access(uid, user_email, project_id)
     if not has:
         raise HTTPException(status_code=403, detail="No access to this project")
+    if not _is_owner:
+        _owner_only("delete tasks")
 
     # Look up subtasks
     children_resp = tasks_table.scan(
@@ -356,4 +446,8 @@ def delete_task(uid: str, user_email: str, task_id: str, cascade: bool) -> dict:
                 )
 
     tasks_table.delete_item(Key={'projectId': project_id, 'taskId': task_id})
+    # Archive the cards of what was deleted (restorable in Trello).
+    gone = [task] + (list(children) if cascade else [])
+    from api.services import trello_sync
+    trello_sync.sync_async(project_id, [t['taskId'] for t in gone], before=gone)
     return {"success": True, "taskId": task_id, "childrenAffected": len(children), "cascade": cascade}

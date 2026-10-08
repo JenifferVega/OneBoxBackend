@@ -69,6 +69,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             description: "ID de sesión (usa el mismo en todos los turnos)",
             default: DEFAULT_SESSION,
           },
+          as_email: {
+            type: "string",
+            description:
+              "Opcional: hablar como OTRO usuario. En modo debug, el email de un " +
+              "participante de los proyectos de prueba (ana.torres@example.com, " +
+              "carlos.lopez@example.com) hace que el agente te trate como MIEMBRO; " +
+              "sin esto eres el dueño.",
+          },
+          as_uid: { type: "string", description: "Opcional: x-user-id a usar junto con as_email" },
         },
         required: ["message"],
       },
@@ -291,9 +300,10 @@ async function handleChat(args) {
   const { history } = session;
 
   const payload = { message, history, debug: true, session_id: sessionId };
+  const asEmail = (args.as_email || "").trim().toLowerCase();
   const headers = {
-    "x-user-id":    USER_ID,
-    "x-user-email": USER_EMAIL,
+    "x-user-id":    (args.as_uid || "").trim() || (asEmail ? `uid-as-${asEmail}` : USER_ID),
+    "x-user-email": asEmail || USER_EMAIL,
     "Content-Type": "application/json",
   };
 

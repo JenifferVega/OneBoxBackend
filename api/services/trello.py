@@ -296,6 +296,38 @@ def update_card(uid: str, card_id: str, name: str = "", desc: str = "",
     return {"cardId": card.get("id", ""), "url": card.get("shortUrl", "")}
 
 
+def add_comment(uid: str, card_id: str, text: str) -> bool:
+    """Comment on a card. Never raises: a comment is context, not state."""
+    resp = _call("POST", f"{TRELLO_API}/cards/{card_id}/actions/comments",
+                 "add_comment", uid, params={**_creds(uid), "text": text[:16384]})
+    return resp.status_code == 200
+
+
+def invite_member(uid: str, board_id: str, email: str, full_name: str = "") -> dict:
+    """Invite someone to a board by email, as a normal member.
+
+    Trello adds them directly when the address belongs to a Trello account
+    and emails an invitation to join otherwise. Never raises: one address
+    Trello refuses must not stop the rest of the team from being invited.
+    """
+    email = (email or "").strip().lower()
+    if not email or "@" not in email:
+        return {"email": email, "ok": False, "error": "not a valid email"}
+    # Credentials in the query, the invitation in the JSON body: that is the
+    # shape Trello documents for this endpoint.
+    body = {"email": email, "type": "normal"}
+    if (full_name or "").strip():
+        body["fullName"] = full_name.strip()[:100]
+    resp = _call("PUT", f"{TRELLO_API}/boards/{board_id}/members",
+                 "invite_member", uid, params={**_creds(uid), "email": email,
+                                               "type": "normal"},
+                 json=body)
+    if resp.status_code != 200:
+        return {"email": email, "ok": False,
+                "error": f"Trello answered {resp.status_code}: {resp.text[:120]}"}
+    return {"email": email, "ok": True}
+
+
 def create_board(uid: str, name: str, lists: list = None) -> dict:
     """Create a board and, optionally, its lists in the given order.
 

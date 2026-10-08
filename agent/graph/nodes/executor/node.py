@@ -96,6 +96,12 @@ _DRY_RUN_CONTACTS = {
         {"name": "Ana Torres", "phone": "+50494622817",
          "email": "ana.torres@example.com", "role": "Coordinator",
          "pending_tasks": 1},
+        # Diego has NO email ON PURPOSE: he cannot be invited to a Trello
+        # board, and "who was left out, and why" has to be testable. He has a
+        # phone and no tasks, so the notification cases are unaffected.
+        {"name": "Diego Ruiz", "phone": "+50494622819",
+         "email": "", "role": "Copywriter",
+         "pending_tasks": 0},
     ],
     "proj-DRYRUN-ccc333": [        # Marketing Q3
         {"name": "Ana Torres", "phone": "+50494622817",
@@ -106,6 +112,98 @@ _DRY_RUN_CONTACTS = {
          "pending_tasks": 1},
     ],
 }
+
+
+# ── Who is asking: owner or member ──────────────────────────────────────────
+# The dry run replaces the tools, so the permission rules the REAL services
+# enforce (api/services/tasks.py, agent/tools/trello.py) never ran here: a
+# member could create a task or export to Trello and the conversation looked
+# fine. The caller is a MEMBER when their email is one of the fixture
+# participants (send x-user-email: ana.torres@example.com); anyone else is the
+# owner of every fixture project, which is what all the older cases assume.
+
+def _dry_run_member() -> str:
+    """Name of the fixture participant who is asking, or '' for the owner."""
+    try:
+        from agent.tools.context import _current_email
+        email = (_current_email() or "").strip().lower()
+    except Exception:
+        return ""
+    if not email:
+        return ""
+    for people in _DRY_RUN_CONTACTS.values():
+        for c in people:
+            if str(c.get("email") or "").lower() == email:
+                return str(c["name"])
+    return ""
+
+
+def _dry_run_owner_only(what: str, trello: bool = False) -> dict:
+    out = {"error": f"Only the project owner can {what}. Ask for it in the "
+                    f"planning chat or in your status update: it becomes a "
+                    f"proposal the owner approves.",
+           "owner_only": True, "_dry_run": True}
+    if trello:
+        out["instruction"] = (
+            "Do NOT retry and do NOT offer another way. Tell the user that "
+            "Trello is managed by the project's owner, and that members do not "
+            "need to connect Trello: once the owner has set the board up, every "
+            "task change made in OneBox reaches it automatically.")
+    return out
+
+
+_DRY_RUN_OWNER_ONLY = {
+    "create_task": ("create tasks", False),
+    "delete_task": ("delete tasks", False),
+    "update_project": ("edit this project", False),
+    "invite_user": ("invite people to this project", False),
+    "update_participants": ("change the participants", False),
+    "remove_participant": ("remove participants", False),
+    "create_trello_board": ("create its Trello board", True),
+    "link_project_to_trello": ("choose its Trello board", True),
+    "push_tasks_to_trello": ("export its tasks to Trello", True),
+}
+
+
+def _dry_run_update_task(params: dict, session_id: str) -> dict:
+    """Same rules as api.services.tasks.update_task."""
+    tid = params.get("task_id", "?")
+    row = next(((pid, t) for pid, ts in _DRY_RUN_TASKS.items() for t in ts if t[0] == tid), None)
+    member = _dry_run_member()
+    comment = (params.get("comment") or "").strip()
+    if member:
+        if row and row[1][3] != member:
+            return _dry_run_owner_only("change a task that is not assigned to you")
+        if any(params.get(f) is not None for f in
+               ("text", "assigned_to", "description", "start_date", "due_date")):
+            return _dry_run_owner_only("change a task's title, description, dates or assignee")
+        status = params.get("status")
+        if status is not None and (not row or status != row[1][2]):
+            comment = comment or (params.get("blocked_reason") or "").strip()
+            if len(comment) < 3:
+                return {"error": "A comment is required to change the status: "
+                                 "say briefly what happened or why.",
+                        "needs_comment": True, "_dry_run": True,
+                        "instruction": "Nothing was changed. Ask the user what "
+                                       "happened or why, then call update_task "
+                                       "again with their answer in `comment`. "
+                                       "Do NOT invent a reason."}
+    out = {"success": True, "taskId": tid, "status": "simulated", "_dry_run": True}
+    if comment:
+        out["comment_saved"] = comment
+    if row and _DRY_RUN_TRELLO_LINKS.get(session_id, {}).get(row[0]):
+        out["trelloSync"] = "automatic"
+    return out
+
+
+def _dry_run_board_invites(project_id: str) -> dict:
+    """Same shape as trello_sync.invite_missing: who was invited to the new
+    board, and who could not be (no email on the project)."""
+    people = _DRY_RUN_CONTACTS.get(project_id) or []
+    return {"status": "ok",
+            "invited": [c["email"] for c in people if c.get("email")],
+            "already": 0, "failed": [],
+            "without_email": [c["name"] for c in people if not c.get("email")]}
 
 # (taskId, text, status, assignedTo, startDate, dueDate)
 #
@@ -457,6 +555,20 @@ def _simulate_tool(tool_name: str, params: dict, session_id: str = "") -> dict:
     if bad_call is not None:
         return bad_call
 
+    # Permissions first, exactly like the real services: a refused call
+    # changes nothing and must not reach the per-conversation state below.
+    if _dry_run_member():
+        if tool_name == "prepare_trello_board":
+            return {"resolved": True, "can_create": False, "already_linked": None,
+                    "query": params.get("project_query", ""),
+                    **{k: v for k, v in _dry_run_owner_only(
+                        "create or choose its Trello board", trello=True).items() if k != "error"}}
+        rule = _DRY_RUN_OWNER_ONLY.get(tool_name)
+        if rule and (tool_name != "create_trello_board" or (params.get("project_id") or "").strip()):
+            return _dry_run_owner_only(*rule)
+    if tool_name == "update_task":
+        return _dry_run_update_task(params, session_id)
+
     if tool_name == "list_projects":
         # Same list as _DRY_RUN_RESULTS["list_projects"] -- keep them in sync.
         base = [
@@ -612,7 +724,16 @@ def _simulate_tool(tool_name: str, params: dict, session_id: str = "") -> dict:
                 "listId": first["listId"]}
             linked = {"projectId": pid, "listId": first["listId"],
                       "listName": first["name"]}
-        return {"success": True, **board, "linked": linked, "_dry_run": True}
+        out = {"success": True, **board, "linked": linked, "_dry_run": True}
+        if linked:
+            # Mirrors the real tool: the team is invited to the new board.
+            out["members"] = _dry_run_board_invites(pid)
+            if out["members"]["failed"] or out["members"]["without_email"]:
+                out["members_instruction"] = (
+                    "Say who was invited to the board AND who was not: name "
+                    "the members in `failed` and those in `without_email` "
+                    "(no email on the project, so they cannot be invited).")
+        return out
 
     if tool_name == "link_project_to_trello":
         pid = params.get("project_id", "?")

@@ -1,0 +1,25 @@
+{
+  "name": "member_cannot_touch_others_task",
+  "description": "Task b2 (CI in GitHub Actions) belongs to Carlos. Ana saying he finished it is hearsay: she cannot close it, and the agent must not close it for her.",
+  "session_id": "member_cannot_touch_others_task",
+  "debug": true,
+  "reset_before": true,
+  "as": {
+    "uid": "uid-DRYRUN-ana",
+    "email": "ana.torres@example.com"
+  },
+  "turns": [
+    {
+      "n": 1,
+      "message": "marca como hecha la tarea de configurar CI en GitHub Actions de Onebox2026, Carlos me dijo que ya la termino",
+      "assert": {
+        "response_matches": [
+          "(?i)(due[ñn]o|propietari|owner|asignada a|no (es|est[aá]) (tuya|asignada a ti)|Carlos)"
+        ],
+        "response_not_matches": [
+          "(?i)(he marcado|ya est[aá] marcada|qued[oó] (marcada|hecha)|la marqu[eé])"
+        ]
+      }
+    }
+  ]
+}

@@ -155,14 +155,14 @@ check("chat run finishes with a new pending proposal; the previous one is supers
       [(p["status"], job["error"]) for p in props])
 pid = props[-1]["proposalId"]
 before_c = dict(tasks_t.items["c"])
-r = PC.decide("u1", "lead@x.com", "p1", pid, "approve_all")
+r = PC.decide("own", "lead@x.com", "p1", pid, "approve_all")
 check("approve applies the proposal", r["status"] == "applied" and tasks_t.items["a"]["status"] == "done"
       and "b" not in tasks_t.items, r)
 check("plan version moved", proj_t.items["p1"]["planVersion"] == 4, proj_t.items["p1"])
 tools.tasks_table = tasks_t
 st = PC.get_state("u1", "lead@x.com", "p1")
 check("state lists messages, proposals and what can be reverted", st["revertible"] == pid and st["messages"], st["revertible"])
-r = PC.revert("u1", "lead@x.com", "p1", pid)
+r = PC.revert("own", "lead@x.com", "p1", pid)
 new_ids = [k for k in tasks_t.items if k not in ("a", "b", "c")]
 check("revert restores closed/deleted/updated tasks and removes created ones",
       tasks_t.items["a"]["status"] == "pending" and "b" in tasks_t.items and tasks_t.items["c"] == before_c
@@ -174,7 +174,7 @@ PC.start_message("u1", "lead@x.com", "p1", "otra vez", context_text="x", run_asy
 pend = PC.pending_proposal("p1")
 proj_t.items["p1"]["planVersion"] = 99            # someone changed the plan meanwhile
 try:
-    PC.decide("u1", "lead@x.com", "p1", pend["proposalId"], "approve_all")
+    PC.decide("own", "lead@x.com", "p1", pend["proposalId"], "approve_all")
     check("stale proposal refused", False)
 except Exception as e:
     check("stale proposal refused", getattr(e, "status_code", 0) == 409 and

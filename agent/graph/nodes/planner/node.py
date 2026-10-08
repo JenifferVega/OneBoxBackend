@@ -50,6 +50,44 @@ _TOOL_INTENTS = {
 _MAX_PROJECT_LINES = 40
 
 
+def _dry_run_board_lines(session_id: str) -> str:
+    """The same facts, for the DRY RUN's fake projects.
+
+    The real lookup reads DynamoDB for the caller, and the dry-run caller owns
+    nothing there: the planner was told "(this user has no projects)" while
+    every tool answered about four fixture projects, and on a turn with no
+    tool call it believed the prompt -- "I can't find any project in your
+    account". The projects, their boards and the caller's role come from the
+    executor's fixtures, so the prompt and the tools tell one story.
+    """
+    try:
+        from agent.graph.nodes.executor.node import (_DRY_RUN_TRELLO_LINKS,
+                                                     _dry_run_member,
+                                                     get_dry_run_projects)
+    except Exception:
+        return "(not available)"
+    member = _dry_run_member()
+    projects = [("proj-DRYRUN-aaa111", "Farmacia Haussman"), ("proj-DRYRUN-bbb222", "Onebox2026"),
+                ("proj-DRYRUN-ccc333", "Marketing Q3"), ("proj-DRYRUN-ddd444", "Marketing Q4")]
+    projects += [(p.get("projectId", ""), p.get("name", "")) for p in get_dry_run_projects(session_id)]
+    if member:
+        lines = [f"- This user is {member}, a MEMBER (not the owner) of these projects. Only the owner "
+                 f"creates or deletes tasks, changes dates or assignees, decides proposals and manages "
+                 f"Trello; {member} can change the STATUS of tasks assigned to them, with a comment.",
+                 "- Trello: managed by each project's OWNER. Do NOT ask this user to connect Trello."]
+    else:
+        lines = ["- This user is the OWNER of these projects.", "- Trello: connected (simulated)"]
+    links = _DRY_RUN_TRELLO_LINKS.get(session_id, {})
+    for pid, name in projects:
+        link = links.get(pid)
+        if link:
+            lines.append(f'- {pid} "{name}" → ALREADY has the Trello board '
+                         f'"{link.get("boardName", "")}" (list "{link.get("listName", "")}")')
+        else:
+            lines.append(f'- {pid} "{name}" → no Trello board yet')
+    return "\n".join(lines)
+
+
 def _project_board_lines() -> str:
     """Which of the user's projects already have a Trello board.
 
@@ -114,8 +152,14 @@ def _project_board_lines() -> str:
                 lines.append("- Trello: connected"
                              + (f' as @{st.get("username")}' if st.get("username") else ""))
             else:
-                lines.append("- Trello: NOT connected. No board can be listed, "
-                             "created or pushed to until the user connects it.")
+                lines.append("- Trello: this user has NO Trello connection. "
+                             "Only a project's OWNER connects Trello and sets "
+                             "up its board. On projects this user owns, no "
+                             "board can be listed, created or exported to "
+                             "until they connect it. On projects owned by "
+                             "someone else, do NOT ask this user to connect "
+                             "Trello: the owner's board is kept up to date "
+                             "automatically from the tasks in OneBox.")
         except Exception:
             pass
 
@@ -274,7 +318,9 @@ def planner_node(state: AgentState, llm) -> dict:
         # reported as already linked, one iteration earlier. Facts placed in
         # tool results could not reach the planner at all within a turn.
         .replace("{results_this_turn}", format_previous_results(state.get("results", {})))
-        .replace("{project_boards}", _project_board_lines())
+        .replace("{project_boards}",
+                 _dry_run_board_lines(state.get("session_id") or "")
+                 if state.get("debug_mode") else _project_board_lines())
     )
     structured = llm.with_structured_output(PlannerOutput)
 

@@ -1,0 +1,47 @@
+{
+  "name": "member_cannot_change_plan",
+  "description": "What exists, who does it and when are the OWNER's decisions. A member asking to create a task or move a date is told so, and that it can be requested -- never told it was done.",
+  "session_id": "member_cannot_change_plan",
+  "debug": true,
+  "reset_before": true,
+  "as": {
+    "uid": "uid-DRYRUN-ana",
+    "email": "ana.torres@example.com"
+  },
+  "turns": [
+    {
+      "n": 1,
+      "message": "crea una tarea nueva en Onebox2026: preparar la demo para el cliente, y asignasela a Carlos",
+      "assert": {
+        "response_matches": [
+          "(?i)(due[ñn]o|propietari|owner|responsable del proyecto|l[ií]der)"
+        ],
+        "response_not_matches": [
+          "(?i)(he creado|tarea creada|ya la cre[eé]|qued[oó] creada)"
+        ],
+        "results": [
+          {
+            "tool": "create_task",
+            "field": "owner_only",
+            "op": "eq",
+            "value": true,
+            "why": "If it was attempted at all, it must have been refused.",
+            "if_called": true
+          }
+        ]
+      }
+    },
+    {
+      "n": 2,
+      "message": "bueno, entonces cambia la fecha de entrega de mi tarea de documentar el API al 30 de septiembre",
+      "assert": {
+        "response_matches": [
+          "(?i)(due[ñn]o|propietari|owner|responsable del proyecto|l[ií]der)"
+        ],
+        "response_not_matches": [
+          "(?i)(he cambiado|fecha actualizada|qued[oó] para el 30|ya la cambi[eé])"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "name": "member_trello_is_the_owners",
+  "description": "Trello is reached with the OWNER's connection only. A member asking to export, or to set a board up, is told the owner manages it and that their task changes get there on their own. They must NOT be told to connect their own Trello.",
+  "session_id": "member_trello_is_the_owners",
+  "debug": true,
+  "reset_before": true,
+  "as": {
+    "uid": "uid-DRYRUN-ana",
+    "email": "ana.torres@example.com"
+  },
+  "turns": [
+    {
+      "n": 1,
+      "message": "sube las tareas de Onebox2026 a Trello",
+      "assert": {
+        "tool_call_count": {
+          "create_trello_board": 0
+        },
+        "response_matches": [
+          "(?i)(due[ñn]o|propietari|owner|responsable del proyecto|l[ií]der)"
+        ],
+        "response_not_matches": [
+          "(?i)(he subido|tarjetas creadas|ya est[aá]n en trello)",
+          "(?i)(conecta|conectar|vincula|vincular) (primero )?(tu|su) (cuenta de )?trello"
+        ]
+      }
+    },
+    {
+      "n": 2,
+      "message": "y si creo yo el tablero para el proyecto?",
+      "assert": {
+        "tool_call_count": {
+          "create_trello_board": 0
+        },
+        "response_matches": [
+          "(?i)(due[ñn]o|propietari|owner|responsable del proyecto|l[ií]der)"
+        ],
+        "response_not_matches": [
+          "(?i)(he creado|tablero creado|confirmas que quieres crear)"
+        ]
+      }
+    }
+  ]
+}

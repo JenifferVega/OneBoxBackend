@@ -148,6 +148,38 @@ def _project_link(project_id: str) -> dict:
     }
 
 
+# ── Who decides where a project's cards live ────────────────────────────────
+# Any member could create or link a board for a project. The board then lived
+# in THAT member's Trello account: the owner could not see it, nobody else was
+# on it, and the project was tied to it for good ("a project has ONE board").
+# The board is a decision about the whole project, so it is the owner's -- and
+# once made, the whole team is invited so the board is theirs too.
+
+def _is_project_owner(project_id: str) -> bool:
+    item = projects_table.get_item(Key={"projectId": project_id}).get("Item") or {}
+    return bool(item) and item.get("userId") == _current_uid()
+
+
+def _owner_only(action: str) -> dict:
+    return {
+        "error": f"Only the owner of this project can {action}.",
+        "owner_only": True,
+        "instruction": "Do NOT retry and do NOT offer another way. Tell the "
+                       "user that Trello is managed by the project's owner, "
+                       "and that members do not need to connect Trello: once "
+                       "the owner has set the board up, every task change "
+                       "made in OneBox reaches it automatically.",
+    }
+
+
+def _invite_project_members(uid: str, project_id: str, board_id: str) -> dict:
+    """Invite the project's participants to its board and record who was,
+    who failed and who has no email (api/services/trello_sync.py keeps the
+    log on the project and retries when participants change)."""
+    from api.services import trello_sync
+    return trello_sync.invite_missing(project_id)
+
+
 def _card_desc(task: dict) -> str:
     """The card body for a task. Built in ONE place because it is written on
     create and rewritten on every re-export; two copies would drift and every
@@ -342,6 +374,12 @@ def prepare_trello_board(project_query: str) -> dict:
         })
         return out
 
+    if not _is_project_owner(pid):
+        out.update({"can_create": False, "already_linked": None,
+                    **_owner_only("create or choose its Trello board")})
+        del out["error"]      # a read-only answer, not a failure
+        return out
+
     # Not linked: creating is legitimate. Everything needed to propose it is
     # here, so the proposal does not need another lookup.
     out.update({
@@ -407,6 +445,10 @@ def create_trello_board(name: str, project_id: str = "",
     # another one with the same name. In Trello both are real, and the user is
     # told about one. The saved link is the memory that settles it.
     if (project_id or "").strip():
+        # Checked BEFORE anything is created: refusing afterwards would leave
+        # a real board in the member's Trello that no project points to.
+        if not _is_project_owner(project_id):
+            return _owner_only("create its Trello board")
         existing = _project_link(project_id)
         if existing:
             return {
@@ -444,6 +486,15 @@ def create_trello_board(name: str, project_id: str = "",
                           "listName": first["name"]}
 
         out = {"success": True, **board, "linked": linked}
+
+        if linked and board.get("boardId"):
+            inv = _invite_project_members(uid, project_id, board["boardId"])
+            out["members"] = inv
+            if inv["failed"] or inv["without_email"]:
+                out["members_instruction"] = (
+                    "Say who was invited to the board AND who was not: name "
+                    "the members in `failed` and those in `without_email` "
+                    "(no email on the project, so they cannot be invited).")
 
         # An empty board is not the finished job. Nobody creates a board for a
         # project in order to look at four empty columns -- it is a means to
@@ -487,6 +538,8 @@ def link_project_to_trello(project_id: str, list_name: str = "",
     """
     if not _has_project_access(project_id):
         return {"error": "No access to that project"}
+    if not _is_project_owner(project_id):
+        return _owner_only("choose its Trello board")
     try:
         from api.services import trello as trello_service
         uid = _current_uid()
@@ -508,7 +561,9 @@ def link_project_to_trello(project_id: str, list_name: str = "",
               f"{board['name']} / {lst['name']}")
         return {"success": True, "projectId": project_id,
                 "boardName": board["name"], "listName": lst["name"],
-                "listId": lst["listId"]}
+                "listId": lst["listId"],
+                # The team is invited to the board the owner chose, too.
+                "members": _invite_project_members(uid, project_id, board["boardId"])}
     except Exception as e:
         return {"error": _svc_error(e)}
 
@@ -548,6 +603,10 @@ def push_tasks_to_trello(project_id: str, list_id: str = "",
     """
     if not _has_project_access(project_id):
         return {"error": "No access to that project"}
+    # The board is reached with the owner's Trello connection only. Members'
+    # changes get there on their own (api/services/trello_sync.py).
+    if not _is_project_owner(project_id):
+        return _owner_only("export its tasks to Trello")
     try:
         from api.services import trello as trello_service
         from api.services.tasks import list_tasks as _list_tasks
@@ -570,8 +629,19 @@ def push_tasks_to_trello(project_id: str, list_id: str = "",
         already_exported = [t for t in items if t.get("trelloCardId")]
         cards_by_id = {}
         try:
-            cards_by_id = {c["cardId"]: c
-                           for c in trello_service.list_cards(uid, list_id)}
+            # EVERY list of the board, not only the target one: a card moved
+            # to Hecho / Bloqueado (by an approval, or by hand) is not in the
+            # home list, and reading only that list made it look deleted --
+            # its link was cleared and the next export duplicated it.
+            read_lists = [list_id]
+            board_id = (_project_link(project_id) or {}).get("boardId")
+            if board_id and already_exported:
+                read_lists += [l["listId"] for l in
+                               trello_service.list_board_lists(uid, board_id)
+                               if l["listId"] != list_id]
+            for lid in read_lists:
+                for c in trello_service.list_cards(uid, lid):
+                    cards_by_id[c["cardId"]] = c
         except Exception as e:
             # Without Trello's side there is no common ancestor, and writing
             # anyway is exactly how a person's edits get overwritten -- so a

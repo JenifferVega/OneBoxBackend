@@ -60,7 +60,7 @@ def _assignee_key(task: dict, parts: list) -> str:
 def trello_signals(uid: str, proj: dict, tasks: dict) -> dict:
     """{signals: [{task_id, kind: done|due, due, list, card}], unlinked: n, error}"""
     from api.services import trello as trello_service
-    out = {"signals": [], "unlinked": 0, "error": ""}
+    out: dict = {"signals": [], "unlinked": 0, "error": ""}
     board = proj.get("trelloBoardId")
     if not board:
         return out

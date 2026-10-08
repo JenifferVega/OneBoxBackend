@@ -80,6 +80,7 @@ class UpdateTaskRequest(BaseModel):
     start_date: Optional[str] = None      # YYYY-MM-DD
     due_date: Optional[str] = None        # YYYY-MM-DD
     parent_task_id: Optional[str] = None  # move task to/from subtask (empty string = root)
+    comment: Optional[str] = None         # why (REQUIRED when a member changes the status)
 
 
 class AssignRequest(BaseModel):

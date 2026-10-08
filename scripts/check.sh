@@ -37,7 +37,7 @@ for t in tests/test_contracts.py tests/test_tool_schemas.py tests/test_smoke_too
          tests/test_invented_ids.py tests/test_gantt_visibility.py \
          tests/test_user_settings.py tests/test_contacts.py \
          tests/test_planning_core.py tests/test_planning_live.py tests/test_checkin.py \
-         tests/test_member_updates.py ; do
+         tests/test_member_updates.py tests/test_member_rules_and_trello_sync.py ; do
   [ -f "$t" ] || continue
   printf '  %s\n' "$t"
   if ! python "$t" > /tmp/onebox_check.log 2>&1 ; then
