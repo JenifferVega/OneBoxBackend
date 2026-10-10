@@ -1,6 +1,7 @@
 """Project endpoints: list, detail, creation, participants,
 invitations and deletion."""
 from fastapi import APIRouter, Header, HTTPException, Query
+from pydantic import BaseModel
 
 from api.deps import require_uid
 from api.schemas import (
@@ -135,6 +136,24 @@ async def remove_participant(project_id: str, req: RemoveParticipantRequest, x_u
         uid, project_id,
         email=req.email, phone=req.phone, name=req.name,
     )
+
+
+class CloseProjectRequest(BaseModel):
+    note: str = ""
+
+
+@router.post("/api/projects/{project_id}/close")
+def close_project(project_id: str, req: CloseProjectRequest, x_user_id: str = Header(default="")):
+    """Close a discontinued project, with the reason (owner only). Reversible."""
+    uid = require_uid(x_user_id)
+    return projects_service.close_project(uid, project_id, req.note)
+
+
+@router.post("/api/projects/{project_id}/reopen")
+def reopen_project(project_id: str, x_user_id: str = Header(default="")):
+    """Reactivate a closed project (owner only)."""
+    uid = require_uid(x_user_id)
+    return projects_service.reopen_project(uid, project_id)
 
 
 @router.delete("/api/projects/{project_id}")

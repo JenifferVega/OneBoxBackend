@@ -1,0 +1,68 @@
+{
+  "kind": "replan",
+  "title": "Farmacia · replanifica desde el acta (.docx) y luego PREGUNTA por cosas que solo están dentro del documento: prioridades, riesgos, pendientes de Sandra, pagos",
+  "today": "2026-10-10",
+  "leader": {"name": "Jesus", "email": "ventas.javc@gmail.com"},
+  "turns": [
+    {
+      "from": "leader",
+      "messages": ["te paso el acta de ayer"],
+      "context": {"file": "../farmacia_acta/fixtures/acta_seguimiento_2026-10-09.docx"},
+      "why": "Punto de partida: el acta (.docx) queda como archivo del proyecto. Lo que se prueba es lo que viene después.",
+      "expect": {"proposal": "new"}
+    },
+    {
+      "from": "leader",
+      "messages": ["por qué propusiste lo de las contraseñas de la intranet?"],
+      "why": "Por qué de una decisión de la propuesta: el acta dice que Sandra entregó las contraseñas el 8/10.",
+      "expect": {
+        "intent": "question", "proposal": "unchanged", "sources_added": 0,
+        "nodes_absent": ["extract_facts", "reconcile"],
+        "answer_mentions": [["sandra", "entreg"], ["8/10"], ["8", "octubre"], ["ya", "hay", "acceso"]]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": ["por qué quedaron primero las facturas y no la recepción de pedidos?"],
+      "why": "La razón solo está en el documento (sección Decisiones): es lo que más horas consume cada decena.",
+      "expect": {
+        "intent": "question", "proposal": "unchanged", "sources_added": 0,
+        "nodes_absent": ["extract_facts", "reconcile"],
+        "answer_mentions": [["horas"], ["decena"]]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": ["qué riesgo hay con magisfor?"],
+      "why": "Solo está en la sección Riesgos del acta: el desarrollador deja el soporte en diciembre.",
+      "expect": {
+        "intent": "question", "proposal": "unchanged", "sources_added": 0,
+        "nodes_absent": ["extract_facts", "reconcile"],
+        "answer_mentions": [["diciembre"]]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": ["qué me tiene que mandar sandra y para cuándo?"],
+      "why": "La tabla de pendientes está al final del texto extraído, lejos de su título.",
+      "expect": {
+        "intent": "question", "proposal": "unchanged", "sources_added": 0,
+        "nodes_absent": ["extract_facts", "reconcile"],
+        "answer_mentions": [["albaran"], ["15"], ["carpetas"], ["magisfor"]],
+        "answer_mentions_min": 2
+      }
+    },
+    {
+      "from": "leader",
+      "messages": ["no quiero cambios, solo dime qué falta del as-is y cuándo se paga el 50%"],
+      "why": "Dos preguntas en una, con un 'no quiero cambios': devoluciones; el 50 % a la entrega del 14 de noviembre.",
+      "expect": {
+        "intent": "question", "proposal": "unchanged", "sources_added": 0,
+        "nodes_absent": ["extract_facts", "reconcile"],
+        "answer_mentions": [["devoluc"], ["noviembre"]],
+        "answer_mentions_min": 2,
+        "answer_absent": [["no", "encontre", "cambios"]]
+      }
+    }
+  ]
+}

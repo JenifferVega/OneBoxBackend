@@ -29,6 +29,14 @@ async def upload_attachment(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/api/attachments/{project_id}/{attachment_id}/replan")
+def replan_from_attachment(project_id: str, attachment_id: str, x_user_id: str = Header(default=""),
+                           x_user_email: str = Header(default="")):
+    """Update the task plan with this attachment (owner only, on demand)."""
+    uid = require_uid(x_user_id)
+    return attachments_service.replan_from_attachment(uid, x_user_email, project_id, attachment_id)
+
+
 @router.get("/api/projects/{project_id}/attachments")
 async def list_attachments(project_id: str, x_user_id: str = Header(default=""), x_user_email: str = Header(default="")):
     """List a project's attachments. Owner AND invited users with access."""

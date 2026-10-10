@@ -81,22 +81,33 @@ class Table:
 
     def update_item(self, Key, UpdateExpression, ExpressionAttributeValues=None,
                     ExpressionAttributeNames=None, **_kw):
+        """SET a = :v, b = list_append(if_not_exists(b, :e), :x) ... REMOVE c, d"""
         vals, names = ExpressionAttributeValues or {}, ExpressionAttributeNames or {}
         it = self.items.setdefault(Key[self.key], dict(Key))
         expr = UpdateExpression.strip()
-        if expr.upper().startswith("REMOVE "):
-            for f in expr[7:].split(","):
-                it.pop(f.strip(), None)
+        m = re.search(r"\bREMOVE\b(.*)$", expr)
+        set_part = expr[:m.start()] if m else expr
+        for f in (m.group(1).split(",") if m else []):
+            it.pop(names.get(f.strip(), f.strip()), None)
+        set_part = set_part.strip()
+        if not set_part.upper().startswith("SET "):
             return
-        assert expr.upper().startswith("SET "), expr
-        body = expr[4:]
-        m = re.fullmatch(r"(\w+) = list_append\(if_not_exists\(\w+, (:\w+)\), (:\w+)\)", body)
-        if m:
-            it[m.group(1)] = list(it.get(m.group(1)) or vals[m.group(2)]) + copy.deepcopy(vals[m.group(3)])
-            return
-        for part in body.split(","):
-            lhs, rhs = [x.strip() for x in part.split("=")]
-            it[names.get(lhs, lhs)] = copy.deepcopy(vals[rhs])
+        parts, depth, cur = [], 0, ""
+        for ch in set_part[4:]:              # split on top-level commas only
+            depth += (ch == "(") - (ch == ")")
+            if ch == "," and depth == 0:
+                parts.append(cur); cur = ""
+            else:
+                cur += ch
+        parts.append(cur)
+        for part in parts:
+            lhs, rhs = [x.strip() for x in part.split("=", 1)]
+            lhs = names.get(lhs, lhs)
+            la = re.fullmatch(r"list_append\(if_not_exists\(\w+, (:\w+)\), (:\w+)\)", rhs)
+            if la:
+                it[lhs] = list(it.get(lhs) or vals[la.group(1)]) + copy.deepcopy(vals[la.group(2)])
+            else:
+                it[lhs] = copy.deepcopy(vals[rhs])
 
 
 # ── a fake Trello board ─────────────────────────────────────────────────────
@@ -433,9 +444,53 @@ def test_invitations():
     check("project without a board -> nothing is sent", r["status"] == "not_linked" and not W2.tr.writes)
 
 
+# ── 6. closed (discontinued) projects ───────────────────────────────────────
+
+def test_closed_projects():
+    print("\n6. Closing a discontinued project, and reopening it")
+    W = world(linked=True)
+    import api.services.projects as projects
+    S, tr = W.tasks, W.tr
+    tid = S.create_task(OWNER, E_OWNER, "p1", new_req(text="Landing", assigned_to="Ana Ruiz"))["taskId"]
+    W.P.items["p1"]["status"] = "paused"
+
+    check("a member cannot close the project", status_of(projects.close_project, MEMBER, "p1", "se cancela") == 403)
+    check("closing needs a note", status_of(projects.close_project, OWNER, "p1", "  ") == 400)
+    check("the owner closes it with a note",
+          status_of(projects.close_project, OWNER, "p1", "El cliente canceló el contrato") == 200
+          and W.P.items["p1"]["status"] == "closed"
+          and W.P.items["p1"]["closedNote"] == "El cliente canceló el contrato")
+    check("closing twice is refused", status_of(projects.close_project, OWNER, "p1", "otra vez") == 409)
+
+    tr.writes.clear()
+    check("closed: no new tasks", status_of(S.create_task, OWNER, E_OWNER, "p1", new_req()) == 409)
+    check("closed: no task edits, even by the owner",
+          status_of(S.update_task, OWNER, E_OWNER, tid, upd(status="done")) == 409)
+    check("closed: no member status changes",
+          status_of(S.update_task, MEMBER, E_ANA, tid, upd(status="done", comment="ya está")) == 409)
+    check("closed: no deletes", status_of(S.delete_task, OWNER, E_OWNER, tid, False) == 409)
+    check("closed: project edits refused", status_of(projects.update_project, OWNER, "p1", {"name": "x"}) == 409)
+    check("closed: nothing was written to Trello", not tr.writes)
+    r = W.sync.sync_now("p1", [tid])
+    check("closed: a direct sync does nothing", r.get("status") == "project_closed" and not tr.writes)
+    check("closed: no board invitations", W.sync.invite_missing("p1").get("status") == "project_closed")
+    check("'closed' cannot be set through the edit form",
+          status_of(projects.update_project, OWNER, "p1", {"status": "closed"}) in (400, 409))
+
+    check("a member cannot reopen it", status_of(projects.reopen_project, MEMBER, "p1") == 403)
+    check("the owner reopens it: the previous status comes back",
+          status_of(projects.reopen_project, OWNER, "p1") == 200 and W.P.items["p1"]["status"] == "paused"
+          and "closedNote" not in W.P.items["p1"])
+    h = W.P.items["p1"].get("closeHistory") or []
+    check("the close stays in the history, with its note and reopen date",
+          len(h) == 1 and h[0]["note"] == "El cliente canceló el contrato" and h[0].get("reopenedAt"))
+    check("reopened: work goes on", status_of(S.update_task, OWNER, E_OWNER, tid, upd(status="done")) == 200)
+    check("reopening an open project is refused", status_of(projects.reopen_project, OWNER, "p1") == 409)
+
+
 if __name__ == "__main__":
     for t in (test_member_permissions, test_decisions_are_the_owners, test_changes_reach_the_board,
-              test_moved_card_is_not_deleted, test_invitations):
+              test_moved_card_is_not_deleted, test_invitations, test_closed_projects):
         try:
             t()
         except Exception as e:      # a crash is a failure, with its place

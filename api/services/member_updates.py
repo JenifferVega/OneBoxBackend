@@ -186,6 +186,8 @@ def converse(uid: str, email: str, project_id: str, messages: List[str], name: s
         raise HTTPException(status_code=400, detail="Empty message")
     proj = planning_chat._access(uid, email, project_id)
     proj = projects_table.get_item(Key={"projectId": project_id}).get("Item") or proj
+    from api.services.projects import ensure_open
+    ensure_open(proj)
     person = _who(proj, email, name)
     key = checkin.person_key(person)
     export = snapshot(project_id)
@@ -291,6 +293,8 @@ def open_session(uid: str, email: str, project_id: str, name: str = "") -> dict:
     from agent.tools import projects_table
     proj = planning_chat._access(uid, email, project_id)
     proj = projects_table.get_item(Key={"projectId": project_id}).get("Item") or proj
+    from api.services.projects import ensure_open
+    ensure_open(proj)
     person = _who(proj, email, name)
     key = checkin.person_key(person)
     sess = _session(project_id, key)

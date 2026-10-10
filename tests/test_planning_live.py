@@ -180,5 +180,72 @@ except Exception as e:
     check("stale proposal refused", getattr(e, "status_code", 0) == 409 and
           plan_t.items[pend["itemId"]]["status"] == "stale", e)
 
+
+# ── planning chat: a question is answered, not turned into a proposal ──
+from agent.planning.schemas import Intent  # noqa: E402
+
+
+class Recording(Scripted):
+    def __init__(self, answers):
+        super().__init__(answers)
+        self.prompts = []
+
+    def with_structured_output(self, schema):
+        outer, inner = self, Scripted.with_structured_output(self, schema)
+
+        class R:
+            def invoke(self, m):
+                outer.prompts.append((schema.__name__, str(m[0].content if hasattr(m[0], "content") else m)))
+                return inner.invoke(m)
+        return R()
+
+
+def _props():
+    return [i for i in plan_t.items.values() if i["itemId"].startswith("prop#")]
+
+
+n_before = len(_props())
+ASK = Recording({**LLM.answers, "Intent": Intent(kind="question", instruction="¿Qué está bloqueado?"),
+                 "TextOutput": TextOutput(text="Nada bloqueado; la tarea a se cerró porque el acta dice 'listo'.")})
+out = PC.start_message("u1", "lead@x.com", "p1", "¿Qué tareas están bloqueadas?", run_async=False, llm=ASK)
+job = PC._JOBS[out["jobId"]]
+answer = plan_t.items.get(job["messageId"], {})
+check("a question gets an answer and no proposal",
+      job["status"] == "done" and len(_props()) == n_before and answer.get("kind") == "answer"
+      and "bloqueado" in answer.get("content", ""), (job, answer))
+conv = [p for name, p in ASK.prompts if name == "TextOutput"]
+check("the answer sees earlier proposals with their reasons and evidence",
+      conv and "reason: hecho" in conv[-1] and "listo" in conv[-1], conv[-1][:500] if conv else ASK.prompts)
+saved = [PC._loads(i["proposal"]) for i in _props()]
+check("proposals keep the facts read in the sources (compact, with the quote)",
+      any(f.get("text") == "Tag Manager instalado" and f.get("quote") == "listo"
+          for p in saved for f in p.get("facts") or []), [p.get("facts") for p in saved][-1:])
+check("a question sees those facts", conv and "Tag Manager instalado" in conv[-1] and "Subir videos" in conv[-1],
+      conv[-1][:800] if conv else "")
+check("a short question is accepted", PC.start_message("u1", "lead@x.com", "p1", "¿y?", run_async=False, llm=ASK))
+
+FEED = Scripted({**LLM.answers, "Intent": Intent(kind="feedback", instruction="Tag Manager listo"),
+                 "TextOutput": TextOutput(text="Entendido.")})
+out = PC.start_message("u1", "lead@x.com", "p1", "Ya quedó instalado el Tag Manager", run_async=False, llm=FEED)
+reply = plan_t.items.get(PC._JOBS[out["jobId"]]["messageId"], {})
+check("a reported fact is talked about, not replanned, and offers a proposal button",
+      len(_props()) == n_before and reply.get("replanText") == "Ya quedó instalado el Tag Manager", reply)
+out = PC.start_message("u1", "lead@x.com", "p1", "Ya quedó instalado el Tag Manager", run_async=False, llm=FEED,
+                       replan=True)
+check("the button (replan=True) replans with the message", len(_props()) == n_before + 1, PC._JOBS[out["jobId"]])
+n_before = len(_props())
+ORDER = Scripted({**LLM.answers, "Intent": Intent(kind="change", instruction="cierra Tag Manager")})
+out = PC.start_message("u1", "lead@x.com", "p1", "Cierra la tarea de Tag Manager", run_async=False, llm=ORDER)
+check("an explicit order replans", len(_props()) == n_before + 1, PC._JOBS[out["jobId"]])
+
+ECHO = Scripted({"Intent": Intent(kind="change", instruction="x"), "TextOutput": TextOutput(text="ok"),
+                 "CoverOutput": CoverOutput(notes=[{"kind": "info", "text": "No changes were made"}])})
+n_before = len(_props())
+out = PC.start_message("u1", "lead@x.com", "p1", "revisa a ver si hay algo que mover", run_async=False, llm=ECHO)
+reply = plan_t.items.get(PC._JOBS[out["jobId"]]["messageId"], {})
+check("a typed message with only notes leaves no empty proposal, and gets a conversational reply",
+      len(_props()) == n_before and reply.get("kind") == "answer" and "No encontré" not in reply.get("content", ""),
+      (PC._JOBS[out["jobId"]], reply))
+
 print("\nOK" if ok else "\nFAILED")
 sys.exit(0 if ok else 1)

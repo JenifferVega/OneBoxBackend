@@ -33,6 +33,8 @@ def sync_now(project_id: str, task_ids: List[str], before: Optional[List[dict]] 
         proj = projects_table.get_item(Key={"projectId": project_id}).get("Item") or {}
         if not proj.get("trelloBoardId") or not proj.get("trelloListId"):
             return {"status": "not_linked"}
+        if proj.get("status") == "closed":
+            return {"status": "project_closed"}
         owner = proj.get("userId", "")
         if not owner:
             return {"status": "error", "errors": ["project has no owner"]}
@@ -95,6 +97,8 @@ def invite_missing(project_id: str) -> dict:
         board, owner = proj.get("trelloBoardId"), proj.get("userId", "")
         if not board or not owner:
             return {**out, "status": "not_linked"}
+        if proj.get("status") == "closed":
+            return {**out, "status": "project_closed"}
         owner_email = ""
         try:
             from api.services.checkin import _owner_email

@@ -93,7 +93,23 @@ def _safe(value):
     return text[:2000] + ("... [cut]" if len(text) > 2000 else "")
 
 
+# In-process observers of every event, with the RAW fields (before secrets
+# are redacted and regardless of LOG_LEVEL). Used by the model benchmark to
+# count tokens and latency per node; empty in production.
+_LISTENERS: list = []
+
+
+def add_listener(fn) -> None:
+    """fn(event: str, fields: dict). Exceptions inside it are ignored."""
+    _LISTENERS.append(fn)
+
+
 def _emit(level: str, event: str, fields: dict) -> None:
+    for fn in _LISTENERS:
+        try:
+            fn(event, dict(fields or {}))
+        except Exception:
+            pass
     if _ORDER.get(level, 20) < _ORDER.get(LEVEL, 20):
         return
     line = {

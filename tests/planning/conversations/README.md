@@ -6,8 +6,10 @@ The core of the product is the UPDATE loop:
       -> daily consolidation (guard rules) -> digest + ONE proposal for the owner
       -> owner approves with the buttons -> app + Trello
 
-The owner's planning chat (Intelligence > Replanificación) only does one thing:
-replan with context. These scripted conversations test both, with the real
+The owner's planning chat (Intelligence > Replanificación) TALKS by default
+(questions about the plan, about why the AI decided something, about what the
+documents say) and replans only on an explicit order, attached context or the
+"prepare a proposal with this" button. These scripted conversations test both, with the real
 LLM, AWS faked in memory and Trello answered from raw REST fixtures. People
 write like people: short bursts, nicknames ("Jenny", "Ale", "Clau"), "casi",
 "creo que", "la otra semana", "si Rafa me pasa las urls", things remembered late.
@@ -20,6 +22,7 @@ write like people: short bursts, nicknames ("Jenny", "Ale", "Clau"), "casi",
 | `member_claudia` | member | BION: abbreviations, a date conditioned on another person, an unanswered question |
 | `consolidate_onebox` | consolidation | Jenny + Ale + Eloi + the Trello board -> urgent alert, contradiction, guard rules, questions, digest; approval written to Trello |
 | `bion_replan_mensaje` | replan | the owner replans with a message only (no attachment) |
+| `bion_preguntas` | replan + talk | after a replan the owner ASKS: why each decision, what to confirm with whom, a complaint ("no te pedí replanear"), approves, asks about the applied plan and the sources, reports a fact and presses "prepare a proposal" |
 | `bion_trello` | replan | replan from a Trello board the team moved by hand |
 | `farmacia_acta` | replan | replan from a meeting record (.docx, table at the end) |
 | `onebox_semana` | replan | replan from a weekly update (.md) + a hand-made Trello board that disagrees |
@@ -70,6 +73,9 @@ with its context.
 ```
 
 `messages` with several entries = a burst sent within seconds (one turn).
+`"replan": true` = the leader pressed "prepare a plan proposal with this" (no
+classification). `"button": "approve_all" | "reject_all"` (no messages) = the
+leader pressed a button of the pending proposal.
 Task references use the stable ids of before.json; a prefix is enough for
 hex ids. Keyword groups follow the reanalysis evaluator: `[["a", "b"], ["c"]]`
 = (a AND b) OR c, matched at word start, accents ignored.
@@ -90,3 +96,8 @@ hex ids. Keyword groups follow the reanalysis evaluator: `[["a", "b"], ["c"]]`
 | `plan_state` | fields of tasks in the APPLIED plan after the turn |
 | `handoff` | external action passed to the assistant chat: `to` (any of), `to_also`, `channel`, `mentions`, `tool_hint` |
 | `depends_on_min`, `depends_absent` | dependency checks on the open proposal |
+| `answer_absent` | keyword groups the answer must NOT contain (e.g. "no encontré cambios") |
+| `nodes_absent` | graph nodes that must not run (a question must not reach `extract_facts` / `reconcile`) |
+| `sources_added` | context files saved in the turn (a question saves 0) |
+| `offers_replan` | the reply shows the "prepare a proposal with this" button |
+| `max_seconds` | the turn must finish within this time |

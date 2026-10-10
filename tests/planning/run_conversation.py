@@ -261,6 +261,19 @@ def grade(expect: dict, obs: dict) -> list:
         bad = [o.get("task_id") for o in ops if _task_match(o.get("task_id", ""), da["on"])
                and any(_task_match(d, da["task"]) for d in o.get("depends_on") or [])]
         need(not bad, f"tasks {bad} should not depend on {da['task']}")
+    # ── talking (questions about the plan and about earlier AI decisions) ──
+    for g in expect.get("answer_absent", []):
+        need(not _matches(obs["answer"], [g]), f"answer must not say {g}")
+    for n in expect.get("nodes_absent", []):
+        need(n not in obs["nodes"], f"node {n} ran (it should only talk): {' > '.join(obs['nodes'])}")
+    if "sources_added" in expect:
+        need(obs["sources_added"] == expect["sources_added"],
+             f"{obs['sources_added']} context files saved, expected {expect['sources_added']}")
+    if "offers_replan" in expect:
+        need(obs["offers_replan"] == expect["offers_replan"],
+             f"'prepare a proposal' button {'shown' if obs['offers_replan'] else 'missing'}")
+    if expect.get("max_seconds"):
+        need(obs["seconds"] <= expect["max_seconds"], f"took {obs['seconds']} s, max {expect['max_seconds']} s")
     if expect.get("no_due_date_on_creates"):
         need(not any(o.get("due_date") for o in creates), "creates carry due dates")
     for spec in expect.get("dates_any", []):
@@ -311,13 +324,22 @@ def run(name: str, upto: int = 0, dry: bool = False) -> dict:
                      ".md": "text/markdown", ".txt": "text/plain", ".pdf": "application/pdf"}.get(fp.suffix, "")
             file = (fp.read_bytes(), fp.name, ctype)
         msg_ids = set(W["planning"].items)
+        n_sources = len(W["attachments"])
         t0, job, error = time.time(), {}, ""
         try:
-            out = PC.start_message(LEADER_UID, email, W["pid"], "\n".join(turn["messages"]), file=file,
-                                   include_trello=bool(ctx.get("trello")), run_async=False,
-                                   llm=EmptyLLM() if dry else None)
-            job = PC._JOBS.get(out["jobId"], {})
-            error = job.get("error", "") if job.get("status") == "error" else ""
+            if turn.get("button"):
+                # The leader presses a proposal button (approve_all / reject_all).
+                if not before_item:
+                    raise RuntimeError(f"button {turn['button']}: no pending proposal")
+                PC.decide(LEADER_UID, email, W["pid"], before_item["proposalId"], turn["button"], _checked=True)
+                job = {"decision": {"kind": turn["button"], "proposalId": before_item["proposalId"]}}
+            else:
+                # replan: true = the "prepare a plan proposal with this" button.
+                out = PC.start_message(LEADER_UID, email, W["pid"], "\n".join(turn["messages"]), file=file,
+                                       include_trello=bool(ctx.get("trello")), run_async=False,
+                                       llm=EmptyLLM() if dry else None, replan=bool(turn.get("replan")))
+                job = PC._JOBS.get(out["jobId"], {})
+                error = job.get("error", "") if job.get("status") == "error" else ""
         except Exception as e:
             error = f"{type(e).__name__}: {getattr(e, 'detail', e)}"
             traceback.print_exc()
@@ -342,13 +364,18 @@ def run(name: str, upto: int = 0, dry: bool = False) -> dict:
                "decision": decision, "decided_ops": (decided or {}).get("operations") or [],
                "tasks": {k: v for k, v in W["tasks"].items.items()},
                "task_texts": {k: v.get("text", "") for k, v in W["tasks"].items.items()},
-               "handoff": job.get("handoff")}
+               "handoff": job.get("handoff"),
+               "nodes": list(dict.fromkeys(list(job.get("steps") or []) + list(job.get("trace") or []))),
+               "sources_added": len(W["attachments"]) - n_sources,
+               "offers_replan": any(m.get("replanText") for m in new_items if m.get("role") == "assistant"),
+               "seconds": round(time.time() - t0, 1)}
         fails = grade(turn.get("expect") or {}, obs) if not error else [f"crashed: {error}"]
-        transcript.append({"turn": i, "messages": turn["messages"], "context": ctx, "why": turn.get("why", ""),
+        transcript.append({"turn": i, "messages": turn.get("messages") or [f"[botón: {turn.get('button')}]"],
+                           "replan": bool(turn.get("replan")), "offers_replan": obs["offers_replan"], "context": ctx, "why": turn.get("why", ""),
                            "seconds": round(time.time() - t0, 1), "intent": obs["intent"],
                            "proposal_state": state, "applied": obs["applied"], "decision": decision,
                            "answer": answer, "ops": obs["ops"], "notes": obs["notes"], "questions": obs["questions"],
-                           "nodes": job.get("trace") or job.get("steps"), "fails": fails})
+                           "nodes": obs["nodes"], "fails": fails})
         print(f"turn {i}: {'PASS' if not fails else 'FAIL'} ({transcript[-1]['seconds']} s) {fails[:2]}", flush=True)
     passed = sum(1 for t in transcript if not t["fails"])
     result = {"conversation": name, "turns": len(transcript), "passed": passed,
@@ -372,13 +399,17 @@ def _write(folder: Path, result: dict, transcript: list, script: dict):
     for t in transcript:
         L += [f"## Turno {t['turn']} — {'✅' if not t['fails'] else '❌'}  ({t['seconds']} s)", ""]
         L += [f"> {m}" for m in t["messages"]]
+        if t.get("replan"):
+            L.append("> _(botón: preparar una propuesta con esto)_")
         if t["context"]:
             L.append(f"> _contexto: {t['context']}_")
         if t["why"]:
             L.append(f"\n_{t['why']}_")
         L += ["", f"- intención: **{t['intent'] or '-'}** · propuesta: **{t['proposal_state']}** · aplicado: {t['applied']}"
               + (f" · decisión: {t['decision']}" if t["decision"] else ""),
-              f"- nodos: {' → '.join(t['nodes'] or [])}", "", "**Respuesta:** " + (t["answer"][:700] or "(ninguna)"), ""]
+              f"- nodos: {' → '.join(t['nodes'] or [])}"
+              + (" · ofrece botón «preparar propuesta»" if t.get("offers_replan") else ""),
+              "", "**Respuesta:** " + (t["answer"][:1500] or "(ninguna)"), ""]
         if t["ops"]:
             L += ["**Propuesta:**"] + [f"- {_short(o, {})}" for o in t["ops"][:25]] + [""]
         if t["questions"]:

@@ -25,6 +25,8 @@ def upload_attachment(uid: str, user_email: str, project_id: str,
     if not has:
         raise HTTPException(status_code=403, detail="No access to this project")
     owner_uid = existing.get('userId', uid)
+    from api.services.projects import ensure_open
+    ensure_open(existing)
 
     valid, ext, error = validate_file(file_bytes, file_name or '', content_type or '')
     if not valid:
@@ -63,6 +65,7 @@ def upload_attachment(uid: str, user_email: str, project_id: str,
             participants=existing.get('participants', []),
             analysis_text=text,              # the whole document, not its first 5,000 chars
             source_name=file_name or f'doc.{ext}',
+            replan=False,                    # asked afterwards, never automatic
         )
 
         # In-app notification (kept in the owner's feed)
@@ -91,8 +94,43 @@ def upload_attachment(uid: str, user_email: str, project_id: str,
             'fileSize': att['fileSize'],
             'extractedTextLength': att['extractedTextLength'],
         },
-        "insightsGenerated": insights_result
+        "insightsGenerated": insights_result,
+        # The owner is offered "update the plan with this document?"
+        "replanAvailable": replan_available(_is_owner, text),
     }
+
+
+def replan_available(is_owner: bool, text: str) -> bool:
+    from api.services import planning_live
+    return bool(is_owner and planning_live.enabled() and text and len(text.strip()) >= 100)
+
+
+def replan_from_attachment(uid: str, user_email: str, project_id: str, attachment_id: str) -> dict:
+    """Update the task plan with an attachment, when the OWNER asks for it.
+
+    Runs the planning graph in the background, as uploads did automatically
+    before: a project without tasks gets its first plan, one with tasks gets
+    a PROPOSAL in the planning chat. Owner only, because applying the first
+    plan writes tasks directly and the plan is the owner's to decide."""
+    from api.services import planning_live
+    from api.services.project_export import _attachment_text
+
+    item = attachments_table.get_item(
+        Key={'projectId': project_id, 'attachmentId': attachment_id}
+    ).get('Item')
+    if not item:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    _has, is_owner, proj = has_project_access(uid, user_email, project_id)
+    if not is_owner:
+        raise HTTPException(status_code=403, detail="Only the project owner can update the plan from a document")
+    from api.services.projects import ensure_open
+    ensure_open(proj)
+    text = (_attachment_text(item).get('fullText') or '').strip()
+    if len(text) < 100:
+        raise HTTPException(status_code=400, detail="This document has too little text to update the plan")
+    started = planning_live.start_document_planning(
+        project_id, (proj or {}).get('userId', uid), item.get('fileName', 'document'), text)
+    return {"started": bool(started), "fileName": item.get('fileName', '')}
 
 
 def list_attachments(uid: str, user_email: str, project_id: str) -> list:

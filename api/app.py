@@ -20,6 +20,13 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="OneBox Agent", version="1.0.0")
 
+    # DEVELOPMENT ONLY ("view as" another user, gated by VIEW_AS_TOKEN).
+    # Added BEFORE CORS so CORS wraps it: a 403 from it still carries the
+    # CORS headers and the browser shows the real error. Remove for full
+    # production together with VIEW_AS_TOKEN (see api/view_as.py).
+    from api.view_as import ViewAsMiddleware
+    app.add_middleware(ViewAsMiddleware)
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=ALLOWED_ORIGINS,

@@ -1,8 +1,14 @@
 """Planning chat (Intelligence > Replanificación): move a whole project at once.
 
-The owner asks for ONE thing here: replan the project with new context --
-pasted text, a document, the project's Trello board, or the message itself
-("Rafa se va, Claudia asume diseño"). The planning graph returns a PROPOSAL.
+The owner does two things here:
+  * TALK: a plain message that asks something ("¿qué está bloqueado?", "¿por
+    qué cerraste la tarea de Meta?") gets an answer built from the tasks, the
+    plan analysis and the record of earlier proposals (reasons + evidence).
+    No proposal, nothing changes.
+  * REPLAN with new context -- pasted text, a document, the project's Trello
+    board, or a message that orders or reports a change ("Rafa se va, Claudia
+    asume diseño"). The planning graph returns a PROPOSAL.
+A plain message is classified first (interpret_request); attachments always replan.
 Approving / rejecting is done with the proposal's buttons, not by chatting.
 The daily digest of the members' updates (updates_consolidation.py) also
 lands here, with its own proposal. Nothing is written until the leader
@@ -34,7 +40,22 @@ _table = None
 _JOBS: dict = {}
 _JOBS_LOCK = threading.Lock()
 PROPOSAL_KEYS = ("proposalId", "projectId", "basePlanVersion", "trigger", "createdAt", "summary", "counts",
-                 "operations", "questions", "notes", "shifts", "warnings", "unresolved_errors")
+                 "operations", "questions", "notes", "shifts", "warnings", "unresolved_errors", "facts")
+MAX_FACTS = 200             # facts read from the sources, kept with the proposal for the chat
+
+
+def _compact_facts(facts) -> list:
+    """What the replan read in the sources (one line each + its quote), so the
+    planning chat can answer "what was said about X" without reading the
+    files again. ~60 facts of a meeting transcript are ~20 KB."""
+    out = []
+    for f in (facts or [])[:MAX_FACTS]:
+        ev = (f.get("evidence") or [{}])[0] or {}
+        out.append({k: v for k, v in {
+            "kind": f.get("kind", ""), "text": (f.get("text") or "")[:300], "who": f.get("who", ""),
+            "date": f.get("date", ""), "source": ev.get("source", ""), "locator": ev.get("locator", ""),
+            "quote": (ev.get("quote") or "")[:200]}.items() if v})
+    return out
 
 
 def table():
@@ -133,6 +154,8 @@ def save_proposal(project_id: str, proposal: dict, source: str, actor: str = "",
     for old in [i for i in _items(project_id) if i["itemId"].startswith("prop#") and i.get("status") == "pending"]:
         _set(project_id, old["itemId"], status="superseded", decidedAt=_now())
     compact = {k: proposal.get(k) for k in PROPOSAL_KEYS if k in proposal}
+    if "facts" in compact:
+        compact["facts"] = _compact_facts(compact["facts"])
     pid = proposal.get("proposalId") or uuid.uuid4().hex[:12]
     item = {"projectId": project_id, "itemId": f"prop#{pid}", "proposalId": pid, "status": "pending",
             "source": source, "createdAt": _now(), "createdBy": actor,
@@ -154,6 +177,7 @@ def merge_or_save_proposal(project_id: str, proposal: dict, source: str, actor: 
     cur["operations"] = (cur.get("operations") or []) + (proposal.get("operations") or [])
     cur["notes"] = (cur.get("notes") or []) + (proposal.get("notes") or [])
     cur["questions"] = (cur.get("questions") or []) + (proposal.get("questions") or [])
+    cur["facts"] = ((cur.get("facts") or []) + _compact_facts(proposal.get("facts")))[:MAX_FACTS]
     counts = {}
     for o in cur["operations"]:
         counts[o["op"]] = counts.get(o["op"], 0) + 1
@@ -243,8 +267,12 @@ def job_status(uid: str, email: str, project_id: str, job_id: str) -> dict:
 
 def start_message(uid: str, email: str, project_id: str, message: str, context_text: str = "",
                   file: Optional[Tuple[bytes, str, str]] = None, include_trello: bool = False,
-                  reread_all: bool = False, run_async: bool = True, llm=None) -> dict:
+                  reread_all: bool = False, run_async: bool = True, llm=None, replan: bool = False) -> dict:
+    """replan=True: the leader pressed "prepare a proposal with this": the
+    message is the context, no classification."""
     proj = _access(uid, email, project_id)
+    from api.services.projects import ensure_open
+    ensure_open(proj)
     message, context_text = (message or "").strip(), (context_text or "").strip()
     if not message and not context_text and not file and not include_trello:
         raise HTTPException(status_code=400, detail="Write an instruction or add context")
@@ -272,13 +300,13 @@ def start_message(uid: str, email: str, project_id: str, message: str, context_t
         name, text = trello_text(proj.get("userId") or uid, proj)
         _store_source(proj, uid, email, name, text)
         sources.append((name, text))
-    if not sources and not reread_all:
-        # The only thing this chat does is replan WITH CONTEXT. A message
-        # without attachments is itself the context ("Rafa se va, Claudia
-        # asume diseño y movemos el lanzamiento al 15").
-        if len(message) < 20:
-            raise HTTPException(status_code=400, detail="Explain the change in a few lines or attach context: "
-                                                        "this chat only replans the project with new context")
+    # A plain message (no attachments) is CONVERSATION by default: _run_job
+    # asks the model first and replans only on an explicit order. It becomes
+    # a source only when it is replanned with.
+    talk = not sources and not reread_all and not replan
+    if not sources and not reread_all and len(message) < 3:
+        raise HTTPException(status_code=400, detail="Write a question or explain the change")
+    if replan and not sources and not reread_all:
         name = f"contexto-{stamp}.txt"
         _store_source(proj, uid, email, name, message)
         sources.append((name, message))
@@ -288,7 +316,7 @@ def start_message(uid: str, email: str, project_id: str, message: str, context_t
            "steps": [], "started": time.time(), "error": "", "messageId": "", "proposalId": ""}
     with _JOBS_LOCK:
         _JOBS[job["jobId"]] = job
-    args = (job, uid, email, proj, message, sources, reread_all, llm)
+    args = (job, uid, email, proj, message, sources, reread_all, llm, talk, stamp)
     if run_async:
         threading.Thread(target=_run_job, args=args, daemon=True, name=f"replan-{project_id}").start()
     else:
@@ -296,7 +324,7 @@ def start_message(uid: str, email: str, project_id: str, message: str, context_t
     return {"jobId": job["jobId"], "messageId": user_msg["itemId"]}
 
 
-def _run_job(job, uid, email, proj, message, sources, reread_all, llm=None):
+def _run_job(job, uid, email, proj, message, sources, reread_all, llm=None, talk=False, stamp=""):
     from agent.planning.runner import run_planning
     pid = proj["projectId"]
 
@@ -305,16 +333,26 @@ def _run_job(job, uid, email, proj, message, sources, reread_all, llm=None):
         job["steps"].append(node)
 
     try:
+        if talk:
+            if _talk(job, pid, message, llm, step):
+                return
+            # It orders or reports a change: the message is the context.
+            name = f"contexto-{stamp or _now()[:16].replace(':', '')}.txt"
+            _store_source(proj, uid, email, name, message)
+            sources = [(name, message)]
         export = planning_live.snapshot(pid, sources, read_all=reread_all)
-        # Replanning with context is the only thing this chat does: approving
-        # or rejecting is done with the buttons of the proposal.
-        job["intent"] = {"kind": "ingest", "instruction": message}
+        # Approving or rejecting is done with the buttons of the proposal.
+        job["intent"] = job.get("intent") or {"kind": "ingest", "instruction": message}
         res = run_planning(export, "reanalyze" if reread_all else "document", message=message, today=TODAY,
                            documents=None if reread_all else [n for n, _t in sources],
                            mode="full" if reread_all else "delta", llm=llm, on_step=step)
         proposal = res.get("proposal")
         prop_item = None
-        if proposal and (proposal.get("operations") or proposal.get("notes") or proposal.get("questions")):
+        worth = proposal and (proposal.get("operations") or proposal.get("questions")
+                              or (proposal.get("notes") and not talk))
+        # From a typed message, notes alone are an echo of the message
+        # ("no changes were made...") -- not a proposal worth approving.
+        if worth:
             log = ""
             try:
                 log = planning_live._log_to_s3(pid, _now(), {"source": "planning-chat", "message": message,
@@ -324,7 +362,12 @@ def _run_job(job, uid, email, proj, message, sources, reread_all, llm=None):
             prop_item = save_proposal(pid, proposal, "chat", actor=email or uid, log_key=log)
             job["proposalId"] = prop_item["proposalId"]
         job["trace"] = [t.get("node") for t in res.get("trace") or []]
-        text = res.get("answer") or res.get("narration") or _describe(proposal)
+        if talk and not prop_item:
+            # Nothing to propose from a typed message: talk about it instead
+            # of a bare "no changes".
+            _answer(job, pid, message, llm, step, intent=job.get("intent") or {})
+            return
+        text = res.get("answer") or (res.get("narration") if prop_item else "") or _describe(proposal if prop_item else None)
         msg = _put_message(pid, "assistant", text, proposalId=prop_item["proposalId"] if prop_item else None)
         job["messageId"] = msg["itemId"]
         job["status"] = "done"
@@ -340,6 +383,199 @@ def _run_job(job, uid, email, proj, message, sources, reread_all, llm=None):
             pass
 
 
+# ── talk: questions about the plan and about earlier AI decisions ──────────
+TALK_PROPOSALS = 6          # earlier proposals shown to the model
+TALK_HISTORY = 10           # chat messages shown to the model
+
+
+def _history(items: list, limit: int = TALK_HISTORY) -> List[dict]:
+    msgs = sorted((i for i in items if i["itemId"].startswith("msg#")), key=lambda i: i["itemId"])
+    # The last one is the message being answered.
+    return [{"role": m.get("role"), "content": m.get("content", "")} for m in msgs[:-1][-limit:]]
+
+
+def _proposals_block(items: list, task_text: dict) -> str:
+    props = sorted((i for i in items if i["itemId"].startswith("prop#")), key=lambda i: i.get("createdAt", ""))
+    out = []
+    for item in props[-TALK_PROPOSALS:]:
+        p = _plain(_loads(item.get("proposal")) or {})
+        is_open = item.get("status") == "pending"
+        head = (("- OPEN PROPOSAL, the one the leader is reviewing now: " if is_open else "- ") + f"Proposal {item.get('proposalId')} ({(item.get('createdAt') or '')[:10]}, from {item.get('source') or '?'}, "
+                f"status {item.get('status')}"
+                + (f", decided by {item.get('decidedBy')}" if item.get("decidedBy") else "")
+                + (f", approved ops {item.get('approved')}" if item.get("approved") else "") + ")")
+        out.append(head + (f": {item.get('summary')[:400]}" if item.get("summary") else ""))
+        for n, o in enumerate(p.get("operations") or [], 1):
+            title = (o.get("text") or task_text.get(o.get("task_id", ""), ""))[:120]
+            changes = ", ".join(f"{k}={o[k]}" for k in ("status", "assigned_to", "start_date", "due_date",
+                                                         "blocked_reason", "duplicate_of") if o.get(k))
+            line = f"    {n}. {o.get('op')} {o.get('task_id', '')} '{title}'"
+            if o.get("date_status") == "estimated" and (o.get("due_date") or o.get("start_date")):
+                changes += ", dates estimated (not agreed)"
+            line += f" [{changes.strip(', ')}]" if changes else ""
+            line += f" (confidence {o['confidence']})" if o.get("confidence") and o["confidence"] != "medium" else ""
+            line += f" -- reason: {o['reason'][:250]}" if o.get("reason") else ""
+            ev = "; ".join(f"{e.get('source', '')} {e.get('locator', '')}: \"{(e.get('quote') or '')[:160]}\""
+                           for e in (o.get("evidence") or [])[:2])
+            out.append(line + (f" -- evidence: {ev}" if ev else ""))
+        for q in p.get("questions") or []:
+            out.append(f"    question: {(q.get('text') or '')[:250]}")
+        for nt in (p.get("notes") or [])[:8]:
+            out.append(f"    note: {(nt.get('text') or '')[:250]}")
+    return "\n".join(out) or "(no proposals yet)"
+
+
+# Fixed texts of the conversational reply, in the leader's language (the
+# button label must match the one the interface shows: locales/*.json
+# intelligence.planning.replanWith).
+_TALK_TEXT = {
+    "es": {"failed": "No pude responder ahora; intenta de nuevo en un momento.",
+           "buttons": "(Para aprobar o rechazar una propuesta usa sus botones.)",
+           "button": "Preparar una propuesta de plan con esto"},
+    "en": {"failed": "I could not answer right now; please try again in a moment.",
+           "buttons": "(To approve or reject a proposal, use its buttons.)",
+           "button": "Prepare a plan proposal with this"},
+}
+TALK_FACT_PROPOSALS = 3     # proposals whose facts the chat sees
+TALK_FACTS = 150
+
+
+def _facts_block(items: list, question: str = "") -> str:
+    """Facts the last replans read in their sources, newest proposal first;
+    those that share words with the question go on top."""
+    from agent.planning.sources import norm
+    import re
+    props = sorted((i for i in items if i["itemId"].startswith("prop#")), key=lambda i: i.get("createdAt", ""))
+    words = {norm(w) for w in re.findall(r"[\wáéíóúñü]+", question.lower()) if len(w) >= 4 and w not in _STOP}
+    rows, seen = [], set()
+    for item in reversed(props[-TALK_FACT_PROPOSALS:]):
+        p = _plain(_loads(item.get("proposal")) or {})
+        for f in p.get("facts") or []:
+            key = norm(f.get("text", ""))[:120]
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            line = (f"- [{f.get('kind', '')}] {f.get('date') or ''} {f.get('text', '')}"
+                    + (f" ({f['who']})" if f.get("who") else "")
+                    + (f" -- {f.get('source', '')} {f.get('locator', '')}: \"{f['quote']}\"" if f.get("quote") else ""))
+            hit = sum(1 for w in words if w in norm(line))
+            rows.append((hit, len(rows), line))
+    rows.sort(key=lambda r: (-r[0], r[1]))
+    return "\n".join(r[2] for r in rows[:TALK_FACTS]) or "(no facts saved: proposals made before facts were kept)"
+
+
+def _notes_block(insights: list) -> str:
+    rows = sorted(insights or [], key=lambda i: i.get("createdAt", ""))[-20:]
+    return "\n".join(f"- {(i.get('createdAt') or '')[:10]} {(i.get('text') or i.get('content') or i.get('title') or '')[:250]}"
+                     for i in rows) or "(none)"
+
+
+_STOP = {"que", "qué", "quien", "quién", "como", "cómo", "cual", "cuál", "cuales", "donde", "cuando", "para",
+         "por", "porque", "con", "los", "las", "del", "una", "uno", "unos", "este", "esta", "esto", "ese", "eso",
+         "sucede", "pasa", "paso", "pasó", "hay", "tiene", "tienen", "sobre", "the", "what", "why", "who", "which",
+         "with", "about", "does", "did", "happens", "happened", "está", "esta", "están", "estan", "tareas", "tarea"}
+
+
+def _excerpts(snap: dict, question: str, limit: int = 25, width: int = 300) -> str:
+    """Lines of the project's documents that mention the question's words
+    ("error 404" finds where the 404 was talked about). Plain matching, no
+    LLM: the newest lines first, with the source name."""
+    from agent.planning.sources import norm
+    import re
+    words = {norm(w) for w in re.findall(r"[\wáéíóúñü]+", question.lower())
+             if (len(w) >= 3 or w.isdigit()) and w not in _STOP}
+    if not words:
+        return "(none)"
+    hits = []
+    for src in snap.get("sources") or []:
+        for line in (src.get("text") or "").splitlines():
+            n = norm(line)
+            score = sum(1 for w in words if w in n)
+            if score:
+                hits.append((score, src.get("createdAt") or "", src.get("name", ""), line.strip()[:width]))
+    hits.sort(key=lambda h: (h[0], h[1]), reverse=True)
+    return "\n".join(f"{name}: {line}" for _s, _d, name, line in hits[:limit]) or "(no document mentions it)"
+
+
+def _talk(job: dict, pid: str, message: str, llm, step) -> bool:
+    """Answer a question in the planning chat. Returns False when the message
+    orders or reports a change: the caller replans with it as context."""
+    from agent.planning import nodes
+    from agent.planning.runner import default_llm
+
+    llm = llm or default_llm()
+    items = _items(pid)
+    export = planning_live.snapshot(pid)
+    if export is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    history = _history(items)
+    state = {"trigger": "chat", "today": TODAY or datetime.utcnow().date().isoformat(), "export": export,
+             "message": message, "history": history, "trace": []}
+    state.update(nodes.load_project(state))
+    step("interpret_request")
+    pending = pending_proposal(pid)
+    state["open_proposal"] = _plain(_loads(pending.get("proposal")) or {}) if pending else None
+    intent = nodes.interpret_request(state, llm)["intent"]
+    job["intent"] = intent
+    if intent.get("kind") in ("change", "ingest") and intent.get("decision") != "answer_question":
+        return False      # an explicit order: replan with the message
+    _answer(job, pid, message, llm, step, intent=intent, state=state, items=items, history=history)
+    return True
+
+
+def _answer(job: dict, pid: str, message: str, llm, step, intent: dict, state: Optional[dict] = None,
+            items: Optional[list] = None, history: Optional[List[dict]] = None) -> None:
+    """The conversational reply: tasks, analysis, earlier proposals and
+    excerpts of the documents. Never proposes."""
+    from agent.planning import nodes, prompts
+    from agent.planning.runner import default_llm
+    from agent.planning.schedule import analyze_plan
+    from agent.planning.schemas import TextOutput
+
+    llm = llm or default_llm()
+    if state is None:
+        export = planning_live.snapshot(pid)
+        if export is None:
+            raise HTTPException(status_code=404, detail="Project not found")
+        state = {"trigger": "chat", "today": TODAY or datetime.utcnow().date().isoformat(), "export": export,
+                 "message": message, "trace": []}
+        state.update(nodes.load_project(state))
+    items = items if items is not None else _items(pid)
+    history = history if history is not None else _history(items)
+    step("analyze_plan")
+    snap: dict = state["snapshot"]  # type: ignore[assignment]
+    analysis = analyze_plan(snap["tasks"], snap["project"], snap["participants"], nodes._today(state),
+                            state.get("aliases"))
+    step("answer")
+    task_text = {t["taskId"]: t.get("text", "") for t in snap["tasks"]}
+    hist = "\n".join(f"{m['role']}: {m['content'][:500]}" for m in history) or "(empty)"
+    lang = (intent.get("language") or "es").lower()[:2]
+    system = nodes._fill(prompts.CONVERSE, language=lang, button=_TALK_TEXT["en" if lang == "en" else "es"]["button"],
+                         project=nodes._project_line(snap), today=state["today"],
+                         people=nodes._participants_line(snap), tasks=nodes._tasks_block(snap["tasks"]),
+                         analysis=json.dumps(analysis, ensure_ascii=False, default=str)[:15000],
+                         proposals=_proposals_block(items, task_text)[:20000],
+                         notes=_notes_block(snap.get("insights")),
+                         documents=", ".join(s["name"] for s in snap["sources"]) or "none",
+                         facts=_facts_block(items, message),
+                         excerpts=_excerpts(snap, message),
+                         history=hist, question=message)
+    out, err = nodes.call_structured(llm, TextOutput, system, is_empty=lambda o: not o.text.strip())
+    words = _TALK_TEXT["en" if lang == "en" else "es"]
+    text = (out.text or "").strip() or words["failed"]
+    if intent.get("kind") == "decide":
+        text += "\n\n" + words["buttons"]
+    # Reported facts (or an answer to a proposal question) may deserve a
+    # proposal: the reply carries a button that replans with the message.
+    offer = intent.get("kind") in ("feedback", "change") or intent.get("decision") == "answer_question"
+    msg = _put_message(pid, "assistant", text, kind="answer", replanText=message if offer else None)
+    job["trace"] = ["interpret_request", "analyze_plan", "answer"]
+    job["messageId"], job["status"] = msg["itemId"], "done"
+    if err:
+        job["error"] = str(err)[:300]
+    return True
+
+
 # ── decide / revert ─────────────────────────────────────────────────────────
 
 def decide(uid: str, email: str, project_id: str, prop_id: str, decision: str,
@@ -347,6 +583,9 @@ def decide(uid: str, email: str, project_id: str, prop_id: str, decision: str,
     from agent.planning.schedule import apply_proposal
     from agent.tools import insights_table, projects_table, tasks_table
     proj = _owner_access(uid, email, project_id) if not _checked else None
+    if proj is not None:
+        from api.services.projects import ensure_open
+        ensure_open(proj)
     item = _proposal_item(project_id, prop_id)
     if item.get("status") != "pending":
         raise HTTPException(status_code=409, detail=f"Proposal is {item.get('status')}, not pending")
@@ -476,7 +715,8 @@ def get_state(uid: str, email: str, project_id: str) -> dict:
              _query_all(tasks_table, KeyConditionExpression=Key("projectId").eq(project_id))}
     return {
         "messages": _plain([{k: m.get(k) for k in ("itemId", "role", "content", "createdAt", "userEmail",
-                                                    "proposalId", "sources", "error", "kind")} for m in msgs[-100:]]),
+                                                    "proposalId", "sources", "error", "kind", "replanText")}
+                            for m in msgs[-100:]]),
         "proposals": public,
         "taskTexts": {o["task_id"]: texts[o["task_id"]] for p in public for o in p["operations"]
                       if o.get("task_id") in texts},

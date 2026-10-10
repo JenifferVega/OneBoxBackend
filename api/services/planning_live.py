@@ -47,6 +47,22 @@ def _lock(project_id: str) -> threading.Lock:
 
 # ── snapshot ────────────────────────────────────────────────────────────────
 
+_TEXT_CACHE: dict = {}       # s3Key -> extracted text: a stored file never changes
+_TEXT_CACHE_MAX = 300
+
+
+def _cached_text(a: dict, read) -> dict:
+    key = a.get("s3Key") or ""
+    if key and key in _TEXT_CACHE:
+        return _TEXT_CACHE[key]
+    out = read(a)
+    if key and out.get("fullText"):
+        if len(_TEXT_CACHE) >= _TEXT_CACHE_MAX:
+            _TEXT_CACHE.pop(next(iter(_TEXT_CACHE)))
+        _TEXT_CACHE[key] = out
+    return out
+
+
 def snapshot(project_id: str, new_sources=(), read_all: bool = False) -> Optional[dict]:
     """Export-shaped state of the project for the graph: project, tasks,
     planning notes and attachments. Only chat exports (.txt) are read from S3
@@ -69,7 +85,7 @@ def snapshot(project_id: str, new_sources=(), read_all: bool = False) -> Optiona
     atts = [a for a in atts if (a.get("fileName") or "") not in names]
     for a in atts:
         if read_all or (a.get("extension") or "").lower() == "txt":
-            a.update(_attachment_text(a))
+            a.update(_cached_text(a, _attachment_text))
     atts.sort(key=lambda a: a.get("createdAt", ""))
     now = datetime.utcnow().isoformat()
     atts += [{"fileName": n, "fullText": t, "createdAt": now} for n, t in new_sources]

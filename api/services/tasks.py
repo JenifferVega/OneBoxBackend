@@ -198,6 +198,8 @@ def create_task(uid: str, user_email: str, project_id: str, req) -> dict:
         raise HTTPException(status_code=403, detail="No access to this project")
     if not _is_owner:
         _owner_only("create tasks")
+    from api.services.projects import ensure_open
+    ensure_open(proj)
     task_id = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
     owner_uid = proj.get('userId', uid)
@@ -252,6 +254,8 @@ def update_task(uid: str, user_email: str, task_id: str, req) -> dict:
     has, _is_owner, _proj = has_project_access(uid, user_email, task['projectId'])
     if not has:
         raise HTTPException(status_code=403, detail="No access to this project")
+    from api.services.projects import ensure_open
+    ensure_open(_proj)
     comment = (getattr(req, 'comment', None) or '').strip()
     if not _is_owner:
         if not _is_assigned_to(_proj, task, user_email):
@@ -424,6 +428,8 @@ def delete_task(uid: str, user_email: str, task_id: str, cascade: bool) -> dict:
         raise HTTPException(status_code=403, detail="No access to this project")
     if not _is_owner:
         _owner_only("delete tasks")
+    from api.services.projects import ensure_open
+    ensure_open(_proj)
 
     # Look up subtasks
     children_resp = tasks_table.scan(

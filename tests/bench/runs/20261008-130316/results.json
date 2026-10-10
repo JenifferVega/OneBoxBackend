@@ -1,0 +1,86 @@
+{
+ "meta": {
+  "started": "2026-10-08 13:03",
+  "models": [
+   "O1"
+  ],
+  "nodes": [
+   "context_resolver",
+   "planner",
+   "validator",
+   "narrator"
+  ],
+  "cases_spec": "ambiguous_project_must_ask",
+  "cases": [
+   "ambiguous_project_must_ask"
+  ],
+  "repeat": 1
+ },
+ "summaries": [
+  {
+   "model": "O1",
+   "cases": 1,
+   "cases_ok": 1,
+   "turns": 1,
+   "turns_ok": 1,
+   "checks": 5,
+   "checks_passed": 5,
+   "score": 100.0,
+   "turn_seconds_avg": 8.8,
+   "nodes": {
+    "planner": {
+     "models": [
+      "anthropic:claude-sonnet-4-5-20250929"
+     ],
+     "calls": 1,
+     "failed": 0,
+     "avg_ms": 4584,
+     "p95_ms": 4584,
+     "prompt_tokens": 0,
+     "output_tokens": 0,
+     "cost_usd": null,
+     "errors": []
+    }
+   }
+  }
+ ],
+ "results": {
+  "O1": [
+   {
+    "case": "ambiguous_project_must_ask",
+    "rep": 1,
+    "turns": [
+     {
+      "n": 1,
+      "message": "listame las tareas pendientes del proyecto de marketing",
+      "seconds": 8.8,
+      "tools": [],
+      "response": "Tienes dos proyectos de marketing:\n- **Marketing Q3**\n- **Marketing Q4**\n\n¿De cuál de ellos quieres ver las tareas pendientes?",
+      "checks": 5,
+      "passed": 5,
+      "failed": [],
+      "error": "",
+      "ok": true
+     }
+    ],
+    "ok": true
+   }
+  ]
+ },
+ "llm_calls": [
+  {
+   "model_label": "O1",
+   "case": "ambiguous_project_must_ask",
+   "turn": 1,
+   "rep": 1,
+   "node": "planner",
+   "provider": "anthropic",
+   "model": "claude-sonnet-4-5-20250929",
+   "ok": true,
+   "ms": 4584,
+   "prompt_tokens": 0,
+   "output_tokens": 0,
+   "error": ""
+  }
+ ]
+}

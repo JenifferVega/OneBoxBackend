@@ -207,12 +207,26 @@ RECENT CONVERSATION:
 MESSAGE: {message}
 
 Classify it:
-- question: asks about the plan (what blocks X, who is overloaded, what is late...).
-- change: orders changes to tasks ("cierra todo lo de Meta", "mueve diseño una semana").
-- feedback: reports what happened ("Claudia ya entregó las landings").
+- question: asks about the plan (what blocks X, who is overloaded, what is late...)
+  OR about a proposal: why a change was proposed, what evidence supports it,
+  which tasks or people to check before approving. Asking about the open
+  proposal is a question, never a decision.
+- change: orders or announces DECIDED changes to the plan: "cierra todo lo de
+  Meta", "mueve diseño una semana", "replanea con esto", "cambio de planes: Rafa
+  sale, lo suyo lo asume Raquel, el lanzamiento pasa al 14". The leader is
+  telling you what the plan must become.
+  Remarks about this chat ("no te pedí replanear", "solo quería saber...") are
+  questions.
+- feedback: reports progress or a fact about the work, without ordering a plan
+  change ("Claudia ya entregó las landings", "Raquel ya subió los videos").
 - ingest: asks to read/analyse a document (put its file name in 'document').
-- decide: approves or rejects the open proposal, or answers one of its questions.
+- decide: explicitly approves or rejects the open proposal, or answers one of
+  its questions with a fact ("sí, Claudia asume diseño").
   approve_all / reject_all / approve_some (op_indexes, 1-based) / answer_question.
+When in doubt between question and change/feedback, choose question: a
+question changes nothing and the leader can still ask for the change. A message
+that asks "what happens with X", "why", "who", "which", "how is X going" is a
+question even if it mentions problems.
 Restate the request as one self-contained instruction.
 """
 
@@ -225,6 +239,60 @@ TASKS:
 {tasks}
 ANALYSIS (computed by code):
 {analysis}
+"""
+
+CONVERSE = """You talk with the project leader in the PLANNING chat of a project. This
+turn is a CONVERSATION, not a replanning: nothing will change in the plan. The
+leader wants to understand the project or the reasons behind decisions the AI
+made earlier (people forget; you have the record).
+
+Use ONLY the data below. Rules:
+- Answer the question first, concretely: name tasks by their TITLE (short, in
+  quotes), people, dates and statuses. Never show task ids or proposal ids:
+  they mean nothing to the leader. Say "la propuesta pendiente" / "la propuesta
+  que aprobaste el 10 oct" instead.
+- If the leader reports a fact that would change the plan, say that the button
+  "{button}" under your reply prepares it.
+- When asked WHY something was proposed or changed, cite the proposal (its date
+  and status), the operation's reason and its evidence (source + quote) when
+  they exist. If the record has no reason, say so; never invent one.
+- Add an insight only when the data supports it (a risk, a person overloaded,
+  a blocked chain, a date that will slip). Mark it clearly as your reading.
+- About the OPEN proposal (the one the leader is reviewing now): explain the
+  changes by their task titles, grouped as the leader sees them (new, update,
+  close, delete...). For "what should I check / ask before approving", point to
+  the weak spots: low-confidence operations, operations without evidence,
+  estimated (not agreed) dates, reassignments, deletions, and the proposal's
+  own questions -- and say WHO to ask (the assignee or the person quoted).
+- For "what was said / decided / what risk / what is pending" use the FACTS
+  first (they are what the AI read when it planned): say what, who, when and
+  quote briefly with the source. The excerpts are only a backup.
+- If the question needs data you do not have, say what is missing.
+- If the leader seems to want a change, end with one line saying they can ask
+  for it here (or press the button) and you will prepare a proposal.
+- Plain text with short lists when they help. No preamble. Reply in
+  language '{language}'.
+
+PROJECT: {project}
+TODAY: {today}
+PEOPLE: {people}
+TASKS (id | status | assignee | dates | created by | depends on | title):
+{tasks}
+PLAN ANALYSIS (computed by code: overdue, blocked, load per person...):
+{analysis}
+RECENT PROPOSALS (newest last):
+{proposals}
+PROJECT NOTES:
+{notes}
+FACTS THE REPLANS READ IN THE SOURCES (kind, date, fact, who, source + quote):
+{facts}
+DOCUMENTS IN THE PROJECT: {documents}
+EXCERPTS FROM THE DOCUMENTS that mention the question's words (backup, source: line):
+{excerpts}
+RECENT CONVERSATION:
+{history}
+
+QUESTION: {question}
 """
 
 NARRATE = """You present a plan proposal to the project leader in the planning chat.

@@ -29,6 +29,7 @@ async def planning_message(
     context: str = Form(""),
     includeTrello: bool = Form(False),
     rereadAll: bool = Form(False),
+    replan: bool = Form(False),
     file: Optional[UploadFile] = File(None),
     x_user_id: str = Header(default=""),
     x_user_email: str = Header(default=""),
@@ -38,7 +39,8 @@ async def planning_message(
     if file is not None and file.filename:
         f = (await file.read(), file.filename, file.content_type or "")
     return planning_chat.start_message(uid, (x_user_email or "").lower(), project_id, message, context, f,
-                                       include_trello=includeTrello, reread_all=rereadAll)
+                                       include_trello=includeTrello, reread_all=rereadAll,
+                                       replan=replan)
 
 
 @router.get("/api/projects/{project_id}/planning/jobs/{job_id}")

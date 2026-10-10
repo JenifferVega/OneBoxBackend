@@ -30,12 +30,20 @@ from agent.llm import (
     LLM_PROVIDER,
 )
 
-PROVIDERS = ("bedrock", "anthropic", "gemini")
+# Ollama Cloud: open-weight models (gpt-oss, deepseek, glm, kimi, qwen...)
+# billed per token. Never a FALLBACK by itself: it only runs a node that
+# NODE_LLM_<NODE> or LLM_PROVIDER_ALL explicitly routes to it, because a model
+# nobody measured must not silently answer for one that failed.
+OLLAMA_API_KEY = os.environ.get("OLLAMA_API_KEY", "")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gpt-oss:120b")
+
+PROVIDERS = ("bedrock", "anthropic", "gemini", "ollama-cloud")
 
 _DEFAULT_MODELS = {
     "bedrock": MODEL_ID,
     "anthropic": ANTHROPIC_MODEL,
     "gemini": GEMINI_MODEL,
+    "ollama-cloud": OLLAMA_MODEL,
 }
 
 NODE_NAMES = ("context_resolver", "planner", "validator", "narrator")
@@ -192,6 +200,8 @@ def _provider_available(provider: str) -> bool:
         return bool(ANTHROPIC_API_KEY)
     if provider == "gemini":
         return bool(GEMINI_API_KEY)
+    if provider == "ollama-cloud":
+        return bool(OLLAMA_API_KEY)
     return True          # bedrock uses ambient IAM credentials
 
 
@@ -275,6 +285,17 @@ def _create_llm(provider: str, model: str, temperature: float,
             max_tokens=max_tokens,
             timeout=max(timeout, 120),
         )
+    if provider == "ollama-cloud":
+        from agent.graph.ollama_adapter import ChatOllamaCloud
+        if not OLLAMA_API_KEY:
+            raise RuntimeError("OLLAMA_API_KEY is not set: add it to .env to use ollama-cloud")
+        return ChatOllamaCloud(
+            model=model,
+            api_key=OLLAMA_API_KEY,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=max(timeout, 120),
+        )
     raise ValueError(f"Unknown provider: {provider}")
 
 
@@ -305,7 +326,7 @@ def _available_fallback_providers(primary: str) -> List[str]:
     """Usable alternative providers (with credentials/package available)."""
     candidates = []
     for p in PROVIDERS:
-        if p == primary:
+        if p == primary or p == "ollama-cloud":
             continue
         if p == "anthropic" and not ANTHROPIC_API_KEY:
             continue

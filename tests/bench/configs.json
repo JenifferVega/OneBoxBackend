@@ -1,0 +1,20 @@
+{
+  "_doc": "Named model configurations for tests/bench/run_bench.py. Each one sets the four graph nodes. Run with --models A,B,O1 (names) or mix with provider:model strings. A = the production configuration chosen by research (2026-10).",
+  "A":  {"label": "Baseline (current .env)", "planner": "anthropic:claude-sonnet-4-5-20250929", "context_resolver": "anthropic:claude-sonnet-4-5-20250929", "validator": "gemini:gemini-2.5-flash", "narrator": "gemini:gemini-2.5-flash"},
+  "B":  {"label": "Fast resolver", "planner": "anthropic:claude-sonnet-4-5-20250929", "context_resolver": "gemini:gemini-2.5-flash", "validator": "gemini:gemini-2.5-flash", "narrator": "gemini:gemini-2.5-flash"},
+  "C":  {"label": "Open-model narrator", "planner": "anthropic:claude-sonnet-4-5-20250929", "context_resolver": "gemini:gemini-2.5-flash", "validator": "gemini:gemini-2.5-flash", "narrator": "ollama-cloud:gpt-oss:120b"},
+  "D":  {"label": "Newer Gemini on small steps", "planner": "anthropic:claude-sonnet-4-5-20250929", "context_resolver": "gemini:gemini-3.8-flash", "validator": "gemini:gemini-3.8-flash", "narrator": "gemini:gemini-3.8-flash"},
+  "E":  {"label": "Open-model planner", "planner": "ollama-cloud:deepseek-v4-pro:0813", "context_resolver": "gemini:gemini-2.5-flash", "validator": "gemini:gemini-2.5-flash", "narrator": "gemini:gemini-2.5-flash"},
+  "F":  {"label": "Quality ceiling (all Sonnet)", "planner": "anthropic:claude-sonnet-4-5-20250929", "context_resolver": "anthropic:claude-sonnet-4-5-20250929", "validator": "anthropic:claude-sonnet-4-5-20250929", "narrator": "anthropic:claude-sonnet-4-5-20250929"},
+  "O1": {"label": "Small steps on gpt-oss:120b", "planner": "anthropic:claude-sonnet-4-5-20250929", "context_resolver": "ollama-cloud:gpt-oss:120b", "validator": "ollama-cloud:gpt-oss:120b", "narrator": "ollama-cloud:gpt-oss:120b"},
+  "O2": {"label": "Small steps on deepseek-v4.1-flash", "planner": "anthropic:claude-sonnet-4-5-20250929", "context_resolver": "ollama-cloud:deepseek-v4.1-flash", "validator": "ollama-cloud:deepseek-v4.1-flash", "narrator": "ollama-cloud:deepseek-v4.1-flash"},
+  "O3": {"label": "Small steps on glm-5.3-flash", "planner": "anthropic:claude-sonnet-4-5-20250929", "context_resolver": "ollama-cloud:glm-5.3-flash", "validator": "ollama-cloud:glm-5.3-flash", "narrator": "ollama-cloud:glm-5.3-flash"},
+  "O4": {"label": "Small steps on gemma4:31b", "planner": "anthropic:claude-sonnet-4-5-20250929", "context_resolver": "ollama-cloud:gemma4:31b", "validator": "ollama-cloud:gemma4:31b", "narrator": "ollama-cloud:gemma4:31b"},
+  "O5": {"label": "Small steps on nemotron-3-super", "planner": "anthropic:claude-sonnet-4-5-20250929", "context_resolver": "ollama-cloud:nemotron-3-super", "validator": "ollama-cloud:nemotron-3-super", "narrator": "ollama-cloud:nemotron-3-super"},
+  "P1": {"label": "Planner deepseek-v4-pro", "planner": "ollama-cloud:deepseek-v4-pro:0813", "context_resolver": "gemini:gemini-2.5-flash", "validator": "gemini:gemini-2.5-flash", "narrator": "gemini:gemini-2.5-flash"},
+  "P2": {"label": "Planner glm-5.3", "planner": "ollama-cloud:glm-5.3", "context_resolver": "gemini:gemini-2.5-flash", "validator": "gemini:gemini-2.5-flash", "narrator": "gemini:gemini-2.5-flash"},
+  "P3": {"label": "Planner kimi-k2.6", "planner": "ollama-cloud:kimi-k2.6", "context_resolver": "gemini:gemini-2.5-flash", "validator": "gemini:gemini-2.5-flash", "narrator": "gemini:gemini-2.5-flash"},
+  "P4": {"label": "Planner minimax-m3", "planner": "ollama-cloud:minimax-m3", "context_resolver": "gemini:gemini-2.5-flash", "validator": "gemini:gemini-2.5-flash", "narrator": "gemini:gemini-2.5-flash"},
+  "X1": {"label": "All DeepSeek", "planner": "ollama-cloud:deepseek-v4-pro:0813", "context_resolver": "ollama-cloud:deepseek-v4.1-flash", "validator": "ollama-cloud:deepseek-v4.1-flash", "narrator": "ollama-cloud:deepseek-v4.1-flash"},
+  "X2": {"label": "All GLM", "planner": "ollama-cloud:glm-5.3", "context_resolver": "ollama-cloud:glm-5.3-flash", "validator": "ollama-cloud:glm-5.3-flash", "narrator": "ollama-cloud:glm-5.3-flash"}
+}

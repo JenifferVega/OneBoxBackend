@@ -130,6 +130,13 @@ def clear_last_results(session_id: str = "") -> None:
     _PENDING_GOAL.pop(key, None)
 
 
+def reset_graph() -> None:
+    """Rebuild the graph (and its LLMs) on the next request. Used when the
+    model of a node is switched at runtime (/debug/models)."""
+    global _GRAPH
+    _GRAPH = None
+
+
 def _graph():
     global _GRAPH
     if _GRAPH is None:

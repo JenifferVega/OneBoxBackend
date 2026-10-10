@@ -10,8 +10,10 @@ from api.controllers.insights import router as insights_router
 from api.controllers.phones import router as phones_router
 from api.controllers.planning import router as planning_router
 from api.controllers.planning_debug import router as planning_debug_router
+from api.controllers.model_lab import router as model_lab_router
 from api.controllers.projects import router as projects_router
 from api.controllers.scheduled import router as scheduled_router
+from api.controllers.system import router as system_router
 from api.controllers.tasks import router as tasks_router
 from api.controllers.trello import router as trello_router
 from api.controllers.users import router as users_router
@@ -35,4 +37,6 @@ all_routers = [
     checkin_router,
     updates_router,
     planning_debug_router,
+    model_lab_router,
+    system_router,
 ]

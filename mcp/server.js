@@ -243,7 +243,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: "object",
         properties: {
-          name: { type: "string", description: "Carpeta, p. ej. member_jenny, consolidate_onebox, bion_replan_mensaje" },
+          name: { type: "string", description: "Carpeta, p. ej. member_jenny, consolidate_onebox, bion_replan_mensaje, bion_preguntas (replanifica y luego conversa: por qué decidió la IA)" },
           upto: { type: "number", description: "Solo los primeros N turnos (0 = todos)" },
           dry: { type: "boolean", description: "Sin IA: solo plomería" },
         },
@@ -254,6 +254,53 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       name: "planning_conversation_report",
       description: "Muestra el último reporte (turno por turno) de una conversación, o si sigue corriendo.",
       inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
+    },
+    // ── Laboratorio de modelos (/debug/models, /debug/bench) ─────────────────
+    {
+      name: "models_get",
+      description:
+        "Qué proveedor y modelo usa ahora cada nodo del agente (context_resolver, planner, validator, " +
+        "narrator), si fue cambiado en caliente, y qué proveedores tienen credenciales.",
+      inputSchema: { type: "object", properties: {} },
+    },
+    {
+      name: "models_set",
+      description:
+        "Cambia EN CALIENTE el modelo de un nodo (o de todos con node='all'). Afecta a los siguientes " +
+        "mensajes de onebox_chat; no toca .env. model='' lo devuelve a lo configurado en .env. Formato " +
+        "proveedor:modelo, p. ej. gemini:gemini-2.5-flash, anthropic:claude-sonnet-4-5-20250929, " +
+        "ollama-cloud:gpt-oss:120b, ollama-cloud:deepseek-v4.1-flash.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          node: { type: "string", description: "context_resolver | planner | validator | narrator | all" },
+          model: { type: "string", description: "proveedor:modelo, o vacío para volver a .env" },
+        },
+        required: ["node"],
+      },
+    },
+    {
+      name: "bench_run",
+      description:
+        "Mide modelos con las conversaciones de tests/cases (IA real, herramientas simuladas): puntaje de " +
+        "aciertos, velocidad por nodo, fallos y costo estimado. Cada modelo se mide por separado, sin " +
+        "fallbacks, en un proceso aparte (no cambia lo que responde el servidor). Tarda minutos: devuelve " +
+        "'sigue corriendo' y luego se consulta con bench_report.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          models: { type: "string", description: "Lista separada por comas de proveedor:modelo; 'env' = la configuración actual como línea base" },
+          nodes: { type: "string", description: "all | planner | narrator | validator | context_resolver | varios separados por coma (default all)" },
+          cases: { type: "string", description: "quick | trello | member | all | nombres separados por coma (default quick)" },
+          repeat: { type: "number", description: "Veces que se corre cada caso (default 1)" },
+        },
+        required: ["models"],
+      },
+    },
+    {
+      name: "bench_report",
+      description: "Último reporte del benchmark de modelos, o el progreso si sigue corriendo.",
+      inputSchema: { type: "object", properties: {} },
     },
   ],
 }));
@@ -280,6 +327,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case "planning_chat":            return handlePlanningChat(args);
     case "planning_list_conversations":  return handleConversationList();
     case "planning_run_conversation":    return handleConversationRun(args);
+    case "models_get":                   return handleModelsGet();
+    case "models_set":                   return handleModelsSet(args);
+    case "bench_run":                    return handleBenchRun(args);
+    case "bench_report":                 return handleBenchReport();
     case "planning_conversation_report": return handleConversationReport(args);
     default:
       return text(`Herramienta desconocida: ${name}`);
@@ -846,6 +897,46 @@ async function handleConversationReport(args) {
     `/debug/planning/conversation/report/${encodeURIComponent(args.name || "")}`);
   if (error) return text(`❌ ${error}`);
   return text((data.report || "Sin corridas todavía.").slice(0, 20000));
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LABORATORIO DE MODELOS — /debug/models y /debug/bench (solo local)
+// ══════════════════════════════════════════════════════════════════════════════
+
+function formatNodes(nodes) {
+  return nodes.map((n) =>
+    `- ${n.node.padEnd(17)} ${n.provider}:${n.model}${n.switched ? `  ← cambiado (en .env: ${n.env_default})` : ""}` +
+    `${(n.fallbacks || []).length ? `  | fallbacks: ${n.fallbacks.join(", ")}` : ""}`).join("\n");
+}
+
+async function handleModelsGet() {
+  const { data, error } = await planningCall("GET", "/debug/models");
+  if (error) return text(`❌ ${error}`);
+  const prov = Object.entries(data.providers || {}).map(([p, ok]) => `${p} ${ok ? "✅" : "— sin credenciales"}`).join(" · ");
+  return text(`Modelos por nodo:\n${formatNodes(data.nodes)}\n\nProveedores: ${prov}`);
+}
+
+async function handleModelsSet(args) {
+  const { data, error } = await planningCall("POST", "/debug/models", { node: args.node || "", model: args.model || "" });
+  if (error) return text(`❌ ${error}`);
+  return text(`✅ Listo. Aplica desde el próximo mensaje de onebox_chat.\n${formatNodes(data.nodes)}`);
+}
+
+async function handleBenchRun(args) {
+  const { data, error } = await planningCall("POST", "/debug/bench/run", {
+    models: args.models || "", nodes: args.nodes || "all", cases: args.cases || "quick", repeat: Number(args.repeat || 1) });
+  if (error) return text(`❌ ${error}`);
+  if (!data.done) return text(data.message || "⏳ Sigue corriendo. Consulta bench_report.");
+  if (data.error) return text(`❌ El benchmark falló:\n${data.error}`);
+  return text((data.report || "Sin reporte.").slice(0, 20000));
+}
+
+async function handleBenchReport() {
+  const { data, error } = await planningCall("GET", "/debug/bench/report");
+  if (error) return text(`❌ ${error}`);
+  if (!data.done && data.message) return text(data.message);
+  if (data.error) return text(`❌ El último benchmark falló:\n${data.error}\n\n${(data.report || "").slice(0, 8000)}`);
+  return text((data.report || "Todavía no hay ningún benchmark.").slice(0, 20000));
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

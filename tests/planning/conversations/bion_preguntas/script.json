@@ -1,0 +1,124 @@
+{
+  "kind": "replan",
+  "title": "BION · el dueño replanifica y luego CONVERSA: pregunta por qué la IA decidió cada cosa, qué confirmar, qué dicen los documentos; aprueba; reporta un hecho y usa el botón",
+  "today": "2026-09-30",
+  "leader": {
+    "name": "Jesus",
+    "email": "ventas.javc@gmail.com"
+  },
+  "turns": [
+    {
+      "from": "leader",
+      "replan": true,
+      "messages": [
+        "cambio de planes: rafa sale del proyecto este viernes",
+        "lo de las urls y los videos de youtube lo asume raquel",
+        "el lanzamiento de google ads se mueve al 14 de octubre, bion no tiene listo el tag manager",
+        "y lo de dropbox ya no aplica, nos pasaron todo por drive"
+      ],
+      "why": "Punto de partida: una replanificación normal (con el botón, para que sea determinista). Lo que se prueba es lo que viene después.",
+      "expect": {
+        "proposal": "new",
+        "ops_any": [
+          {"op": "update", "task": "bion-urls", "fields": {"assigned_to": "Raquel"}},
+          {"op": "update", "task": "bion-video", "fields": {"assigned_to": "Raquel"}}
+        ]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": ["por qué le pasaste lo de las urls a raquel?"],
+      "why": "Quiere entender una decisión de la propuesta que está viendo: debe citar la razón (Rafa sale) sin replanificar.",
+      "expect": {
+        "intent": "question",
+        "proposal": "unchanged",
+        "sources_added": 0,
+        "nodes_absent": ["extract_facts", "consolidate", "reconcile"],
+        "answer_mentions": [["rafa", "sal"], ["rafa", "viernes"], ["rafa", "deja"]],
+        "max_seconds": 90
+      }
+    },
+    {
+      "from": "leader",
+      "messages": ["antes de aprobar, qué debería confirmar y con quién?"],
+      "why": "Pide los puntos débiles de la propuesta y a quién preguntar: debe nombrar personas y temas concretos.",
+      "expect": {
+        "intent": "question",
+        "proposal": "unchanged",
+        "sources_added": 0,
+        "nodes_absent": ["extract_facts", "reconcile"],
+        "answer_mentions": [["raquel"], ["bion"], ["tag", "manager"], ["javier"], ["claudia"], ["drive"]],
+        "answer_mentions_min": 2
+      }
+    },
+    {
+      "from": "leader",
+      "messages": ["no te pedí replanear, solo quería saber qué pasa con el tag manager"],
+      "why": "Un reclamo + pregunta: es conversación. Lo ideal es notar que la tarea de instalar Tag Manager figura como hecha (Javier, 2 oct) aunque el líder dice que BION no lo tiene listo.",
+      "expect": {
+        "intent": "question",
+        "proposal": "unchanged",
+        "sources_added": 0,
+        "nodes_absent": ["extract_facts", "reconcile"],
+        "answer_mentions": [["tag", "manager"], ["gtm"]],
+        "answer_absent": [["no", "encontre", "cambios"]]
+      }
+    },
+    {
+      "from": "leader",
+      "button": "approve_all",
+      "why": "Aprueba con el botón de la propuesta.",
+      "expect": {"applied": true}
+    },
+    {
+      "from": "leader",
+      "messages": ["cuándo quedó el lanzamiento de google ads y por qué se movió?"],
+      "why": "Después de aprobar, pregunta por una decisión ya aplicada: debe leer el plan nuevo y la propuesta aplicada.",
+      "expect": {
+        "intent": "question",
+        "proposal": "none",
+        "sources_added": 0,
+        "nodes_absent": ["extract_facts", "reconcile"],
+        "answer_mentions": [["14"]]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": ["qué se había dicho de dropbox?"],
+      "why": "Pregunta por el contenido de las fuentes: debe encontrarlo en el contexto guardado (todo pasó a Drive).",
+      "expect": {
+        "intent": "question",
+        "proposal": "none",
+        "sources_added": 0,
+        "nodes_absent": ["extract_facts", "reconcile"],
+        "answer_mentions": [["drive"]]
+      }
+    },
+    {
+      "from": "leader",
+      "messages": ["raquel ya subió los videos a youtube"],
+      "why": "Reporta un hecho sin ordenar nada: se conversa y se ofrece el botón «preparar propuesta»; no se replanifica solo.",
+      "expect": {
+        "intent": "feedback",
+        "proposal": "none",
+        "sources_added": 0,
+        "offers_replan": true,
+        "nodes_absent": ["extract_facts", "reconcile"]
+      }
+    },
+    {
+      "from": "leader",
+      "replan": true,
+      "messages": ["raquel ya subió los videos a youtube"],
+      "why": "Pulsa el botón «preparar una propuesta con esto»: ahora sí replanifica y propone cerrar la tarea de los videos.",
+      "expect": {
+        "proposal": "new",
+        "sources_added": 1,
+        "ops_any": [
+          {"op": "close", "task": "bion-video"},
+          {"op": "update", "task": "bion-video", "fields": {"status": "done"}}
+        ]
+      }
+    }
+  ]
+}

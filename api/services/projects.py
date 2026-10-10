@@ -394,6 +394,8 @@ def list_projects(uid: str, user_email: str) -> list:
             'client': proj.get('client', ''),
             'description': proj.get('description', ''),
             'status': proj.get('status', 'active'),
+            'closedNote': proj.get('closedNote', ''),
+            'closedAt': proj.get('closedAt', ''),
             'sla': sla,
             'type': proj.get('type', 'Other'),
             'deliveryDate': proj.get('deliveryDate', ''),
@@ -425,7 +427,7 @@ def list_projects(uid: str, user_email: str) -> list:
         })
 
     # Order: active first, then by name
-    enriched.sort(key=lambda p: (0 if p['status'] == 'active' else 1, p['name']))
+    enriched.sort(key=lambda p: (0 if p['status'] == 'active' else 2 if p['status'] == CLOSED else 1, p['name']))
     return enriched
 
 
@@ -493,6 +495,74 @@ def create_project(uid: str, name: str, description: str, project_type: str,
     )
 
 
+# ── Closed (discontinued) projects ──────────────────────────────────────────
+# "closed" was already skipped by every background job (check-in reminders,
+# owner alerts, daily consolidation). Closing now also freezes the project:
+# no task, plan, attachment or team change until the owner reopens it, and
+# nothing reaches Trello, WhatsApp or email in its name. Reopening restores
+# the status it had and keeps the history of every close.
+CLOSED = "closed"
+
+
+def is_closed(proj: dict) -> bool:
+    return (proj or {}).get("status") == CLOSED
+
+
+def ensure_open(proj: dict) -> None:
+    if is_closed(proj):
+        raise HTTPException(status_code=409,
+                            detail="This project is closed (discontinued). The owner can reopen it to make changes.")
+
+
+def close_project(uid: str, project_id: str, note: str) -> dict:
+    """Close a discontinued project, with the reason. Owner only."""
+    note = (note or "").strip()
+    if len(note) < 3:
+        raise HTTPException(status_code=400, detail="Write a note saying why the project is closed")
+    proj = projects_table.get_item(Key={'projectId': project_id}).get('Item')
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if proj.get('userId') != uid:
+        raise HTTPException(status_code=403, detail="Only the owner can close this project")
+    if is_closed(proj):
+        raise HTTPException(status_code=409, detail="The project is already closed")
+    now = datetime.utcnow().isoformat()
+    entry = {"closedAt": now, "closedBy": uid, "note": note[:2000], "statusBefore": proj.get('status', 'active')}
+    projects_table.update_item(
+        Key={'projectId': project_id},
+        UpdateExpression=("SET #s = :c, closedNote = :n, closedAt = :t, closedBy = :u, statusBeforeClose = :b, "
+                          "closeHistory = list_append(if_not_exists(closeHistory, :e), :h)"),
+        ExpressionAttributeNames={'#s': 'status'},
+        ExpressionAttributeValues={':c': CLOSED, ':n': entry["note"], ':t': now, ':u': uid,
+                                   ':b': entry["statusBefore"], ':e': [], ':h': [entry]},
+    )
+    return {"success": True, "projectId": project_id, "status": CLOSED, "closedAt": now, "closedNote": entry["note"]}
+
+
+def reopen_project(uid: str, project_id: str) -> dict:
+    """Reactivate a closed project with the status it had before. Owner only."""
+    proj = projects_table.get_item(Key={'projectId': project_id}).get('Item')
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if proj.get('userId') != uid:
+        raise HTTPException(status_code=403, detail="Only the owner can reopen this project")
+    if not is_closed(proj):
+        raise HTTPException(status_code=409, detail="The project is not closed")
+    status = proj.get('statusBeforeClose') or 'active'
+    if status == CLOSED:
+        status = 'active'
+    history = list(proj.get('closeHistory') or [])
+    if history:
+        history[-1] = {**history[-1], "reopenedAt": datetime.utcnow().isoformat(), "reopenedBy": uid}
+    projects_table.update_item(
+        Key={'projectId': project_id},
+        UpdateExpression="SET #s = :s, closeHistory = :h REMOVE closedNote, closedAt, closedBy, statusBeforeClose",
+        ExpressionAttributeNames={'#s': 'status'},
+        ExpressionAttributeValues={':s': status, ':h': history},
+    )
+    return {"success": True, "projectId": project_id, "status": status}
+
+
 def update_project(uid: str, project_id: str, updates: dict) -> dict:
     """Edit allowed fields on a project. Only the owner can edit.
 
@@ -507,7 +577,8 @@ def update_project(uid: str, project_id: str, updates: dict) -> dict:
 
     # Validate status against the allowed set (avoid junk in DDB).
     if 'status' in filtered and filtered['status'] not in ('active', 'paused', 'finished'):
-        raise HTTPException(status_code=400, detail=f"invalid status: {filtered['status']}")
+        raise HTTPException(status_code=400, detail=f"invalid status: {filtered['status']}"
+                            + (" (use Close project, which asks for the reason)" if filtered['status'] == CLOSED else ""))
 
     # Check ownership + existence before trying the update
     proj = projects_table.get_item(Key={'projectId': project_id}).get('Item')
@@ -515,6 +586,7 @@ def update_project(uid: str, project_id: str, updates: dict) -> dict:
         raise HTTPException(status_code=404, detail="Project not found")
     if proj.get('userId') != uid:
         raise HTTPException(status_code=403, detail="Only the owner can edit this project")
+    ensure_open(proj)
 
     # Build UpdateExpression dynamically. Use ExpressionAttributeNames because
     # `name`, `status`, `type` are reserved words in DDB.
@@ -592,6 +664,7 @@ def invite_user(uid: str, project_id: str, email: str = '', phone: str = '',
         raise HTTPException(status_code=404, detail="Project not found")
     if proj.get('userId') != uid:
         raise HTTPException(status_code=403, detail="You do not have permission on this project")
+    ensure_open(proj)
 
     # 1) ADD/UPDATE THE PROJECT'S participants[]
     # ────────────────────────────────────────────────────

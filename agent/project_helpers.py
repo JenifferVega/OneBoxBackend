@@ -135,7 +135,12 @@ def generate_insights_for_project(
     participants_count: int = 0,
     analysis_text: str = "",
     dry_run: bool = False,
-    source_name: str = ""
+    source_name: str = "",
+    # Start the planning graph with this material. Attachments and pasted
+    # text pass False: the person is ASKED first (a button after the upload,
+    # /api/attachments/{pid}/{id}/replan). Uploading a file used to replan the
+    # project on its own, and nobody expected it.
+    replan: bool = True
 ) -> dict:
     """
     Calls the AI to analyze the content and create insights in DynamoDB.
@@ -443,7 +448,7 @@ RESPOND ONLY WITH JSON, no extra text or code fences:
 
         print(f"[insights] {created} insights created for {project_name} (with operational tasks synced)")
         planning = False
-        if use_planning:
+        if use_planning and replan:
             planning = planning_live.start_document_planning(
                 project_id, user_id,
                 source_name or f"texto-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt", content)

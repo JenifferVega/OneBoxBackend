@@ -1,0 +1,150 @@
+{
+ "meta": {
+  "started": "2026-10-08 19:10",
+  "models": [
+   "O1",
+   "X1"
+  ],
+  "nodes": [
+   "context_resolver",
+   "planner",
+   "validator",
+   "narrator"
+  ],
+  "cases_spec": "member_cannot_change_plan,ambiguous_project_must_ask",
+  "cases": [
+   "member_cannot_change_plan",
+   "ambiguous_project_must_ask"
+  ],
+  "repeat": 1,
+  "finished": true
+ },
+ "summaries": [
+  {
+   "model": "O1",
+   "cases": 2,
+   "cases_ok": 0,
+   "turns": 3,
+   "turns_ok": 0,
+   "checks": 9,
+   "checks_passed": 0,
+   "score": 0.0,
+   "turn_seconds_avg": 0.0,
+   "nodes": {}
+  },
+  {
+   "model": "X1",
+   "cases": 2,
+   "cases_ok": 0,
+   "turns": 2,
+   "turns_ok": 0,
+   "checks": 0,
+   "checks_passed": 0,
+   "score": 0.0,
+   "turn_seconds_avg": 3.0,
+   "nodes": {},
+   "too_slow": true
+  }
+ ],
+ "results": {
+  "O1": [
+   {
+    "case": "member_cannot_change_plan",
+    "rep": 1,
+    "turns": [
+     {
+      "n": 1,
+      "message": "crea una tarea nueva en Onebox2026: preparar la demo para el cliente, y asignasela a Carlos",
+      "seconds": 0.0,
+      "tools": [],
+      "response": "Sorry, I couldn't process your request.",
+      "checks": 2,
+      "passed": 0,
+      "failed": [
+       "reply matches /(?i)(due[ñn]o|propietari|owner|responsable del proyecto|l[ií]der)/"
+      ],
+      "error": "no LLM call succeeded in this turn (the graph failed before calling a model)",
+      "ok": false
+     },
+     {
+      "n": 2,
+      "message": "bueno, entonces cambia la fecha de entrega de mi tarea de documentar el API al 30 de septiembre",
+      "seconds": 0.0,
+      "tools": [],
+      "response": "Sorry, I couldn't process your request.",
+      "checks": 2,
+      "passed": 0,
+      "failed": [
+       "reply matches /(?i)(due[ñn]o|propietari|owner|responsable del proyecto|l[ií]der)/"
+      ],
+      "error": "no LLM call succeeded in this turn (the graph failed before calling a model)",
+      "ok": false
+     }
+    ],
+    "ok": false
+   },
+   {
+    "case": "ambiguous_project_must_ask",
+    "rep": 1,
+    "turns": [
+     {
+      "n": 1,
+      "message": "listame las tareas pendientes del proyecto de marketing",
+      "seconds": 0.0,
+      "tools": [],
+      "response": "Sorry, I couldn't process your request.",
+      "checks": 5,
+      "passed": 0,
+      "failed": [
+       "reply matches /(?i)(cual|cuál|que proyecto|qué proyecto|\\?)/"
+      ],
+      "error": "no LLM call succeeded in this turn (the graph failed before calling a model)",
+      "ok": false
+     }
+    ],
+    "ok": false
+   }
+  ],
+  "X1": [
+   {
+    "case": "member_cannot_change_plan",
+    "rep": 1,
+    "turns": [
+     {
+      "n": 1,
+      "message": "crea una tarea nueva en Onebox2026: preparar la demo para el cliente, y asignasela a Carlos",
+      "seconds": 3.0,
+      "tools": [],
+      "response": "",
+      "checks": 0,
+      "passed": 0,
+      "failed": [],
+      "error": "TIMEOUT: no answer after 3 s (turn abandoned)",
+      "ok": false
+     }
+    ],
+    "ok": false
+   },
+   {
+    "case": "ambiguous_project_must_ask",
+    "rep": 1,
+    "turns": [
+     {
+      "n": 1,
+      "message": "listame las tareas pendientes del proyecto de marketing",
+      "seconds": 3.0,
+      "tools": [],
+      "response": "",
+      "checks": 0,
+      "passed": 0,
+      "failed": [],
+      "error": "TIMEOUT: no answer after 3 s (turn abandoned)",
+      "ok": false
+     }
+    ],
+    "ok": false
+   }
+  ]
+ },
+ "llm_calls": []
+}

@@ -1,0 +1,185 @@
+{
+ "meta": {
+  "started": "2026-10-08 18:01",
+  "models": [
+   "A",
+   "X1"
+  ],
+  "nodes": [
+   "context_resolver",
+   "planner",
+   "validator",
+   "narrator"
+  ],
+  "cases_spec": "ambiguous_project_must_ask",
+  "cases": [
+   "ambiguous_project_must_ask"
+  ],
+  "repeat": 1
+ },
+ "summaries": [
+  {
+   "model": "A",
+   "cases": 1,
+   "cases_ok": 0,
+   "turns": 1,
+   "turns_ok": 0,
+   "checks": 5,
+   "checks_passed": 4,
+   "score": 80.0,
+   "turn_seconds_avg": 0.0,
+   "nodes": {}
+  },
+  {
+   "model": "X1",
+   "cases": 1,
+   "cases_ok": 0,
+   "turns": 1,
+   "turns_ok": 0,
+   "checks": 5,
+   "checks_passed": 4,
+   "score": 80.0,
+   "turn_seconds_avg": 25.8,
+   "nodes": {
+    "planner": {
+     "models": [
+      "ollama-cloud:deepseek-v4-pro:0813"
+     ],
+     "calls": 3,
+     "failed": 3,
+     "avg_ms": 2,
+     "p95_ms": 5,
+     "prompt_tokens": 0,
+     "output_tokens": 0,
+     "cost_usd": null,
+     "errors": [
+      "RuntimeError: Ollama HTTP request failed: HTTPSConnectionPool(host='ollama.com', port=443): Max retries exceeded with url: /api/chat (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel",
+      "RuntimeError: Ollama HTTP request failed: HTTPSConnectionPool(host='ollama.com', port=443): Max retries exceeded with url: /api/chat (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel",
+      "RuntimeError: Ollama HTTP request failed: HTTPSConnectionPool(host='ollama.com', port=443): Max retries exceeded with url: /api/chat (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel"
+     ]
+    },
+    "narrator": {
+     "models": [
+      "ollama-cloud:deepseek-v4.1-flash"
+     ],
+     "calls": 1,
+     "failed": 1,
+     "avg_ms": 1,
+     "p95_ms": 1,
+     "prompt_tokens": 0,
+     "output_tokens": 0,
+     "cost_usd": null,
+     "errors": [
+      "RuntimeError: Ollama HTTP request failed: HTTPSConnectionPool(host='ollama.com', port=443): Max retries exceeded with url: /api/chat (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel"
+     ]
+    }
+   }
+  }
+ ],
+ "results": {
+  "A": [
+   {
+    "case": "ambiguous_project_must_ask",
+    "rep": 1,
+    "turns": [
+     {
+      "n": 1,
+      "message": "listame las tareas pendientes del proyecto de marketing",
+      "seconds": 0.0,
+      "tools": [],
+      "response": "Sorry, I couldn't process your request.",
+      "checks": 5,
+      "passed": 4,
+      "failed": [
+       "reply matches /(?i)(cual|cuál|que proyecto|qué proyecto|\\?)/"
+      ],
+      "error": "",
+      "ok": false
+     }
+    ],
+    "ok": false
+   }
+  ],
+  "X1": [
+   {
+    "case": "ambiguous_project_must_ask",
+    "rep": 1,
+    "turns": [
+     {
+      "n": 1,
+      "message": "listame las tareas pendientes del proyecto de marketing",
+      "seconds": 25.8,
+      "tools": [],
+      "response": "I ran your request but had a problem writing the summary. The data was processed correctly; try again to see the details.",
+      "checks": 5,
+      "passed": 4,
+      "failed": [
+       "reply matches /(?i)(cual|cuál|que proyecto|qué proyecto|\\?)/"
+      ],
+      "error": "",
+      "ok": false
+     }
+    ],
+    "ok": false
+   }
+  ]
+ },
+ "llm_calls": [
+  {
+   "model_label": "X1",
+   "case": "ambiguous_project_must_ask",
+   "turn": 1,
+   "rep": 1,
+   "node": "planner",
+   "provider": "ollama-cloud",
+   "model": "deepseek-v4-pro:0813",
+   "ok": false,
+   "ms": 5,
+   "prompt_tokens": 0,
+   "output_tokens": 0,
+   "error": "RuntimeError: Ollama HTTP request failed: HTTPSConnectionPool(host='ollama.com', port=443): Max retries exceeded with url: /api/chat (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel"
+  },
+  {
+   "model_label": "X1",
+   "case": "ambiguous_project_must_ask",
+   "turn": 1,
+   "rep": 1,
+   "node": "planner",
+   "provider": "ollama-cloud",
+   "model": "deepseek-v4-pro:0813",
+   "ok": false,
+   "ms": 2,
+   "prompt_tokens": 0,
+   "output_tokens": 0,
+   "error": "RuntimeError: Ollama HTTP request failed: HTTPSConnectionPool(host='ollama.com', port=443): Max retries exceeded with url: /api/chat (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel"
+  },
+  {
+   "model_label": "X1",
+   "case": "ambiguous_project_must_ask",
+   "turn": 1,
+   "rep": 1,
+   "node": "planner",
+   "provider": "ollama-cloud",
+   "model": "deepseek-v4-pro:0813",
+   "ok": false,
+   "ms": 1,
+   "prompt_tokens": 0,
+   "output_tokens": 0,
+   "error": "RuntimeError: Ollama HTTP request failed: HTTPSConnectionPool(host='ollama.com', port=443): Max retries exceeded with url: /api/chat (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel"
+  },
+  {
+   "model_label": "X1",
+   "case": "ambiguous_project_must_ask",
+   "turn": 1,
+   "rep": 1,
+   "node": "narrator",
+   "provider": "ollama-cloud",
+   "model": "deepseek-v4.1-flash",
+   "ok": false,
+   "ms": 1,
+   "prompt_tokens": 0,
+   "output_tokens": 0,
+   "error": "RuntimeError: Ollama HTTP request failed: HTTPSConnectionPool(host='ollama.com', port=443): Max retries exceeded with url: /api/chat (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel"
+  }
+ ]
+}

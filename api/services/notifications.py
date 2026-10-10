@@ -68,7 +68,7 @@ def send_scheduled_notifications() -> dict:
 
     for proj in all_projects:
         pid = proj.get('projectId', '')
-        if not pid:
+        if not pid or proj.get('status') == 'closed':     # closed: nobody is chased
             continue
         proj_tasks = tasks_by_pid.get(pid, [])
         if not proj_tasks:
@@ -201,6 +201,17 @@ def send_scheduled_notifications() -> dict:
     }
 
 
+def _project_closed(project_id: str, cache: dict) -> bool:
+    if project_id not in cache:
+        try:
+            from agent.tools import projects_table
+            item = projects_table.get_item(Key={'projectId': project_id}).get('Item') or {}
+            cache[project_id] = item.get('status') == 'closed'
+        except Exception:
+            cache[project_id] = False
+    return cache[project_id]
+
+
 def dispatch_pending_notifications() -> dict:
     """Dispatcher for scheduled notifications. Designed to run every hour
     via EventBridge → POST /api/scheduled/dispatch-pending.
@@ -252,6 +263,7 @@ def dispatch_pending_notifications() -> dict:
     skipped = 0
     errors = []
 
+    closed_cache: dict = {}
     for notif in pending:
         uid = notif.get('userId', '')
         if not uid:
@@ -262,6 +274,11 @@ def dispatch_pending_notifications() -> dict:
         message = notif.get('message', '')
         project_id = notif.get('projectId', '')
         project_name = notif.get('projectName', '')
+        # Scheduled messages of a CLOSED project wait: they go out again only
+        # if the project is reopened (and their day comes round).
+        if project_id and _project_closed(project_id, closed_cache):
+            skipped += 1
+            continue
         notif_id = notif.get('notificationId', '')
         scheduled_at = notif.get('scheduledAt', '')
         is_recurring = notif.get('isRecurring', False)

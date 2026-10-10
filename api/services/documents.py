@@ -578,6 +578,11 @@ def create_project_from_text(uid: str, text: str, name: str, channels, source: s
     }
 
 
+def _replan_available(is_owner: bool, text: str) -> bool:
+    from api.services.attachments import replan_available
+    return replan_available(is_owner, text)
+
+
 def analyze_text_for_project(uid: str, project_id: str, text: str, source: str,
                               user_email: str = "") -> dict:
     """Analyze pasted text within an existing project.
@@ -597,6 +602,9 @@ def analyze_text_for_project(uid: str, project_id: str, text: str, source: str,
     if not has:
         raise HTTPException(status_code=403, detail="No access to this project")
 
+    from api.services.projects import ensure_open
+    ensure_open(existing)
+
     # Insights and the attachment are saved under the owner (not the invited
     # user who pasted the text) so that traceability works with the filter by
     # projectId in /api/projects.
@@ -608,9 +616,10 @@ def analyze_text_for_project(uid: str, project_id: str, text: str, source: str,
 
     # Save the text as a .txt "attachment"
     fname = f"pasted-text-{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
+    saved = None
     try:
         s3_key = upload_to_s3(text.encode('utf-8'), project_id, fname, 'text/plain')
-        save_attachment_record(
+        saved = save_attachment_record(
             project_id=project_id,
             user_id=owner_uid,
             file_name=fname,
@@ -636,6 +645,7 @@ def analyze_text_for_project(uid: str, project_id: str, text: str, source: str,
         participants=existing.get('participants', []),
         analysis_text=text,                  # the whole text, not its first 5,000 chars
         source_name=fname,
+        replan=False,                        # asked afterwards, never automatic
     )
 
     # In-app notification (kept in the owner's feed)
@@ -659,5 +669,7 @@ def analyze_text_for_project(uid: str, project_id: str, text: str, source: str,
     return {
         "success": True,
         "insightsGenerated": insights_result,
-        "savedAs": fname
+        "savedAs": fname,
+        "attachmentId": (saved or {}).get('attachmentId', ''),
+        "replanAvailable": bool(saved) and _replan_available(_is_owner, text),
     }
