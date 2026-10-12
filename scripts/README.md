@@ -32,7 +32,7 @@ See also `scripts/llm-testing/README.md`.
 | Script | What it does | Cost |
 |---|---|---|
 | `check_keys.py` | Are the Gemini / Anthropic / Ollama Cloud keys valid and answering? Lists models (free) and makes one tiny call per model your `.env` uses. `--only ollama`, `--no-generate` (free). | A few tokens |
-| `check_nodes.py` | Is every agent node's model up, and how fast? Two tiny calls per node (plain text + structured output) as configured in `.env`. `--node planner`, `--model provider:model` to try a candidate, `--repeat 3` for latency, `--planning` to include the replanning model. | A few tokens |
+| `check_nodes.py` | Is every agent node's model up, and how fast? Two tiny calls per node (plain text + structured output) as configured in `.env`. `--node planner`, `--model provider:model` to try a candidate, `--repeat 3` for latency, `--planning` to include the replanning model, `--translator` the es/en translator (a real translation), `--all` everything. | A few tokens |
 | `check_gemini_request.py` | Which part of our Gemini request a model rejects (thinkingBudget, thinkingLevel, JSON schema, temperature). Made for the 400 error on Gemini 3; pass a model name to test another one. | < 1 cent |
 
 ## `scripts/sim/` — simulate flows on the real data

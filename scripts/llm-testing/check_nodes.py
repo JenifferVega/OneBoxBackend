@@ -7,6 +7,8 @@
                                                   # try a candidate on every node
     python scripts/llm-testing/check_nodes.py --repeat 3         # latency over 3 calls
     python scripts/llm-testing/check_nodes.py --planning         # also the replanning LLM
+    python scripts/llm-testing/check_nodes.py --translator       # also the es/en translator (TRANSLATE_LLM)
+    python scripts/llm-testing/check_nodes.py --all              # nodes + replanning + translator
 
 For each node it makes two tiny calls, the two shapes the graph really uses:
   text        "reply with the single word OK"           -> .invoke()
@@ -64,6 +66,14 @@ def _structured_check(llm) -> tuple:
     return getattr(out, "answer", None) == 5, f"answer={getattr(out, 'answer', None)!r}"
 
 
+def _translate_check(llm) -> tuple:
+    """The real translator call (api/i18n.translate): Spanish in, English out."""
+    from api import i18n
+    res = i18n.translate({"1": "La tarea quedó bloqueada por falta de presupuesto."}, llm=llm).get("1") or {}
+    text = (res.get("translation") or "").lower()
+    return res.get("lang") == "es" and "budget" in text, f"lang={res.get('lang')!r} -> {res.get('translation', '')[:50]!r}"
+
+
 def _timed(fn, llm) -> tuple:
     t0 = time.perf_counter()
     try:
@@ -80,8 +90,12 @@ def main() -> int:
     ap.add_argument("--model", default="", help="provider:model to use on the checked node(s) instead of .env")
     ap.add_argument("--repeat", type=int, default=1, help="calls per check, to see latency spread")
     ap.add_argument("--planning", action="store_true", help="also check the replanning LLM (PLANNING_LLM)")
+    ap.add_argument("--translator", action="store_true", help="also check the es/en translator (TRANSLATE_LLM)")
+    ap.add_argument("--all", action="store_true", help="nodes + replanning + translator")
     ap.add_argument("--with-fallbacks", action="store_true", help="production behaviour: fallbacks on")
     args = ap.parse_args()
+    if args.all:
+        args.planning = args.translator = True
 
     _load_env(args.with_fallbacks)
     from agent.graph.llm_factory import NODE_NAMES, create_llm
@@ -91,9 +105,10 @@ def main() -> int:
     if unknown:
         ap.error(f"unknown node {unknown}; use one of {NODE_NAMES}")
 
-    targets = []        # (label, factory)
+    basic = (("text", _text_check), ("structured", _structured_check))
+    targets = []        # (label, factory, checks)
     for node in nodes:
-        targets.append((node, lambda n=node: create_llm(n, env_value=args.model)))
+        targets.append((node, lambda n=node: create_llm(n, env_value=args.model), basic))
     if args.planning:
         def _planning():
             if args.model:
@@ -101,7 +116,13 @@ def main() -> int:
                                   timeout=300, with_fallbacks=args.with_fallbacks)
             from agent.planning.runner import default_llm
             return default_llm()
-        targets.append(("planning (replan)", _planning))
+        targets.append(("planning (replan)", _planning, basic))
+    if args.translator:
+        def _translator():
+            from api import i18n
+            return create_llm(node="translator", env_value=args.model or i18n.TRANSLATE_LLM,
+                              temperature=0.0, max_tokens=8192, with_fallbacks=False, timeout=120)
+        targets.append(("translator", _translator, (("text", _text_check), ("translate", _translate_check))))
 
     print(f"\nfallbacks: {'ON (production)' if args.with_fallbacks else 'OFF (each provider measured alone)'}"
           + (f" | model override: {args.model}" if args.model else " | models from .env"))
@@ -109,7 +130,7 @@ def main() -> int:
     print("-" * 110)
 
     failed = 0
-    for label, make in targets:
+    for label, make, checks in targets:
         try:
             llm = make()
             provider, model = llm._names[0] if hasattr(llm, "_names") else ("?", "?")
@@ -117,7 +138,7 @@ def main() -> int:
             failed += 1
             print(f"{label:20} {'-':13} {'-':34} {'config':11} {'NO':3} {'':>7}  {type(e).__name__}: {str(e)[:200]}")
             continue
-        for check, fn in (("text", _text_check), ("structured", _structured_check)):
+        for check, fn in checks:
             times, last_err, last_detail, oks = [], "", "", 0
             for _ in range(max(1, args.repeat)):
                 ok, ms, detail, err = _timed(fn, llm)
