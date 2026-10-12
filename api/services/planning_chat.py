@@ -138,6 +138,25 @@ def _set(project_id: str, item_id: str, **fields) -> None:
     table().update_item(Key={"projectId": project_id, "itemId": item_id},
                         UpdateExpression="SET " + ", ".join(f"#k{i} = :v{i}" for i in range(len(fields))),
                         ExpressionAttributeNames=names, ExpressionAttributeValues=values)
+    if item_id.startswith("prop#") and "status" in fields:
+        refresh_pending_marker(project_id)
+
+
+def refresh_pending_marker(project_id: str) -> None:
+    """Keep `pendingProposal` on the project item: the project list shows
+    "proposal waiting" without reading every project's planning chat.
+    Written whenever a proposal is saved, decided, replaced or goes stale."""
+    try:
+        from agent.tools import projects_table
+        item = pending_proposal(project_id)
+        marker = None if not item else {
+            "proposalId": item.get("proposalId", ""), "createdAt": item.get("createdAt", ""),
+            "source": item.get("source", ""), "summary": (item.get("summary") or "")[:300],
+            "counts": _loads(_dumps(item.get("counts") or {}))}
+        projects_table.update_item(Key={"projectId": project_id}, UpdateExpression="SET pendingProposal = :p",
+                                   ExpressionAttributeValues={":p": marker})
+    except Exception as e:
+        print(f"[planning_chat] pending marker not updated for {project_id}: {e}")
 
 
 def pending_proposal(project_id: str) -> Optional[dict]:
@@ -163,6 +182,7 @@ def save_proposal(project_id: str, proposal: dict, source: str, actor: str = "",
             "summary": (proposal.get("summary") or "")[:1000], "counts": _loads(_dumps(proposal.get("counts") or {})),
             "proposal": _dumps(compact), "log": log_key}
     table().put_item(Item=item)
+    refresh_pending_marker(project_id)
     return item
 
 
@@ -251,6 +271,16 @@ def _store_source(proj: dict, uid: str, email: str, name: str, text: str, raw: O
 
 # ── jobs ────────────────────────────────────────────────────────────────────
 
+def new_job(project_id: str, source: str = "") -> dict:
+    """A running job the planning panel can follow (step by step). Also used
+    by replans started outside the chat (an upload), so the panel shows them."""
+    job = {"jobId": uuid.uuid4().hex[:12], "projectId": project_id, "status": "running", "step": "",
+           "steps": [], "started": time.time(), "error": "", "messageId": "", "proposalId": "", "source": source}
+    with _JOBS_LOCK:
+        _JOBS[job["jobId"]] = job
+    return job
+
+
 def _running(project_id: str) -> Optional[dict]:
     with _JOBS_LOCK:
         return next((j for j in _JOBS.values() if j["projectId"] == project_id and j["status"] == "running"), None)
@@ -312,10 +342,7 @@ def start_message(uid: str, email: str, project_id: str, message: str, context_t
         sources.append((name, message))
     user_msg = _put_message(project_id, "user", message or "(contexto adjunto)", userId=uid, userEmail=email,
                             sources=[n for n, _t in sources] or None, rereadAll=reread_all or None)
-    job = {"jobId": uuid.uuid4().hex[:12], "projectId": project_id, "status": "running", "step": "",
-           "steps": [], "started": time.time(), "error": "", "messageId": "", "proposalId": ""}
-    with _JOBS_LOCK:
-        _JOBS[job["jobId"]] = job
+    job = new_job(project_id, "chat")
     args = (job, uid, email, proj, message, sources, reread_all, llm, talk, stamp)
     if run_async:
         threading.Thread(target=_run_job, args=args, daemon=True, name=f"replan-{project_id}").start()

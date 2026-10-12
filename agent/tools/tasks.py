@@ -82,7 +82,7 @@ def create_reminder(title: str, descripcion: str = "", due_date: str = "", proje
 
         try:
             insight_id = f"{now}#{uuid.uuid4().hex[:8]}"
-            insights_table.put_item(Item={
+            card = {
                 'userId': _current_uid(),
                 'insightId': insight_id,
                 'projectId': project_id,
@@ -95,7 +95,10 @@ def create_reminder(title: str, descripcion: str = "", due_date: str = "", proje
                 'actionsTaken': [f'Created reminder: {title}'],
                 'status': 'new',
                 'createdAt': now
-            })
+            }
+            insights_table.put_item(Item=card)
+            from api.services.insight_i18n import queue_translation
+            queue_translation(card)
         except Exception:
             pass
 

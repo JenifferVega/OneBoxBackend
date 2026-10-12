@@ -202,7 +202,7 @@ def converse(uid: str, email: str, project_id: str, messages: List[str], name: s
     sess = _session(project_id, key)
     if not sess:
         opening = []
-        prep = _prepared(proj, person, mine)
+        prep = _prepared(proj, person, mine, uid)
         if prep:     # the questions of the 'hora de actualizar' email open the chat
             from api.services.update_reminders import opening_text
             opening = [{"role": "assistant", "content": opening_text(prep), "at": _now()}]
@@ -213,6 +213,7 @@ def converse(uid: str, email: str, project_id: str, messages: List[str], name: s
     today = _today()
     snap = load_snapshot(export)
     system = _fill(prompts.MEMBER_UPDATE, today=today.isoformat(), weekday=WEEKDAYS[today.weekday()],
+                   calendar=checkin.calendar_text(today),
                    project=_project_line(snap), owner=owner_name(proj), member=person.get("name") or email,
                    my_tasks=_tasks_lines(mine), other_tasks=_tasks_lines(others, with_owner=True),
                    items=sess.get("items") or "[]", conversation=convo, messages="\n".join(messages))
@@ -277,11 +278,13 @@ def sessions(project_id: str, since: str = "", only_unconsolidated: bool = True)
     return sorted(out, key=lambda i: i.get("closedAt", ""))
 
 
-def _prepared(proj: dict, person: dict, tasks: list) -> Optional[dict]:
-    """Prepared questions for this member's next update (never raises)."""
+def _prepared(proj: dict, person: dict, tasks: list, uid: str = "") -> Optional[dict]:
+    """Prepared questions for this member's next update, in the language they
+    chose in the app (never raises)."""
     try:
         from api.services.update_reminders import opening_for
-        return opening_for(proj, person, tasks)
+        from api.services.users import language_of
+        return opening_for(proj, person, tasks, lang=language_of(uid=uid, email=person.get("email", "")))
     except Exception as e:
         print(f"[member_updates] opening failed: {e}")
         return None
@@ -301,7 +304,7 @@ def open_session(uid: str, email: str, project_id: str, name: str = "") -> dict:
     if not sess:
         mine = next((ts for p, ts in checkin.assignments(proj, checkin._project_tasks(project_id))
                      if checkin.person_key(p) == key), [])
-        prep = _prepared(proj, person, mine) if mine else None
+        prep = _prepared(proj, person, mine, uid) if mine else None
         if prep:
             from api.services.update_reminders import opening_text
             return {"sessionId": None, "items": [], "messages": [{"role": "assistant", "content": opening_text(prep)}]}

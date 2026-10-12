@@ -30,7 +30,7 @@ from typing import List, Optional
 from fastapi import HTTPException
 
 from agent.planning.sources import match_person, normalize_participant, norm
-from api.services import planning_chat
+from api.services import follow_up, planning_chat
 
 CHECKIN_DAYS = int(os.environ.get("CHECKIN_DAYS", "3"))
 CHECKIN_GRACE_DAYS = int(os.environ.get("CHECKIN_GRACE_DAYS", "1"))
@@ -82,13 +82,104 @@ def assignments(project: dict, tasks: List[dict]) -> List[tuple]:
     return [v for v in out.values() if v[1]]
 
 
-def due_state(tasks: List[dict], state: dict, now: datetime) -> dict:
-    """{due, due_at, urgent} for one person in one project."""
+def last_update_items(project_id: str, key: str) -> list:
+    """Items of the member's last closed update (member_updates sessions)."""
+    import json
+    done = [i for i in planning_chat._items(project_id)
+            if i["itemId"].startswith("upd#") and i.get("personKey") == key and i.get("status") == "closed"]
+    if not done:
+        return []
+    try:
+        return json.loads(sorted(done, key=lambda i: i.get("closedAt", ""))[-1].get("items") or "[]")
+    except ValueError:
+        return []
+
+
+_NO_DATE_TYPES = ("done", "idea", "question", "hearsay")
+_DAYS_EN = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+
+
+def calendar_text(today: date, days: int = 14) -> str:
+    """'Mon 2026-10-12, Tue 2026-10-13, ...': the model miscounted weekdays
+    ("el próximo martes" said on Sat 10 became Wed 14). With the dates in front
+    of it there is nothing to count."""
+    return ", ".join(f"{_DAYS_EN[(today + timedelta(days=n)).weekday()]} {(today + timedelta(days=n)).isoformat()}"
+                     for n in range(days + 1))
+
+
+def committed(items: list, today: date) -> set:
+    """Tasks the member already gave a date for that has NOT arrived yet
+    ("la presentación es el martes"): asking again every day before that date
+    only nags. They count again the day after the date (did it happen?)."""
+    out = set()
+    for i in items or []:
+        d = _day(i.get("due_date", ""))
+        if i.get("task_id") and d and d >= today and i.get("type") not in _NO_DATE_TYPES:
+            out.add(i["task_id"])
+    return out
+
+
+def waiting_on_others(items: list, person: dict, tasks: List[dict]) -> List[dict]:
+    """Open tasks of this member that, per their last update, are stopped by
+    SOMEONE ELSE (a blocker whose owner -- who must act -- is not them): the
+    lead, a client, another member. Asking the member about those every day
+    is pointless; the one to tell is the lead (notify_waiting)."""
+    open_ids = [t.get("taskId") for t in tasks if t.get("status") in OPEN]
+    me = norm(person.get("name", ""))
+    mine = {me, me.split(" ")[0] if me else "", norm(person.get("email", ""))} - {""}
+    out, seen = [], set()
+
+    def add(tid, owner, i, kind):
+        if tid in seen:
+            return
+        seen.add(tid)
+        out.append({"task_id": tid, "owner": owner, "text": i.get("text", ""), "quote": i.get("quote", ""),
+                    "kind": kind})
+
+    for i in items or []:
+        owner = (i.get("owner") or "").strip()
+        tid = i.get("task_id")
+        # Reported DONE but still open in the plan: the next step is the
+        # owner's (approve it), not the member's.
+        if i.get("type") == "done" and tid in open_ids:
+            add(tid, "", i, "approval")
+            continue
+        if i.get("type") != "blocker" or not owner:
+            continue
+        if norm(owner) in mine or norm(owner).split(" ")[0] in mine:
+            continue                       # blocked on themself: still their part
+        if tid in open_ids:
+            add(tid, owner, i, "blocker")
+        elif not tid:
+            # About the whole project ("the project was cancelled", "on hold
+            # until the client signs"): every open task of theirs waits.
+            for t in open_ids:
+                add(t, owner, i, "project")
+    return out
+
+
+def responsible_tasks(project_id: str, key: str, person: dict, tasks: List[dict]) -> tuple:
+    """(tasks the member is responsible for now, waits on others, last items)."""
+    items = last_update_items(project_id, key)
+    waits = waiting_on_others(items, person, tasks)
+    waiting_ids = {w["task_id"] for w in waits}
+    return [t for t in tasks if t.get("taskId") not in waiting_ids], waits, items
+
+
+def due_state(tasks: List[dict], state: dict, now: datetime, resumed: Optional[datetime] = None,
+              skip: Optional[set] = None) -> dict:
+    """{due, due_at, urgent} for one person in one project. resumed = when a
+    paused follow-up ended (follow_up.py): the clock restarts there. skip =
+    task ids the member already gave a future date for (committed()): they do
+    not make the report urgent."""
     last = _dt(state.get("lastReportAt"))
+    if resumed and (not last or resumed > last):
+        last = resumed
     seen = _dt(state.get("firstSeenAt")) or now
     due_at = (last + timedelta(days=CHECKIN_DAYS)) if last else seen
     today = now.date()
-    urgent = any((_day(t.get("dueDate")) or date.max) <= today + timedelta(days=URGENT_DAYS) for t in tasks)
+    urgent = any((_day(t.get("dueDate")) or date.max) <= today + timedelta(days=URGENT_DAYS)
+                 for t in tasks if t.get("taskId") not in (skip or set()))
     if urgent and (not last or last.date() < today):
         due_at = min(due_at, datetime.combine(today, datetime.min.time()))
     return {"due": now >= due_at, "due_at": due_at, "urgent": urgent}
@@ -132,11 +223,17 @@ def pending_for_user(uid: str, email: str, name: str = "") -> dict:
                     (not person.get("email") and name and norm(person.get("name", "")) == norm(name))):
                 continue
             key = person_key(person)
+            fu = follow_up.state(proj, key, now)
+            if fu["paused"]:
+                continue                 # the owner paused this person's follow-up
+            tasks, _waits, items = responsible_tasks(pid, key, person, tasks)
+            if not tasks:
+                continue                 # everything waits on someone else: the lead is told instead
             st = _state(pid, key)
             if not st.get("firstSeenAt"):
                 _save_state(pid, key, firstSeenAt=_iso(now))
                 st["firstSeenAt"] = _iso(now)
-            d = due_state(tasks, st, now)
+            d = due_state(tasks, st, now, fu["resumedAt"], committed(items, now.date()))
             if d["due"]:
                 out.append({"projectId": pid, "projectName": proj.get("name", ""), "person": person.get("name", ""),
                             # the owner may postpone their own update; members may not
@@ -260,11 +357,17 @@ def notify_overdue(now: Optional[datetime] = None, send_external: bool = True, o
             if only and person.get("email") != only:
                 continue                 # testing: one person only
             key = person_key(person)
+            fu = follow_up.state(proj, key, now)
+            if fu["paused"]:
+                continue                 # paused by the owner: not "late"
+            tasks, _waits, items = responsible_tasks(pid, key, person, tasks)
+            if not tasks:
+                continue                 # not late: waiting on someone else (notify_waiting)
             st = _state(pid, key)
             if not st.get("firstSeenAt"):
                 _save_state(pid, key, firstSeenAt=_iso(now))
                 continue
-            d = due_state(tasks, st, now)
+            d = due_state(tasks, st, now, fu["resumedAt"], committed(items, now.date()))
             notified = _dt(st.get("ownerNotifiedAt"))
             if now >= d["due_at"] + timedelta(days=CHECKIN_GRACE_DAYS) and not (notified and notified >= d["due_at"]):
                 late.append((person, tasks, st))
@@ -282,6 +385,88 @@ def notify_overdue(now: Optional[datetime] = None, send_external: bool = True, o
         if send_external:
             _notify_owner_outside(proj, title, lines)
         sent.append({"projectId": pid, "people": [p.get("name") for p, _t, _s in late]})
+    return {"projects": sent}
+
+
+# ── waiting on the lead (or on someone else) ───────────────────────────────
+
+WAIT_RENOTIFY_HOURS = int(os.environ.get("WAIT_RENOTIFY_HOURS", "24"))
+
+_WAIT_TEXT = {
+    "es": {"title": "{n} tarea(s) de {p} están esperando algo", "on_you": "• {who} espera de ti: {what}",
+           "on_other": "• {who} espera de {owner}: {what}", "tasks": "   Tareas detenidas: {t}",
+           "approve": "• {who} reportó como terminadas (falta tu aprobación en Replanificación):",
+           "footer": "No le pedí actualización a {people} sobre estas tareas: el siguiente paso no es suyo. "
+                     "Cuando se resuelva, apruébalo en Replanificación o díselo para que siga."},
+    "en": {"title": "{n} task(s) in {p} are waiting on something", "on_you": "• {who} is waiting on you: {what}",
+           "on_other": "• {who} is waiting on {owner}: {what}", "tasks": "   Stopped tasks: {t}",
+           "approve": "• {who} reported as finished (waiting for your approval in Replanning):",
+           "footer": "I did not ask {people} for an update on these tasks: the next step is not theirs. "
+                     "Once it is solved, approve it in Replanning or tell them so they can continue."},
+}
+
+
+def notify_waiting(now: Optional[datetime] = None, send_external: bool = True, only: str = "") -> dict:
+    """Hourly: tell each lead which members are stopped by the lead (or by a
+    client / someone else the lead manages), instead of asking those members
+    every day. Sent when the list changes, else at most every
+    WAIT_RENOTIFY_HOURS. Stops by itself when the task closes or the member's
+    next update no longer reports the blocker."""
+    import hashlib
+    import json
+    from agent.tools import projects_table
+    from api.deps import scan_all_pages
+    from api.services.planning_live import _notify
+    from api.services.users import language_of
+    from api.services.member_updates import owner_name
+    now = now or _now()
+    sent = []
+    for proj in scan_all_pages(projects_table):
+        pid, owner = proj.get("projectId"), proj.get("userId")
+        if not pid or not owner or proj.get("status") in ("archived", "completed", "closed"):
+            continue
+        owner_email = _owner_email(owner)
+        lead = norm(owner_name(proj))
+        all_tasks = _project_tasks(pid)
+        by_id = {t.get("taskId"): t for t in all_tasks}
+        waits = []
+        for person, tasks in assignments(proj, all_tasks):
+            if (owner_email and person.get("email") == owner_email) or (only and person.get("email") != only):
+                continue
+            key = person_key(person)
+            if follow_up.is_paused(proj, key, now):
+                continue
+            for w in waiting_on_others(last_update_items(pid, key), person, tasks):
+                waits.append({**w, "who": person.get("name") or person.get("email", ""),
+                              "on_lead": w.get("kind") == "approval"
+                              or norm(w["owner"]) in (lead, lead.split(" ")[0] if lead else "")
+                              or bool(owner_email and w["owner"].lower() == owner_email)})
+        if not waits:
+            continue
+        sig = hashlib.sha1(json.dumps(sorted((w["who"], w["task_id"], w["owner"]) for w in waits)).encode()).hexdigest()[:12]
+        st = _state(pid, "waitnotice")
+        last = _dt(st.get("sentAt"))
+        if st.get("sig") == sig and last and now - last < timedelta(hours=WAIT_RENOTIFY_HOURS):
+            continue
+        tx = _WAIT_TEXT["en" if language_of(uid=owner) == "en" else "es"]
+        lines, grouped = [], {}
+        for w in waits:
+            what = "" if w.get("kind") == "approval" else (w["text"] or w["quote"])
+            grouped.setdefault((w["who"], w["owner"], w["on_lead"], w.get("kind", ""), what), []).append(w["task_id"])
+        for (who, ow, on_lead, kind, what), tids in grouped.items():
+            if kind == "approval":
+                lines.append(tx["approve"].format(who=who))
+            else:
+                lines.append((tx["on_you"] if on_lead else tx["on_other"]).format(who=who, owner=ow, what=what or "?"))
+            lines.append(tx["tasks"].format(t=", ".join(f"«{(by_id.get(t) or {}).get('text', t)[:60]}»" for t in tids)))
+        people = ", ".join(sorted({w["who"] for w in waits}))
+        title = tx["title"].format(n=len({w["task_id"] for w in waits}), p=proj.get("name", ""))
+        footer = tx["footer"].format(people=people)
+        _notify(owner, proj, title, "\n".join(lines) + "\n\n" + footer, "waiting_on_owner")
+        if send_external:
+            _notify_owner_outside(proj, title, lines, footer)
+        _save_state(pid, "waitnotice", sig=sig, sentAt=_iso(now))
+        sent.append({"projectId": pid, "waits": len(waits), "onLead": sum(1 for w in waits if w["on_lead"])})
     return {"projects": sent}
 
 
@@ -318,7 +503,7 @@ def _owner_email(owner_uid: str) -> str:
     return email
 
 
-def _notify_owner_outside(proj: dict, title: str, lines: list) -> None:
+def _notify_owner_outside(proj: dict, title: str, lines: list, footer: str = "") -> None:
     """Email to the owner, and WhatsApp when the owner is also a participant
     with a phone. Failures are logged, never raised."""
     try:
@@ -328,7 +513,8 @@ def _notify_owner_outside(proj: dict, title: str, lines: list) -> None:
                    if email and q.get("email") == email), {})
         set_current_user(proj.get("userId", ""), email)
         try:
-            body = title + "\n" + "\n".join(lines) + "\n\nEntra a OneBox para actualizar su estado o escríbeles."
+            body = title + "\n" + "\n".join(lines) + "\n\n" + (
+                footer or "Entra a OneBox para actualizar su estado o escríbeles.")
             if email:
                 send_notification(recipient=email, message=body, channel="email",
                                   project_id=proj.get("projectId", ""), project_name=proj.get("name", ""))

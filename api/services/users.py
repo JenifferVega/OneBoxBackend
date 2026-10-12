@@ -67,6 +67,46 @@ def _load(uid: str) -> dict:
     return item
 
 
+_EMAIL_UID: dict = {}            # email -> (expires_at, uid or "")
+
+
+def uid_for_email(email: str) -> str:
+    """The Cognito sub of an email, "" for someone without an account. Cached
+    (also the misses, briefly), because reminders ask for every member."""
+    email = (email or "").strip().lower()
+    if not email:
+        return ""
+    hit = _EMAIL_UID.get(email)
+    if hit and hit[0] > time.monotonic():
+        return hit[1]
+    uid = ""
+    try:
+        import boto3
+        pool = os.environ.get("COGNITO_USER_POOL_ID", "us-east-1_b76prubhx")
+        cip = boto3.client("cognito-idp", region_name=os.environ.get("AWS_REGION", "us-east-1"))
+        users = cip.list_users(UserPoolId=pool, Filter=f'email = "{email.replace(chr(34), "")}"',
+                               Limit=1).get("Users", [])
+        for a in (users[0].get("Attributes", []) if users else []):
+            if a.get("Name") == "sub":
+                uid = a.get("Value", "")
+    except Exception as e:
+        print(f"[users] Cognito lookup failed for {email}: {e}")
+    if len(_EMAIL_UID) >= _CACHE_MAX:
+        _EMAIL_UID.pop(next(iter(_EMAIL_UID)), None)
+    _EMAIL_UID[email] = (time.monotonic() + _CACHE_TTL_SECONDS, uid)
+    return uid
+
+
+def language_of(uid: str = "", email: str = "") -> str:
+    """The app language the person CHOSE ('es' / 'en'), or "" when unknown
+    (no account, never chose): callers then keep their own default (usually
+    the project's language), instead of guessing English for a Spanish team."""
+    if not uid and email:
+        uid = uid_for_email(email)
+    lang = (_load(uid).get("language") or "").lower() if uid else ""
+    return lang if lang in SUPPORTED_LANGUAGES else ""
+
+
 def get_settings(uid: str) -> dict:
     """What the frontend shows. `timezone`/`language` are None when the user
     never saved them, so the frontend can tell "not chosen" from "chosen" and

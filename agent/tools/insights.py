@@ -35,6 +35,11 @@ def create_insight(project_id: str, project_name: str, type: str, title: str, de
             'createdAt': now
         }
         insights_table.put_item(Item=item)
+        try:   # the other language, in the background (never blocks)
+            from api.services.insight_i18n import queue_translation
+            queue_translation(item)
+        except Exception:
+            pass
         return {"success": True, "insightId": insight_id, "type": type, "title": title}
     except Exception as e:
         return {"error": str(e)}

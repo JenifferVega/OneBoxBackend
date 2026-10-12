@@ -2,6 +2,7 @@
 from typing import Optional
 
 from agent.tools import insights_table
+from api import i18n
 from api.deps import scan_all_pages
 from api.services.access import accessible_project_ids
 
@@ -131,6 +132,9 @@ def list_insights(uid: str, user_email: str, type: Optional[str] = None) -> list
             'taskId': ins.get('taskId', ''),
             'noteKind': ins.get('noteKind', ''),
             'eventDate': ins.get('eventDate', ''),
+            # {"es": {...}, "en": {...}}: the interface shows the viewer's language.
+            'i18n': i18n.versions(ins, {'title': 'title', 'detected': 'title',
+                                        'description': 'description', 'action': 'description'}),
         })
 
     return enriched

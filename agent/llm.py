@@ -42,12 +42,16 @@ def _gemini_generation_config(temperature: float, max_tokens: int) -> dict:
     """
     cfg = {"temperature": temperature, "maxOutputTokens": max_tokens}
     try:
-        from agent.graph.gemini_adapter import _thinking_budget_for
+        from agent.graph.gemini_adapter import _thinking_budget_for, _thinking_level_for
         budget = _thinking_budget_for(GEMINI_MODEL)
+        level = _thinking_level_for(GEMINI_MODEL)
     except Exception:
-        budget = None
+        budget, level = None, None
     if budget is not None:
         cfg["thinkingConfig"] = {"thinkingBudget": budget}
+    elif level:
+        # Gemini 3+: thinkingBudget=0 is a 400 there; thinkingLevel is the dial.
+        cfg["thinkingConfig"] = {"thinkingLevel": level}
     return cfg
 
 

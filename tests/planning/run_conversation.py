@@ -26,6 +26,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[2]
+import os  # noqa: E402
+os.environ.setdefault("I18N_AUTO", "off")      # no background translation calls in test worlds
 sys.path.insert(0, str(ROOT))
 CONV = Path(__file__).resolve().parent / "conversations"
 

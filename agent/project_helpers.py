@@ -335,7 +335,7 @@ RESPOND ONLY WITH JSON, no extra text or code fences:
             """Helper to create an insight. In dry_run does NOT write to DynamoDB."""
             nonlocal created
             if not dry_run:
-                insights_table.put_item(Item={
+                card = {
                     'userId': user_id,
                     'insightId': f"{datetime.utcnow().isoformat()}#{uuid.uuid4().hex[:8]}",
                     'projectId': project_id,
@@ -345,7 +345,13 @@ RESPOND ONLY WITH JSON, no extra text or code fences:
                     'description': description or '',
                     'status': 'created',
                     'createdAt': datetime.utcnow().isoformat(),
-                })
+                }
+                insights_table.put_item(Item=card)
+                try:   # the other language, in the background (never blocks)
+                    from api.services.insight_i18n import queue_translation
+                    queue_translation(card)
+                except Exception:
+                    pass
             created += 1
 
         def _save_task(item_or_text, task_status, source_label=''):

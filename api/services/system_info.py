@@ -20,7 +20,7 @@ from fastapi import HTTPException
 STARTED_AT = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 # Shown with their values: model routing, never credentials.
-_SHOWN = re.compile(r"^(NODE_LLM_\w+|LLM_\w+|PLANNING_LLM\w*|\w+_MODEL|MODEL_ID|BEDROCK_REGION|OLLAMA_BASE_URL"
+_SHOWN = re.compile(r"^(NODE_LLM_\w+|LLM_\w+|PLANNING_LLM\w*|TRANSLATE_LLM|\w+_MODEL|MODEL_ID|BEDROCK_REGION|OLLAMA_BASE_URL"
                     r"|OLLAMA_THINK|PLANNING_ENGINE|PLANNING_UPLOADS)$")
 _SECRET = re.compile(r"(KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL)", re.I)
 _KEYS = ("ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OLLAMA_API_KEY", "TRELLO_API_KEY", "VIEW_AS_TOKEN")
@@ -32,6 +32,7 @@ _WHAT = {
     "narrator": "Writes the reply to the user",
     "planning": "Replanning chat, uploads and daily consolidation (Intelligence)",
     "documents": "Document analysis, insights, Gmail classification (agent/llm.py)",
+    "translator": "Spanish <-> English translation of stored texts (api/i18n.py)",
 }
 
 
@@ -105,6 +106,23 @@ def _documents() -> dict:
             "source": "LLM_PROVIDER", "fallbacks": [], "warning": None}
 
 
+def _translator() -> dict:
+    from agent.graph import llm_factory as F
+    from api import i18n
+    env = os.environ.get("TRANSLATE_LLM", "").strip()
+    try:
+        provider, model = F._parse_config(env or i18n.TRANSLATE_LLM)
+    except ValueError as e:
+        return {"node": "translator", "what": _WHAT["translator"], "error": str(e)[:300]}
+    provider = provider or F._default_provider()
+    model = model or F._DEFAULT_MODELS.get(provider, "?")
+    ok = F._provider_available(provider)
+    return {"node": "translator", "what": _WHAT["translator"], "provider": provider, "model": model,
+            "source": "TRANSLATE_LLM" if env else "default (api/i18n.py)", "fallbacks": [],
+            "warning": None if ok else f"{provider} has no API key: calls will fail.",
+            "warningCode": "" if ok else "missing_key"}
+
+
 def info(email: str) -> dict:
     if not can_see(email):
         raise HTTPException(status_code=403, detail="Not allowed")
@@ -115,7 +133,7 @@ def info(email: str) -> dict:
         "environment": os.environ.get("APP_ENV") or os.environ.get("ENVIRONMENT") or os.environ.get("ENV") or "",
         "startedAt": STARTED_AT,
         "python": platform.python_version(),
-        "nodes": [_node(n) for n in F.NODE_NAMES] + [_planning(), _documents()],
+        "nodes": [_node(n) for n in F.NODE_NAMES] + [_planning(), _documents(), _translator()],
         "keys": {k: bool(os.environ.get(k)) for k in _KEYS},
         "providers": {p: F._provider_available(p) for p in F.PROVIDERS},
         "env": env,

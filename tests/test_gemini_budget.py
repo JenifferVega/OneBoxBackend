@@ -25,15 +25,29 @@ def check(c, l):
 _src = open("agent/graph/gemini_adapter.py", encoding="utf-8").read()
 _ns = {"os": os, "Optional": __import__("typing").Optional}
 for _n in ast.parse(_src).body:
-    if isinstance(_n, ast.FunctionDef) and _n.name == "_thinking_budget_for":
+    if isinstance(_n, ast.FunctionDef) and _n.name in ("_major", "_thinking_budget_for", "_thinking_level_for"):
         exec(compile(ast.Module([_n], []), "<exec>", "exec"), _ns)
 budget = _ns["_thinking_budget_for"]
+level = _ns["_thinking_level_for"]
 
 os.environ.pop("GEMINI_THINKING_BUDGET", None)
 
 print("=== the default: off where the API allows it ===")
 check(budget("gemini-2.5-flash") == 0, "flash -> 0 (thinking off, whole budget for the answer)")
-check(budget("gemini-3-flash-preview") == 0, "any flash -> 0")
+check(budget("gemini-2.0-flash-lite") == 0, "any 2.x flash -> 0")
+# Gemini 3: thinkingBudget=0 is a 400 INVALID_ARGUMENT on gemini-3.5-flash-lite
+# (scripts/llm-testing/check_gemini_request.py, 2026-10-11): thinkingLevel instead.
+check(budget("gemini-3.5-flash-lite") is None and level("gemini-3.5-flash-lite") == "minimal",
+      "3.x flash -> no budget, thinkingLevel=minimal")
+check(budget("gemini-3.8-flash") is None and level("gemini-3.8-flash") == "minimal", "3.8 flash -> minimal too")
+check(level("gemini-3.8-pro") is None and level("gemini-2.5-flash") is None,
+      "no level on pro models, nor on 2.x (they use the budget)")
+os.environ["GEMINI_THINKING_LEVEL"] = "low"
+check(level("gemini-3.5-flash-lite") == "low", "GEMINI_THINKING_LEVEL wins")
+os.environ.pop("GEMINI_THINKING_LEVEL")
+os.environ["GEMINI_THINKING_BUDGET"] = "512"
+check(level("gemini-3.5-flash-lite") is None, "an explicit budget is never sent together with a level")
+os.environ.pop("GEMINI_THINKING_BUDGET")
 
 print("\n=== and NOT off where it would be rejected ===")
 # 2.5-pro's minimum budget is 128; sending 0 is an API error, so a blanket

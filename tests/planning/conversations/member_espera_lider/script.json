@@ -1,0 +1,73 @@
+{
+  "kind": "member",
+  "title": "OneBox · Jeniffer está detenida por el líder (Santi) y por Meta, pero el login es suyo: ¿a quién se le pregunta y a quién se le avisa?",
+  "today": "2026-06-05",
+  "member": {
+    "name": "Jeniffer",
+    "email": "jenifferf.funezp@gmail.com"
+  },
+  "turns": [
+    {
+      "from": "member",
+      "messages": [
+        "hola",
+        "lo de microsoft está parado, falta la cuenta de azure y eso la tiene que crear santi",
+        "sin eso no puedo avanzar nada"
+      ],
+      "why": "Detenida por el LÍDER (Santi es el dueño del proyecto): no es su paso."
+    },
+    {
+      "from": "member",
+      "messages": [
+        "y lo de la verificación de whatsapp igual, ya mandé los documentos y meta no ha respondido"
+      ],
+      "why": "Detenida por un TERCERO (Meta): tampoco es su paso; el líder maneja esa relación."
+    },
+    {
+      "from": "member",
+      "messages": [
+        "el login lo tengo a medias, me falta el flujo de recuperar contraseña, eso lo termino yo esta semana"
+      ],
+      "why": "Control: esto SÍ es suyo; se le sigue preguntando."
+    },
+    {
+      "from": "member",
+      "messages": [
+        "lo demás sigue igual, eso es todo"
+      ],
+      "expect": {
+        "ai_closes": true
+      }
+    }
+  ],
+  "expect_report": {
+    "items": [
+      {
+        "type": "blocker",
+        "task": "ob-microsoft",
+        "mentions": [["azure"]],
+        "owner": "Santi"
+      },
+      {
+        "type": "blocker",
+        "task": "ob-verificacion",
+        "owner": ["Meta"]
+      }
+    ],
+    "items_absent": [
+      {
+        "type": "blocker",
+        "task": "ob-login",
+        "owner": ["Santi", "Meta", "Jesús", "Eloi"]
+      }
+    ],
+    "plan_unchanged": true
+  },
+  "expect_followup": {
+    "waiting_tasks": ["ob-microsoft", "ob-verificacion"],
+    "responsible_tasks": ["ob-login"],
+    "on_lead_min": 1,
+    "lead_notice_mentions": [["jeniffer"], ["azure", "microsoft", "outlook"], ["meta"]],
+    "lead_notice_absent": [["contraseña"], ["login"]]
+  }
+}

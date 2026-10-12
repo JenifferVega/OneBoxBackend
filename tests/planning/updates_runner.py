@@ -78,7 +78,12 @@ def setup_world(folder: Path, script: dict, trello_fixture: str = ""):
                                          and p.get("email")), {})
     C._owner_email = lambda uid: (owner.get("email") or "").lower()
     C._project_tasks = lambda p: [copy.deepcopy(t) for t in W["tasks"].items.values()]
-    C._notify_owner_outside = lambda pr, title, lines: W["notified"].append(("outside", title, "\n".join(lines)))
+    C._notify_owner_outside = lambda pr, title, lines, *a, **k: W["notified"].append(("outside", title, "\n".join(lines)))
+    # Languages people chose in the app (script "languages": {email | "lead": "en"}); none = unknown.
+    import api.services.users as US
+    langs = {k.lower(): v for k, v in (script.get("languages") or {}).items()}
+    US.language_of = lambda uid="", email="": (langs.get("lead", "") if uid == proj.get("userId")
+                                               else langs.get((email or "").lower(), ""))
     import api.services.planning_live as PL
     PL._notify = lambda owner_uid, pr, title, msg, kind: W["notified"].append((kind, title, msg))
     W["trello_writes"] = []
@@ -209,6 +214,57 @@ def member_conversation(W, folder: Path, script: dict, dry: bool = False) -> dic
     return {"transcript": transcript, "items": items, "finished": finished}
 
 
+def grade_followup(expect: dict, W, script: dict) -> tuple:
+    """After the update: who is responsible for each task now, and what the
+    lead is told (checkin.responsible_tasks / notify_waiting). Returns
+    (fails, answer text for the report)."""
+    import api.services.checkin as C
+    if not expect:
+        return [], ""
+    m = script["member"]
+    proj = W["projects"].items[W["pid"]]
+    tasks = C._project_tasks(W["pid"])
+    mine = next(((p, ts) for p, ts in C.assignments(proj, tasks)
+                 if (m.get("email") and p.get("email") == m["email"].lower())
+                 or norm(p.get("name", "")) == norm(m.get("name", ""))), None)
+    if not mine:
+        return ["the member has no open tasks in the project"], ""
+    person, ts = mine
+    resp, waits, _items = C.responsible_tasks(W["pid"], C.person_key(person), person, ts)
+    resp_ids = [t["taskId"] for t in resp]
+    wait_ids = [w["task_id"] for w in waits]
+    n0 = len(W["notified"])
+    out = C.notify_waiting(send_external=False)
+    notice = "\n".join(f"{t}\n{msg}" for kind, t, msg in W["notified"][n0:] if kind == "waiting_on_owner")
+    fails = []
+    for tid in expect.get("waiting_tasks", []):
+        if not any(_task_ok(w, tid) for w in wait_ids):
+            fails.append(f"{tid} should wait on someone else (member not asked), but the member is still responsible")
+    for tid in expect.get("responsible_tasks", []):
+        if not any(_task_ok(r, tid) for r in resp_ids):
+            fails.append(f"{tid} should still be the member's to report, but it is treated as waiting")
+    if expect.get("lead_notice") is False and notice:
+        fails.append("the lead was notified, expected nothing")
+    if expect.get("lead_notice_mentions") and not notice:
+        fails.append("the lead got no 'waiting on you' notice")
+    # Each entry is a list of ALTERNATIVE words: ["azure", "microsoft"] = either.
+    for alts in expect.get("lead_notice_mentions", []):
+        if notice and not _has(notice, [[w] for w in alts]):
+            fails.append(f"lead notice mentions none of {alts}")
+    for alts in expect.get("lead_notice_absent", []):
+        if notice and _has(notice, [[w] for w in alts]):
+            fails.append(f"lead notice should not mention {alts}")
+    on_lead = sum(p.get("onLead", 0) for p in out.get("projects") or [])
+    if on_lead < expect.get("on_lead_min", 0):
+        fails.append(f"{on_lead} wait(s) on the lead, expected at least {expect['on_lead_min']}")
+    labels = {t["taskId"]: t.get("text", "")[:50] for t in tasks}
+    answer = ("Responsable ahora (se le pregunta): " + (", ".join(labels.get(i, i) for i in resp_ids) or "nada")
+              + "\nEsperando a otro (no se le pregunta): "
+              + (", ".join(f"{labels.get(w['task_id'], w['task_id'])} → {w['owner']}" for w in waits) or "nada")
+              + ("\n\nAviso al líder:\n" + notice if notice else "\n\nAviso al líder: (ninguno)"))
+    return fails, answer
+
+
 def _plan_fingerprint(W) -> str:
     keep = ("text", "status", "dueDate", "assignedTo", "dependsOn", "blockedReason")
     return json.dumps({k: {f: v.get(f) for f in keep} for k, v in W["tasks"].items.items()}, sort_keys=True, default=str)
@@ -225,6 +281,14 @@ def run_member(name: str, folder: Path, script: dict, dry: bool = False) -> dict
     transcript = r["transcript"] + [{"turn": "informe", "messages": [], "seconds": 0, "answer": "",
                                      "items": r["items"], "fails": rep}]
     print(f"  report: {'PASS' if not rep else 'FAIL'} {rep[:3]}", flush=True)
+    if script.get("expect_followup"):
+        try:
+            fu_fails, fu_answer = grade_followup(script["expect_followup"], W, script)
+        except Exception as e:
+            traceback.print_exc()
+            fu_fails, fu_answer = [f"crashed: {e}"], ""
+        transcript.append({"turn": "seguimiento", "messages": [], "seconds": 0, "answer": fu_answer, "fails": fu_fails})
+        print(f"  follow-up: {'PASS' if not fu_fails else 'FAIL'} {fu_fails[:3]}", flush=True)
     passed = sum(1 for t in transcript if not t["fails"])
     result = {"conversation": name, "kind": "member", "turns": len(transcript), "passed": passed,
               "score": round(passed / len(transcript), 3), "report_passed": not rep,

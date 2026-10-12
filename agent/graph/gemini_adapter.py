@@ -175,16 +175,40 @@ def _normalize_schema_for_gemini(raw: dict) -> dict:
     return cleaned
 
 
+def _major(model: str) -> int:
+    """2 for gemini-2.5-flash, 3 for gemini-3.5-flash-lite, 0 if unknown."""
+    import re
+    m = re.match(r"gemini-(\d+)", (model or "").lower())
+    return int(m.group(1)) if m else 0
+
+
 def _thinking_budget_for(model: str) -> Optional[int]:
     """The thinkingBudget to send for this model, or None to send none.
 
-    Env wins. Otherwise 0 (thinking off) on flash, which supports it, and
-    nothing at all on every other model, which may not.
+    Env wins. Otherwise 0 (thinking off) on 2.x flash, which supports it, and
+    nothing at all on every other model, which may not. Gemini 3 models are
+    turned down with thinkingLevel instead (_thinking_level_for):
+    gemini-3.5-flash-lite answers 400 INVALID_ARGUMENT to thinkingBudget=0
+    (scripts/llm-testing/check_gemini_request.py, 2026-10-11).
     """
     env = os.environ.get("GEMINI_THINKING_BUDGET", "").strip()
     if env.lstrip("-").isdigit():
         return int(env)
+    if _major(model) >= 3:
+        return None
     return 0 if "flash" in (model or "").lower() else None
+
+
+def _thinking_level_for(model: str) -> Optional[str]:
+    """The thinkingLevel for Gemini 3+ models: GEMINI_THINKING_LEVEL, else
+    'minimal' (the closest to off) on flash models, else none. Never sent
+    together with a thinkingBudget."""
+    if os.environ.get("GEMINI_THINKING_BUDGET", "").strip().lstrip("-").isdigit():
+        return None
+    env = os.environ.get("GEMINI_THINKING_LEVEL", "").strip().lower()
+    if env:
+        return env
+    return "minimal" if _major(model) >= 3 and "flash" in (model or "").lower() else None
 
 
 class ChatGeminiHTTP(BaseChatModel):
@@ -219,10 +243,13 @@ class ChatGeminiHTTP(BaseChatModel):
     # GEMINI_THINKING_BUDGET overrides both: 0 off, -1 dynamic, or a cap in
     # tokens (0..24576 on flash).
     thinking_budget: Optional[int] = None
+    # Gemini 3+: thinkingLevel instead of a budget (see _thinking_level_for).
+    thinking_level: Optional[str] = None
 
     def model_post_init(self, __context) -> None:
-        if self.thinking_budget is None:
+        if self.thinking_budget is None and self.thinking_level is None:
             self.thinking_budget = _thinking_budget_for(self.model)
+            self.thinking_level = _thinking_level_for(self.model)
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -263,6 +290,9 @@ class ChatGeminiHTTP(BaseChatModel):
         if self.thinking_budget is not None:
             body["generationConfig"]["thinkingConfig"] = {
                 "thinkingBudget": self.thinking_budget}
+        elif self.thinking_level:
+            body["generationConfig"]["thinkingConfig"] = {
+                "thinkingLevel": self.thinking_level}
 
         if not self.api_key:
             raise RuntimeError("GEMINI_API_KEY is not configured")

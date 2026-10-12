@@ -27,7 +27,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from agent.planning.sources import match_person, normalize_participant, norm
-from api.services import checkin, member_updates, planning_chat
+from api.services import checkin, follow_up, member_updates, planning_chat
 
 DONE_LIST_WORDS = ("hecho", "done", "terminad", "completad", "finaliz", "cerrad", "listo")
 DIGEST_HOUR_UTC = int(os.environ.get("UPDATES_DIGEST_HOUR_UTC", "22"))
@@ -222,9 +222,14 @@ def build(proj: dict, tasks: dict, sessions: List[dict], trello: Optional[dict] 
 
     # who owes an update and did not give one
     rep_keys = {s.get("personKey") for s in sessions}
-    not_reported = []
+    not_reported, paused = [], []
     for p, _ts in checkin.assignments(proj, list(tasks.values())):
         if checkin.person_key(p) in rep_keys:
+            continue
+        fu = follow_up.state(proj, checkin.person_key(p))
+        if fu["paused"]:
+            # Not "silent": the owner paused their follow-up.
+            paused.append((p.get("name") or p.get("email")) + (f" (hasta {fu['until']})" if fu["until"] else ""))
             continue
         if owner_name and norm(p.get("name", "")) == norm(owner_name):
             continue
@@ -246,7 +251,7 @@ def build(proj: dict, tasks: dict, sessions: List[dict], trello: Optional[dict] 
     return {"unassigned": [_label(t, 60) for t in unassigned], "strangers": dict(strangers),
             "operations": ops, "notes": notes, "questions": questions, "counts": counts, "urgent": urgent,
             "decisions": decisions, "contradictions": contradictions, "reported": reported,
-            "not_reported": not_reported, "done_lines": done_lines, "other_lines": other_lines,
+            "not_reported": not_reported, "paused": paused, "done_lines": done_lines, "other_lines": other_lines,
             "trello": {"linked_signals": len(tr.get("signals") or []), "unlinked": tr.get("unlinked", 0),
                        "error": tr.get("error", "")}}
 
@@ -257,7 +262,8 @@ def digest_text(proj: dict, tasks: dict, b: dict, today: str) -> str:
         return f" — {_label(t, 50)}" if t else ""
     L = [f"Resumen de updates de {proj.get('name', '')} ({today})"]
     L.append("Reportaron: " + (", ".join(b["reported"]) or "nadie")
-             + (f". No reportaron: {', '.join(b['not_reported'])}" if b["not_reported"] else ""))
+             + (f". No reportaron: {', '.join(b['not_reported'])}" if b["not_reported"] else "")
+             + (f". Seguimiento pausado: {', '.join(b['paused'])}" if b.get("paused") else ""))
     if b["urgent"]:
         L += ["", "URGENTE:"] + [f"• {i['_person']}: {i.get('text', '')}"
                                   + (f" (necesita: {i['owner']})" if i.get("owner") else "") + lab(i) for i in b["urgent"]]

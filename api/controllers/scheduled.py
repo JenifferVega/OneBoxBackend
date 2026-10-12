@@ -85,6 +85,18 @@ def dispatch_pending_notifications(force: bool = False, only: str = "", x_cron_s
                       "checkin_overdue": checkin.notify_overdue(only=only)}
         except Exception as e:
             print(f"[Scheduled] check-in overdue failed: {e}")
+        # ...and leads hear who is stopped waiting on them (instead of nagging the member).
+        try:
+            from api.services import checkin as _ck
+            result = {**result, "waiting_on_owner": _ck.notify_waiting(only=only)}
+        except Exception as e:
+            print(f"[Scheduled] waiting-on-owner failed: {e}")
+        # Insight cards still missing their other language (es/en).
+        try:
+            from api.services import insight_i18n
+            result = {**result, "insight_i18n": insight_i18n.sweep()}
+        except Exception as e:
+            print(f"[Scheduled] insight translation sweep failed: {e}")
         # 'Hora de actualizar': prepared questions by email to whoever is due.
         try:
             from api.services import update_reminders

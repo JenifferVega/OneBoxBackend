@@ -12,6 +12,7 @@ from agent.tools import (
     conversations_table, insights_table, invitations_table,
     notifications_table, projects_table, tasks_table,
 )
+from api import i18n
 from api.deps import scan_all_pages
 
 TEAM_COLORS = [
@@ -325,6 +326,7 @@ def list_projects(uid: str, user_email: str) -> list:
             last_action = {
                 'detected': latest.get('title', ''),
                 'action': latest.get('description', '') or actions_txt,
+                'i18n': i18n.versions(latest, {'detected': 'title', 'action': 'description'}),
             }
 
         ai_actions = []
@@ -336,6 +338,7 @@ def list_projects(uid: str, user_email: str) -> list:
                 'id': ins.get('insightId', ''),
                 'detected': ins.get('title', ''),
                 'executed': ins.get('description', '') or ', '.join(actions_taken),
+                'i18n': i18n.versions(ins, {'detected': 'title', 'executed': 'description'}),
                 'channel': 'IA',
                 'channelIcon': 'email',
                 'time': time_str,
@@ -396,6 +399,9 @@ def list_projects(uid: str, user_email: str) -> list:
             'status': proj.get('status', 'active'),
             'closedNote': proj.get('closedNote', ''),
             'closedAt': proj.get('closedAt', ''),
+            'followUp': _follow_up_view(proj),
+            # A plan proposal waiting for the owner (planning_chat.refresh_pending_marker).
+            'pendingProposal': proj.get('pendingProposal') or None,
             'sla': sla,
             'type': proj.get('type', 'Other'),
             'deliveryDate': proj.get('deliveryDate', ''),
@@ -512,6 +518,11 @@ def ensure_open(proj: dict) -> None:
     if is_closed(proj):
         raise HTTPException(status_code=409,
                             detail="This project is closed (discontinued). The owner can reopen it to make changes.")
+
+
+def _follow_up_view(proj: dict) -> dict:
+    from api.services import follow_up
+    return follow_up.view(proj)
 
 
 def close_project(uid: str, project_id: str, note: str) -> dict:

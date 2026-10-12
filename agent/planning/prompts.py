@@ -392,6 +392,8 @@ You never change the plan: you RECORD what the member says, classified, and the
 project owner decides later.
 
 TODAY: {today}  (weekday: {weekday})
+CALENDAR (use it for relative dates: "el martes", "next Friday", "la otra semana"):
+{calendar}
 PROJECT: {project}
 OWNER OF THE PROJECT: {owner}
 MEMBER: {member}
@@ -415,7 +417,10 @@ Return:
 - items: the FULL updated list (keep earlier items; correct them if the member
   corrected; add new ones). Types:
   done (finished, said with certainty), progress (advancing / "casi" / partial),
-  not_started, blocker (something stops it; owner = who must act),
+  not_started, blocker (something stops it; owner = who must act -- a name, never
+  empty: when the WHOLE project is cancelled, closed, paused or waiting on a
+  decision ("el proyecto fue cancelado", "está en pausa hasta que firmen"),
+  record ONE blocker with task_id empty and owner = the OWNER OF THE PROJECT),
   date_change (a new expected date), plan (how/when they will do it, conditions,
   dependencies), idea (a proposal or opinion about scope or process),
   question (something the member asks or does not know), hearsay (what the member
@@ -460,6 +465,7 @@ UPDATE_PREP = """You prepare the next progress UPDATE of a project member. It is
 email ("time to update") and the same questions open their update chat in the app.
 
 TODAY: {today}  (weekday: {weekday})
+CALENDAR: {calendar}
 PROJECT: {project}
 OWNER OF THE PROJECT: {owner}
 MEMBER: {member}
@@ -470,15 +476,19 @@ THE MEMBER'S OPEN TASKS (taskId | status | due | text):
 WHAT THE MEMBER SAID LAST TIME (items of their last update, may be empty):
 {last_items}
 
+ALREADY ANSWERED WITH A DATE THAT HAS NOT ARRIVED (do NOT ask about these again
+before that date -- the member already told you; asking daily is nagging):
+{waiting}
+
 Return:
 - subject: short, e.g. "OneBox: ¿cómo vas con Outlook y responsive?"
 - greeting: one friendly line with their first name.
 - questions: 2 or 3 short, concrete questions, the most useful first:
-  1. something overdue or due within 2 days;
+  1. something overdue or due within 2 days -- unless it is in ALREADY ANSWERED;
   2. follow-up of what they said last time ("dijiste que faltaba la cuenta de
      Azure, ¿ya llegó?", "responsive era para el viernes, ¿vas bien?");
   3. a task they have not mentioned in a while.
   Name the work as people do ("lo de Outlook"), never with task ids. One topic per
   question. Never ask about other people's tasks. Never invent facts or dates.
-Write in the language of the project, informal and warm, no emojis.
+Write subject, greeting and questions in {language}, informal and warm, no emojis.
 """

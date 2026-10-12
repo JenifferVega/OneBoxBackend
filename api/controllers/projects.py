@@ -149,6 +149,23 @@ def close_project(project_id: str, req: CloseProjectRequest, x_user_id: str = He
     return projects_service.close_project(uid, project_id, req.note)
 
 
+class FollowUpRequest(BaseModel):
+    person: str = "all"          # a participant key (email, or name without email) or "all"
+    paused: bool = True
+    until: str = ""              # YYYY-MM-DD, optional: resumes by itself after that day
+    note: str = ""
+
+
+@router.post("/api/projects/{project_id}/follow-up")
+def set_follow_up(project_id: str, req: FollowUpRequest, x_user_id: str = Header(default=""),
+                  x_user_email: str = Header(default="")):
+    """Pause / resume the status follow-up of one member or the whole team (owner only)."""
+    from api.services import follow_up
+    uid = require_uid(x_user_id)
+    return follow_up.set_pause(uid, (x_user_email or "").lower(), project_id, req.person, req.paused,
+                               req.until, req.note)
+
+
 @router.post("/api/projects/{project_id}/reopen")
 def reopen_project(project_id: str, x_user_id: str = Header(default="")):
     """Reactivate a closed project (owner only)."""

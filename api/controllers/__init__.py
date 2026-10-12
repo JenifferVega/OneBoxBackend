@@ -14,6 +14,7 @@ from api.controllers.model_lab import router as model_lab_router
 from api.controllers.projects import router as projects_router
 from api.controllers.scheduled import router as scheduled_router
 from api.controllers.system import router as system_router
+from api.controllers.team import router as team_router
 from api.controllers.tasks import router as tasks_router
 from api.controllers.trello import router as trello_router
 from api.controllers.users import router as users_router
@@ -39,4 +40,5 @@ all_routers = [
     planning_debug_router,
     model_lab_router,
     system_router,
+    team_router,
 ]

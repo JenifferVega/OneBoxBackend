@@ -1,0 +1,29 @@
+{
+  "kind": "member",
+  "title": "OneBox · Jeniffer dice que el proyecto se canceló: no se le vuelve a preguntar nada y el líder recibe el aviso para cerrarlo",
+  "today": "2026-06-05",
+  "member": {"name": "Jeniffer", "email": "jenifferf.funezp@gmail.com"},
+  "turns": [
+    {
+      "from": "member",
+      "messages": ["hola", "mira, el proyecto quedó cancelado, el cliente se retiró ayer", "así que no voy a seguir con nada de esto"],
+      "why": "Todo el proyecto está detenido: no es una tarea, es una decisión del dueño (cerrarlo)."
+    },
+    {
+      "from": "member",
+      "messages": ["no, nada más, eso es todo"],
+      "expect": {"ai_closes": true}
+    }
+  ],
+  "expect_report": {
+    "items": [
+      {"type": "blocker", "owner": "Santi", "mentions": [["cancel"], ["retir"]]}
+    ],
+    "plan_unchanged": true
+  },
+  "expect_followup": {
+    "waiting_tasks": ["ob-microsoft", "ob-login", "ob-graficos", "ob-responsive"],
+    "on_lead_min": 1,
+    "lead_notice_mentions": [["jeniffer"], ["cancel", "retir"]]
+  }
+}

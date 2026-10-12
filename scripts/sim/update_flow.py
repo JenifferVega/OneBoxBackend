@@ -81,7 +81,9 @@ def cmd_status(a):
     for proj, me, tasks in rows:
         key = checkin.person_key(me)
         st = checkin._state(proj["projectId"], key)
-        d = checkin.due_state(tasks, st, now) if tasks else None
+        resp, waits, items = checkin.responsible_tasks(proj["projectId"], key, me, tasks) if tasks else (tasks, [], [])
+        waiting_dates = checkin.committed(items, now.date())
+        d = checkin.due_state(resp, st, now, None, waiting_dates) if resp else None
         role = "OWNER" if _owner(proj) == a.email else "member"
         print(f"\n== {proj.get('name')}  ({proj['projectId']})  you are: {role}, as '{me.get('name')}'")
         print(f"   open tasks assigned to you: {len(tasks)}")
@@ -98,8 +100,22 @@ def cmd_status(a):
             continue
         print(f"   last report: {st.get('lastReportAt') or 'never'}   reminder email sent: {st.get('reminderSentAt') or 'never'}"
               f"   owner told: {st.get('ownerNotifiedAt') or 'never'}")
-        print(f"   update due now: {'YES' if d['due'] else 'no'} (due at {d['due_at']:%Y-%m-%d %H:%M} UTC"
-              f"{', urgent task' if d['urgent'] else ''})")
+        labels = {t.get("taskId"): (t.get("text") or "")[:60] for t in tasks}
+        print(f"   last update recorded {len(items)} item(s):")
+        for i in items:
+            print(f"     · {i.get('type', '?'):12} task={labels.get(i.get('task_id'), i.get('task_id') or '(none)')!r}"
+                  f" date={i.get('due_date') or '-'} owner={i.get('owner') or '-'}  \"{(i.get('text') or '')[:70]}\"")
+        print("   already answered with a date not reached yet (not asked again): "
+              + (", ".join(labels.get(t, t) for t in waiting_dates) or "none"))
+        print("   waiting on someone else (not asked; the lead is told): "
+              + (", ".join(f"{labels.get(w['task_id'], w['task_id'])} -> "
+                           f"{'owner approval (reported done)' if w.get('kind') == 'approval' else w['owner']}"
+                           for w in waits) or "none"))
+        if not d:
+            print("   update due now: no (every open task waits on someone else)")
+        else:
+            print(f"   update due now: {'YES' if d['due'] else 'no'} (due at {d['due_at']:%Y-%m-%d %H:%M} UTC"
+                  f"{', urgent task' if d['urgent'] else ''})")
         if st.get("prep"):
             prep = json.loads(st["prep"])
             print("   prepared questions: " + " | ".join(prep.get("questions") or []))

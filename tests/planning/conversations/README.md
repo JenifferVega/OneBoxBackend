@@ -19,6 +19,8 @@ write like people: short bursts, nicknames ("Jenny", "Ale", "Clau"), "casi",
 | `member_jenny` | member | "casi", a blocker that depends on the owner (urgent), vague date, an idea, a late "ah y..." |
 | `member_ale` | member | vague start, half report, no dates, a condition, hearsay about someone else's task |
 | `member_eloi` | member | no tasks of his own: ideas and process proposals for the owner |
+| `member_espera_lider` | member + follow-up | stopped by the LEAD (Azure account Santi must create) and by a third party (Meta), plus one task that is hers: who is asked now, and the "waiting on you" notice to the lead |
+| `member_proyecto_cancelado` | member + follow-up | "the project was cancelled": one blocker on the lead (no task), nothing left to ask the member, the lead is told |
 | `member_claudia` | member | BION: abbreviations, a date conditioned on another person, an unanswered question |
 | `consolidate_onebox` | consolidation | Jenny + Ale + Eloi + the Trello board -> urgent alert, contradiction, guard rules, questions, digest; approval written to Trello |
 | `bion_replan_mensaje` | replan | the owner replans with a message only (no attachment) |
@@ -40,6 +42,11 @@ Run: `python tests/planning/run_conversation.py <name> [--dry]` or the MCP tool
  "turns": [{"messages": ["hola! pues bien", "lo de microsoft casi listo"], "expect": {...}}],
  "expect_report": {"items": [...], "items_absent": [...], "plan_unchanged": true}}
 ```
+
+`expect_followup` (optional, after the update): `waiting_tasks` (the member is NOT asked
+about them: someone else must act), `responsible_tasks` (still the member's), `on_lead_min`,
+`lead_notice_mentions` / `lead_notice_absent` (each entry = alternative words), `lead_notice: false`.
+`languages` (top level): `{"<email>" | "lead": "en"}` = the app language each person chose.
 
 Per turn: `ai_asks` (+`ai_asks_min`) keyword groups the AI must ask about,
 `ai_questions_max`, `ai_closes`, `ai_summary_mentions` (+`ai_summary_min`).

@@ -158,7 +158,9 @@ def persist(before: dict, after: dict, proposal: dict, owner_uid: str, now: str,
         if ins.get("insightId") in seen:
             continue
         item = dict(ins, userId=owner_uid, taskId=remap(ins.get("taskId", "")))
-        insights_table.put_item(Item={k: _clean(v) for k, v in item.items()})
+        clean = {k: _clean(v) for k, v in item.items()}
+        insights_table.put_item(Item=clean)
+        _queue_i18n(clean)
         counts["notes"] += 1
     by_id = {t["taskId"]: t for t in new_tasks}
     for i, o in enumerate(proposal.get("operations") or [], 1):
@@ -166,19 +168,30 @@ def persist(before: dict, after: dict, proposal: dict, owner_uid: str, now: str,
             continue
         t = by_id.get(o.get("task_id")) if o.get("op") == "close" else None
         title = o.get("text") or (t or old.get(o.get("task_id"), {})).get("text", "")
-        insights_table.put_item(Item={
+        feed = {
             "userId": owner_uid, "insightId": f"{now}#plan{i:03d}{uuid.uuid4().hex[:4]}",
             "projectId": project_id, "projectName": pname,
             "type": "task_created" if o["op"] == "create" else "work_done",
             "title": title[:300], "description": (o.get("reason") or "")[:500],
             "actionsTaken": ["task_created" if o["op"] == "create" else "task_closed"],
-            "status": "created", "source": "planning", "createdAt": now})
+            "status": "created", "source": "planning", "createdAt": now}
+        insights_table.put_item(Item=feed)
+        _queue_i18n(feed)
 
     proj_after = after.get("project") or {}
     projects_table.update_item(Key={"projectId": project_id},
                                UpdateExpression="SET planVersion = :v, lastActivity = :t",
                                ExpressionAttributeValues={":v": int(proj_after.get("planVersion") or 1), ":t": now})
     return {**counts, "idmap": idmap}
+
+
+def _queue_i18n(item: dict) -> None:
+    """The other language of a new insight card, in the background."""
+    try:
+        from api.services.insight_i18n import queue_translation
+        queue_translation(item)
+    except Exception as e:
+        print(f"[planning_live] i18n queue: {e}")
 
 
 def _log_to_s3(project_id: str, stamp: str, payload: dict) -> str:
@@ -204,7 +217,7 @@ def _notify(owner_uid: str, project: dict, title: str, message: str, ntype: str)
 # ── entry points ────────────────────────────────────────────────────────────
 
 def run_document_planning(project_id: str, owner_uid: str, source_name: str, text: str,
-                          llm=None) -> dict:
+                          llm=None, on_step=None) -> dict:
     """Synchronous: snapshot -> graph -> apply (first plan) or propose. Returns a summary."""
     from agent.planning.runner import run_planning
     from agent.planning.schedule import apply_proposal
@@ -216,7 +229,7 @@ def run_document_planning(project_id: str, owner_uid: str, source_name: str, tex
         if not before:
             return {"ok": False, "reason": "project not found"}
         owner_uid = owner_uid or before["project"].get("userId", "")
-        res = run_planning(before, "document", document=source_name, mode="delta", llm=llm)
+        res = run_planning(before, "document", document=source_name, mode="delta", llm=llm, on_step=on_step)
         proposal = res.get("proposal")
         stamp = datetime.utcnow().isoformat()
         summary: dict = {"ok": True, "operations": 0}
@@ -258,7 +271,7 @@ def run_document_planning(project_id: str, owner_uid: str, source_name: str, tex
                                        proposalId=item["proposalId"], sources=[source_name])
             summary["proposalId"] = item["proposalId"]
             _notify(owner_uid, before["project"], f"Propuesta de plan lista: {source_name}",
-                    planning_chat._describe(proposal) + " Revísala en Intelligence > Replanificación.",
+                    planning_chat._describe(proposal) + " Ábrela desde el proyecto o con el botón Replanificación del chat.",
                     "plan_proposal")
         print(f"[planning_live] {project_id} {source_name}: {json.dumps({k: v for k, v in summary.items() if k != 'idmap'}, default=str)}")
         return summary
@@ -269,12 +282,23 @@ def start_document_planning(project_id: str, owner_uid: str, source_name: str, t
     if not enabled() or not project_id or not (text or "").strip():
         return False
 
+    # Visible in the planning panel like a chat replan: steps while it runs.
+    from api.services import planning_chat
+    job = planning_chat.new_job(project_id, f"upload:{source_name}")
+
+    def step(node):
+        job["step"] = node
+        job["steps"].append(node)
+
     def _job():
         try:
-            run_document_planning(project_id, owner_uid, source_name, text)
+            res = run_document_planning(project_id, owner_uid, source_name, text, on_step=step)
+            job["proposalId"] = res.get("proposalId", "")
+            job["status"] = "done"
         except Exception as e:
             import traceback
             traceback.print_exc()
+            job["status"], job["error"] = "error", str(e)[:300]
             _notify(owner_uid, {"projectId": project_id}, f"No se pudo actualizar el plan con {source_name}",
                     str(e)[:300], "plan_error")
 

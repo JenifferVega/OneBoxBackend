@@ -168,7 +168,7 @@ def send_email(recipient_email: str, subject: str, body: str, project_id: str = 
 
         try:
             insight_id = f"{now}#{uuid.uuid4().hex[:8]}"
-            insights_table.put_item(Item={
+            card = {
                 'userId': _current_uid(),
                 'insightId': insight_id,
                 'projectId': project_id,
@@ -181,7 +181,10 @@ def send_email(recipient_email: str, subject: str, body: str, project_id: str = 
                 'actionsTaken': [f'Sent email: {subject}'],
                 'status': 'executed' if status == 'sent' else 'skipped',
                 'createdAt': now
-            })
+            }
+            insights_table.put_item(Item=card)
+            from api.services.insight_i18n import queue_translation
+            queue_translation(card)
         except Exception:
             pass
 

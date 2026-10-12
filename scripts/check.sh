@@ -9,6 +9,8 @@
 #             network and the LLM faked. A contract check cannot tell you a
 #             function is broken inside; running it can.
 set -uo pipefail
+# Tests never call the real translator (api/services/insight_i18n.py).
+export I18N_AUTO=off
 cd "$(dirname "$0")/.." || exit 1
 fail=0
 bar() { printf '\n\033[1m%s\033[0m\n' "$1"; }
@@ -37,7 +39,7 @@ for t in tests/test_contracts.py tests/test_tool_schemas.py tests/test_smoke_too
          tests/test_invented_ids.py tests/test_gantt_visibility.py \
          tests/test_user_settings.py tests/test_contacts.py \
          tests/test_planning_core.py tests/test_planning_live.py tests/test_checkin.py \
-         tests/test_member_updates.py tests/test_member_rules_and_trello_sync.py ; do
+         tests/test_member_updates.py tests/test_member_rules_and_trello_sync.py tests/test_follow_up.py tests/test_i18n.py tests/test_team.py ; do
   [ -f "$t" ] || continue
   printf '  %s\n' "$t"
   if ! python "$t" > /tmp/onebox_check.log 2>&1 ; then

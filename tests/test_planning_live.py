@@ -154,11 +154,15 @@ check("chat run finishes with a new pending proposal; the previous one is supers
       job["status"] == "done" and props[-1]["status"] == "pending" and props[0]["status"] == "superseded",
       [(p["status"], job["error"]) for p in props])
 pid = props[-1]["proposalId"]
+check("the project carries the 'proposal waiting' marker",
+      (proj_t.items["p1"].get("pendingProposal") or {}).get("proposalId") == pid, proj_t.items["p1"].get("pendingProposal"))
 before_c = dict(tasks_t.items["c"])
 r = PC.decide("own", "lead@x.com", "p1", pid, "approve_all")
 check("approve applies the proposal", r["status"] == "applied" and tasks_t.items["a"]["status"] == "done"
       and "b" not in tasks_t.items, r)
 check("plan version moved", proj_t.items["p1"]["planVersion"] == 4, proj_t.items["p1"])
+check("...and the marker is cleared once it is approved", proj_t.items["p1"].get("pendingProposal") is None,
+      proj_t.items["p1"].get("pendingProposal"))
 tools.tasks_table = tasks_t
 st = PC.get_state("u1", "lead@x.com", "p1")
 check("state lists messages, proposals and what can be reverted", st["revertible"] == pid and st["messages"], st["revertible"])
